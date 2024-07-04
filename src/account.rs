@@ -42,7 +42,7 @@ impl<'client> AccountHandler<'client> {
         }
     }
 
-    pub async fn access_keys(&self) -> anyhow::Result<AccessKeyList> {
+    pub async fn list_keys(&self) -> anyhow::Result<AccessKeyList> {
         let query_response = self
             .client
             .json_rpc_client
@@ -136,5 +136,40 @@ impl<'client> AccountHandler<'client> {
             })
             .try_collect()
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    const TESTNET_ACCOUNT: &str = "yurtur.testnet";
+    const MAINNET_ACCOUTN: &str = "yurturdev.near";
+
+    use crate::{config::Config, Client};
+
+    #[tokio::test]
+    async fn load_account() {
+        let config = Config::default();
+        let client = Client::with_config(config.network_connection["testnet"].clone());
+        let account = client.account(TESTNET_ACCOUNT.parse().unwrap());
+        assert!(account.account().await.is_ok());
+        assert!(account.list_keys().await.is_ok());
+        assert!(account.delegations().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn delegations_fastnear() {
+        let config = Config::default();
+        let mut config = config.network_connection["mainnet"].clone();
+        assert!(config.fastnear_url.is_some());
+        let client = Client::with_config(config.clone());
+
+        let account = client.account(MAINNET_ACCOUTN.parse().unwrap());
+        assert!(account.delegations().await.is_ok());
+
+        config.fastnear_url = None;
+        let client = Client::with_config(config);
+
+        let account = client.account(MAINNET_ACCOUTN.parse().unwrap());
+        assert!(account.delegations().await.is_ok());
     }
 }

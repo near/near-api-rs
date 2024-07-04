@@ -18,9 +18,6 @@ derive_more = "0.99.9"
 easy-ext = "1"
 
 reqwest = { version = "0.12", features = ["blocking", "json"] }
-tokio = { version = "1.0", default-features = false, features = [
-    "rt-multi-thread",
-] }
 futures = "0.3"
 # Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
 openssl = { version = "0.10", features = ["vendored"] }
@@ -86,3 +83,6 @@ interactive-clap = "0.2.10"
 interactive-clap-derive = "0.2.10"
 
 rust_decimal = "1.35.0"
+
+[dev-dependencies]
+tokio = { version = "1.0", default-features = false, features = ["full"] }

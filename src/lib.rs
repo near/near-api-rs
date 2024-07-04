@@ -3,6 +3,7 @@ use near_primitives::types::AccountId;
 
 pub mod account;
 pub mod config;
+pub mod contract;
 pub mod fastnear;
 pub mod stake;
 pub mod types;
@@ -33,5 +34,9 @@ impl Client {
 
     pub fn stake(&self) -> anyhow::Result<stake::StakingHandler> {
         stake::StakingHandler::new(self)
+    }
+
+    pub fn contract(&self, contract_id: AccountId) -> contract::ContractHandler {
+        contract::ContractHandler::new(self, contract_id)
     }
 }
