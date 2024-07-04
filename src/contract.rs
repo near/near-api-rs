@@ -62,7 +62,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn load_account() {
+    async fn fetch_from_contract() {
         let config = Config::default();
         let client = Client::with_config(config.network_connection["testnet"].clone());
         let account = client.contract("race-of-sloths-stage.testnet".parse().unwrap());

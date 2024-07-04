@@ -68,48 +68,18 @@ impl<'client> AccountHandler<'client> {
     }
 
     pub async fn delegation_in_pool(&self, pool: &AccountId) -> anyhow::Result<NearToken> {
-        let account_staked_balance_response = self
+        let (yocto, _): (u128, _) = self
             .client
-            .json_rpc_client
-            .call(near_jsonrpc_client::methods::query::RpcQueryRequest {
-                block_reference: near_primitives::types::Finality::Final.into(),
-                request: near_primitives::views::QueryRequest::CallFunction {
-                    account_id: pool.clone(),
-                    method_name: "get_account_staked_balance".to_string(),
-                    args: near_primitives::types::FunctionArgs::from(serde_json::to_vec(
-                        &serde_json::json!({
-                            "account_id": self.account_id.clone(),
-                        }),
-                    )?),
-                },
-            })
-            .await;
+            .contract(pool.clone())
+            .view(
+                "get_account_staked_balance",
+                serde_json::json!({
+                    "account_id": self.account_id.clone(),
+                }),
+            )
+            .await?;
 
-        match account_staked_balance_response {
-            Ok(response) => {
-                let call_result =
-                    if let near_jsonrpc_primitives::types::query::QueryResponseKind::CallResult(
-                        result,
-                    ) = response.kind
-                    {
-                        result
-                    } else {
-                        bail!("Unexpected response: {:#?}", response);
-                    };
-                let token: String = serde_json::from_slice(&call_result.result)?;
-                let token: u128 = token.parse()?;
-                Ok(NearToken::from_yoctonear(token))
-            }
-            Err(near_jsonrpc_client::errors::JsonRpcError::ServerError(
-                near_jsonrpc_client::errors::JsonRpcServerError::HandlerError(
-                    near_jsonrpc_client::methods::query::RpcQueryError::NoContractCode { .. }
-                    | near_jsonrpc_client::methods::query::RpcQueryError::ContractExecutionError {
-                        ..
-                    },
-                ),
-            )) => Ok(near_token::NearToken::from_yoctonear(0)),
-            Err(err) => Err(err.into()),
-        }
+        Ok(NearToken::from_yoctonear(yocto))
     }
 
     pub async fn delegations(&self) -> anyhow::Result<BTreeMap<AccountId, NearToken>> {
