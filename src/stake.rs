@@ -24,9 +24,7 @@ impl<'client> StakingHandler<'client> {
         })
     }
 
-    pub async fn get_staking_pools_from_staking_pool_factory(
-        &self,
-    ) -> anyhow::Result<std::collections::BTreeSet<AccountId>> {
+    pub async fn staking_pools(&self) -> anyhow::Result<std::collections::BTreeSet<AccountId>> {
         let query_view_method_response = self
             .client
             .json_rpc_client

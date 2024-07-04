@@ -114,13 +114,9 @@ impl<'client> AccountHandler<'client> {
 
     pub async fn delegations(&self) -> anyhow::Result<BTreeMap<AccountId, NearToken>> {
         let validators = if let Ok(fastnear) = self.client.fastnear() {
-            fastnear
-                .fastnear_account_delegation_pools(&self.account_id)
-                .await?
+            fastnear.account_delegated_in(&self.account_id).await?
         } else if let Ok(staking) = self.client.stake() {
-            staking
-                .get_staking_pools_from_staking_pool_factory()
-                .await?
+            staking.staking_pools().await?
         } else {
             bail!("FastNear and Staking pool factory are not set");
         };

@@ -21,7 +21,7 @@ impl<'client> FastNearHandler<'client> {
         })
     }
 
-    pub async fn fastnear_account_delegation_pools(
+    pub async fn account_delegated_in(
         &self,
         account_id: &AccountId,
     ) -> anyhow::Result<BTreeSet<AccountId>> {
