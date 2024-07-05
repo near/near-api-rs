@@ -28,7 +28,7 @@ impl Contract {
             args: near_primitives::types::FunctionArgs::from(args),
         };
 
-        Ok(QueryBuilder::new(request, CallResultHandler::new()))
+        Ok(QueryBuilder::new(request, CallResultHandler::default()))
     }
 }
 

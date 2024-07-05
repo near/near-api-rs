@@ -45,7 +45,7 @@ impl Account {
 
         Ok(QueryBuilder::new(
             request,
-            CallResultHandler::with_postprocess(|balance| NearToken::from_yoctonear(balance)),
+            CallResultHandler::with_postprocess(NearToken::from_yoctonear),
         ))
     }
 

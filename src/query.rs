@@ -64,7 +64,7 @@ where
             })
             .await?;
 
-        Ok(self.handler.process_response(query_response)?)
+        self.handler.process_response(query_response)
     }
 }
 
@@ -91,11 +91,11 @@ where
     }
 }
 
-impl<Response> CallResultHandler<Response, Response>
+impl<Response> Default for CallResultHandler<Response, Response>
 where
     Response: DeserializeOwned,
 {
-    pub fn new() -> Self {
+    fn default() -> Self {
         Self {
             post_process: Box::new(|response| response),
             _phantom: PhantomData,
