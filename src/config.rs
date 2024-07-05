@@ -3,74 +3,6 @@ use std::str::FromStr;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
-    pub credentials_home_dir: std::path::PathBuf,
-    pub network_connection: linked_hash_map::LinkedHashMap<String, NetworkConfig>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        let home_dir = dirs::home_dir().expect("Impossible to get your home dir!");
-        let mut credentials_home_dir = std::path::PathBuf::from(&home_dir);
-        credentials_home_dir.push(".near-credentials");
-
-        let mut network_connection = linked_hash_map::LinkedHashMap::new();
-        network_connection.insert(
-            "mainnet".to_string(),
-            NetworkConfig {
-                network_name: "mainnet".to_string(),
-                rpc_url: "https://archival-rpc.mainnet.near.org".parse().unwrap(),
-                wallet_url: "https://app.mynearwallet.com/".parse().unwrap(),
-                explorer_transaction_url: "https://explorer.near.org/transactions/"
-                    .parse()
-                    .unwrap(),
-                rpc_api_key: None,
-                linkdrop_account_id: Some("near".parse().unwrap()),
-                near_social_db_contract_account_id: Some("social.near".parse().unwrap()),
-                faucet_url: None,
-                meta_transaction_relayer_url: None,
-                fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
-                staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
-                coingecko_url: Some("https://api.coingecko.com/".parse().unwrap()),
-            },
-        );
-        network_connection.insert(
-            "testnet".to_string(),
-            NetworkConfig {
-                network_name: "testnet".to_string(),
-                rpc_url: "https://archival-rpc.testnet.near.org".parse().unwrap(),
-                wallet_url: "https://testnet.mynearwallet.com/".parse().unwrap(),
-                explorer_transaction_url: "https://explorer.testnet.near.org/transactions/"
-                    .parse()
-                    .unwrap(),
-                rpc_api_key: None,
-                linkdrop_account_id: Some("testnet".parse().unwrap()),
-                near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
-                faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
-                meta_transaction_relayer_url: None,
-                fastnear_url: None,
-                staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
-                coingecko_url: None,
-            },
-        );
-
-        Self {
-            credentials_home_dir,
-            network_connection,
-        }
-    }
-}
-
-impl Config {
-    pub fn network_names(&self) -> Vec<String> {
-        self.network_connection
-            .iter()
-            .map(|(_, network_config)| network_config.network_name.clone())
-            .collect()
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NetworkConfig {
     pub network_name: String,
     pub rpc_url: url::Url,
@@ -89,6 +21,42 @@ pub struct NetworkConfig {
 }
 
 impl NetworkConfig {
+    pub fn mainnet() -> Self {
+        Self {
+            network_name: "mainnet".to_string(),
+            rpc_url: "https://archival-rpc.mainnet.near.org".parse().unwrap(),
+            wallet_url: "https://app.mynearwallet.com/".parse().unwrap(),
+            explorer_transaction_url: "https://explorer.near.org/transactions/".parse().unwrap(),
+            rpc_api_key: None,
+            linkdrop_account_id: Some("near".parse().unwrap()),
+            near_social_db_contract_account_id: Some("social.near".parse().unwrap()),
+            faucet_url: None,
+            meta_transaction_relayer_url: None,
+            fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
+            staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
+            coingecko_url: Some("https://api.coingecko.com/".parse().unwrap()),
+        }
+    }
+
+    pub fn testnet() -> Self {
+        NetworkConfig {
+            network_name: "testnet".to_string(),
+            rpc_url: "https://archival-rpc.testnet.near.org".parse().unwrap(),
+            wallet_url: "https://testnet.mynearwallet.com/".parse().unwrap(),
+            explorer_transaction_url: "https://explorer.testnet.near.org/transactions/"
+                .parse()
+                .unwrap(),
+            rpc_api_key: None,
+            linkdrop_account_id: Some("testnet".parse().unwrap()),
+            near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
+            faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
+            meta_transaction_relayer_url: None,
+            fastnear_url: None,
+            staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
+            coingecko_url: None,
+        }
+    }
+
     #[tracing::instrument(name = "Connecting to RPC", skip_all)]
     pub fn json_rpc_client(&self) -> near_jsonrpc_client::JsonRpcClient {
         tracing::Span::current().pb_set_message(self.rpc_url.as_str());

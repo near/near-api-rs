@@ -1,145 +1,96 @@
-use std::collections::BTreeMap;
-
-use anyhow::bail;
-use futures::{StreamExt, TryStreamExt};
-use near_primitives::{
-    types::{AccountId, Finality},
-    views::{AccessKeyList, AccountView},
-};
+use near_primitives::types::AccountId;
 use near_token::NearToken;
 
-pub struct AccountHandler<'client> {
-    client: &'client super::Client,
+use crate::query::{AccessKeyListHandler, AccountViewHandler, CallResultHandler, QueryBuilder};
+
+pub struct Account {
     account_id: AccountId,
 }
 
-impl<'client> AccountHandler<'client> {
-    pub fn new(client: &'client super::Client, account_id: AccountId) -> Self {
-        Self { client, account_id }
+impl Account {
+    pub fn new(account_id: AccountId) -> Self {
+        Self { account_id }
     }
 
-    pub async fn account(&self) -> anyhow::Result<AccountView> {
-        let query_response = self
-            .client
-            .json_rpc_client
-            .call(near_jsonrpc_client::methods::query::RpcQueryRequest {
-                block_reference: near_primitives::types::BlockReference::Finality(Finality::Final),
-                request: near_primitives::views::QueryRequest::ViewAccount {
-                    account_id: self.account_id.clone(),
-                },
-            })
-            .await?;
-
-        if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewAccount(account) =
-            query_response.kind
-        {
-            Ok(account)
-        } else {
-            Err(anyhow::anyhow!(
-                "Unexpected response: {:#?}",
-                query_response
-            ))
-        }
+    pub fn view(&self) -> QueryBuilder<AccountViewHandler> {
+        QueryBuilder::new(
+            near_primitives::views::QueryRequest::ViewAccount {
+                account_id: self.account_id.clone(),
+            },
+            Default::default(),
+        )
     }
 
-    pub async fn list_keys(&self) -> anyhow::Result<AccessKeyList> {
-        let query_response = self
-            .client
-            .json_rpc_client
-            .call(near_jsonrpc_client::methods::query::RpcQueryRequest {
-                block_reference: near_primitives::types::BlockReference::Finality(Finality::Final),
-                request: near_primitives::views::QueryRequest::ViewAccessKeyList {
-                    account_id: self.account_id.clone(),
-                },
-            })
-            .await?;
-
-        if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKeyList(
-            access_key_list,
-        ) = query_response.kind
-        {
-            Ok(access_key_list)
-        } else {
-            Err(anyhow::anyhow!(
-                "Unexpected response: {:#?}",
-                query_response
-            ))
-        }
+    pub fn list_keys(&self) -> QueryBuilder<AccessKeyListHandler> {
+        QueryBuilder::new(
+            near_primitives::views::QueryRequest::ViewAccessKeyList {
+                account_id: self.account_id.clone(),
+            },
+            Default::default(),
+        )
     }
 
-    pub async fn delegation_in_pool(&self, pool: &AccountId) -> anyhow::Result<NearToken> {
-        let (yocto, _): (u128, _) = self
-            .client
-            .contract(pool.clone())
-            .view(
-                "get_account_staked_balance",
-                serde_json::json!({
-                    "account_id": self.account_id.clone(),
-                }),
-            )
-            .await?;
-
-        Ok(NearToken::from_yoctonear(yocto))
-    }
-
-    pub async fn delegations(&self) -> anyhow::Result<BTreeMap<AccountId, NearToken>> {
-        let validators = if let Ok(fastnear) = self.client.fastnear() {
-            fastnear.account_delegated_in(&self.account_id).await?
-        } else if let Ok(staking) = self.client.stake() {
-            staking.staking_pools().await?
-        } else {
-            bail!("FastNear and Staking pool factory are not set");
+    pub async fn delegation_in_pool(
+        &self,
+        pool: AccountId,
+    ) -> anyhow::Result<QueryBuilder<CallResultHandler<u128, NearToken>>> {
+        let args = serde_json::to_vec(&serde_json::json!({
+            "account_id": self.account_id.clone(),
+        }))?;
+        let request = near_primitives::views::QueryRequest::CallFunction {
+            account_id: pool,
+            method_name: "get_account_staked_balance".to_owned(),
+            args: near_primitives::types::FunctionArgs::from(args),
         };
 
-        futures::stream::iter(validators)
-            .map(|validator_account_id| async {
-                let balance = self.delegation_in_pool(&validator_account_id).await?;
-                Ok::<_, anyhow::Error>((validator_account_id, balance))
-            })
-            .buffer_unordered(self.client.concurrency_limit)
-            .filter(|balance_result| {
-                futures::future::ready(if let Ok((_, balance)) = balance_result {
-                    !balance.is_zero()
-                } else {
-                    true
-                })
-            })
-            .try_collect()
-            .await
+        Ok(QueryBuilder::new(
+            request,
+            CallResultHandler::with_postprocess(|balance| NearToken::from_yoctonear(balance)),
+        ))
     }
+
+    // pub async fn delegations(&self) -> anyhow::Result<BTreeMap<AccountId, NearToken>> {
+    //     let validators = if let Ok(fastnear) = self.client.fastnear() {
+    //         fastnear.account_delegated_in(&self.account_id).await?
+    //     } else if let Ok(staking) = self.client.stake() {
+    //         staking.staking_pools().await?
+    //     } else {
+    //         bail!("FastNear and Staking pool factory are not set");
+    //     };
+
+    //     futures::stream::iter(validators)
+    //         .map(|validator_account_id| async {
+    //             let balance = self.delegation_in_pool(&validator_account_id).await?;
+    //             Ok::<_, anyhow::Error>((validator_account_id, balance))
+    //         })
+    //         .buffer_unordered(self.client.concurrency_limit)
+    //         .filter(|balance_result| {
+    //             futures::future::ready(if let Ok((_, balance)) = balance_result {
+    //                 !balance.is_zero()
+    //             } else {
+    //                 true
+    //             })
+    //         })
+    //         .try_collect()
+    //         .await
+    // }
 }
 
 #[cfg(test)]
 mod tests {
-    const TESTNET_ACCOUNT: &str = "yurtur.testnet";
-    const MAINNET_ACCOUTN: &str = "yurturdev.near";
+    use near_primitives::types::BlockReference;
 
-    use crate::{config::Config, Client};
+    const TESTNET_ACCOUNT: &str = "yurtur.testnet";
 
     #[tokio::test]
     async fn load_account() {
-        let config = Config::default();
-        let client = Client::with_config(config.network_connection["testnet"].clone());
-        let account = client.account(TESTNET_ACCOUNT.parse().unwrap());
-        assert!(account.account().await.is_ok());
-        assert!(account.list_keys().await.is_ok());
-        assert!(account.delegations().await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn delegations_fastnear() {
-        let config = Config::default();
-        let mut config = config.network_connection["mainnet"].clone();
-        assert!(config.fastnear_url.is_some());
-        let client = Client::with_config(config.clone());
-
-        let account = client.account(MAINNET_ACCOUTN.parse().unwrap());
-        assert!(account.delegations().await.is_ok());
-
-        config.fastnear_url = None;
-        let client = Client::with_config(config);
-
-        let account = client.account(MAINNET_ACCOUTN.parse().unwrap());
-        assert!(account.delegations().await.is_ok());
+        let account = super::Account::new(TESTNET_ACCOUNT.parse().unwrap());
+        assert!(account
+            .view()
+            .as_of(BlockReference::latest())
+            .fetch_from_testnet()
+            .await
+            .is_ok());
+        assert!(account.list_keys().fetch_from_testnet().await.is_ok());
     }
 }
