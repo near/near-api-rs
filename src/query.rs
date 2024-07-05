@@ -20,8 +20,6 @@ pub struct QueryBuilder<ResponseHandler> {
     block_reference: BlockReference,
     request: QueryRequest,
     handler: ResponseHandler,
-
-    _phantom: PhantomData<ResponseHandler>,
 }
 
 impl<Handler> QueryBuilder<Handler>
@@ -33,7 +31,6 @@ where
             block_reference: Finality::Final.into(),
             request,
             handler,
-            _phantom: PhantomData,
         }
     }
 
