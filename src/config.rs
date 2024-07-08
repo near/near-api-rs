@@ -50,9 +50,7 @@ impl NetworkConfig {
             linkdrop_account_id: Some("testnet".parse().unwrap()),
             near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
             faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
-            meta_transaction_relayer_url: Some(
-                "https://near-testnet.api.pagoda.co/relay".parse().unwrap(),
-            ),
+            meta_transaction_relayer_url: Some("http://localhost:3030/relay".parse().unwrap()),
             fastnear_url: None,
             staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
             coingecko_url: None,

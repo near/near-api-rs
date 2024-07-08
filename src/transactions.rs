@@ -114,6 +114,17 @@ mod tests {
             .await
             .unwrap();
 
-        transaction.sign_meta().await.unwrap().send().await.unwrap();
+        assert_eq!(
+            200,
+            transaction
+                .sign_meta()
+                .await
+                .unwrap()
+                .send()
+                .await
+                .unwrap()
+                .status()
+                .as_u16()
+        )
     }
 }

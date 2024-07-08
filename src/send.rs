@@ -56,7 +56,7 @@ impl SendMetaTransaction {
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
                 self.signed_delegate_action
-            ).to_string()
+            ).to_string(),
         });
         let resp = client
             .post(

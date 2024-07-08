@@ -102,7 +102,7 @@ impl SignSeedPhrase {
             .fetch_from(&self.network)
             .await?;
 
-        self.tr.nonce = Some(response.data.nonce);
+        self.tr.nonce = Some(response.data.nonce + 1);
         self.tr.block_hash = Some(response.block_hash);
         self.tr.block_height = Some(response.block_height);
 
