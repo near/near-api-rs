@@ -1,22 +1,110 @@
 use anyhow::bail;
 use near_primitives::{
-    action::delegate::SignedDelegateAction, transaction::SignedTransaction,
+    action::delegate::SignedDelegateAction,
+    hash::CryptoHash,
+    transaction::SignedTransaction,
+    types::{BlockHeight, Nonce},
     views::FinalExecutionOutcomeView,
 };
 use near_token::NearToken;
 
-use crate::{config::NetworkConfig, signed_delegate_action::SignedDelegateActionAsBase64};
+use crate::{
+    config::NetworkConfig, sign::SignerTrait, signed_delegate_action::SignedDelegateActionAsBase64,
+    transactions::PrepopulateTransaction, META_TRANSACTION_VALID_FOR_DEFAULT,
+};
 
-#[derive(Debug, Clone)]
-pub struct SendSignedTransaction {
-    pub signed_transaction: SignedTransaction,
+pub enum PrepopulatedTrOrSigned<T> {
+    Prepopulated(PrepopulateTransaction),
+    Signed(T),
 }
 
-impl SendSignedTransaction {
-    // TODO: More configurable timeouts and retry policy
+impl<T> PrepopulatedTrOrSigned<T> {
+    pub fn signed(self) -> Option<T> {
+        match self {
+            PrepopulatedTrOrSigned::Signed(tr) => Some(tr),
+            PrepopulatedTrOrSigned::Prepopulated(_) => None,
+        }
+    }
+}
+
+pub struct ExecuteSignedTransaction {
+    pub tr: PrepopulatedTrOrSigned<SignedTransaction>,
+    pub signer: Box<dyn SignerTrait>,
+}
+
+impl ExecuteSignedTransaction {
+    pub fn new(tr: PrepopulateTransaction, signer: Box<dyn SignerTrait>) -> Self {
+        Self {
+            tr: PrepopulatedTrOrSigned::Prepopulated(tr),
+            signer,
+        }
+    }
+
+    pub fn presign_offline(mut self, block_hash: CryptoHash, nonce: Nonce) -> anyhow::Result<Self> {
+        let tr = match &self.tr {
+            PrepopulatedTrOrSigned::Prepopulated(tr) => tr.clone(),
+            PrepopulatedTrOrSigned::Signed(_) => return Ok(self),
+        };
+        let signed_tr = self.signer.sign(tr, nonce, block_hash)?;
+        self.tr = PrepopulatedTrOrSigned::Signed(signed_tr);
+        Ok(self)
+    }
+
+    pub async fn presign_with(self, network: &NetworkConfig) -> anyhow::Result<Self> {
+        let tr = match &self.tr {
+            PrepopulatedTrOrSigned::Prepopulated(tr) => tr,
+            PrepopulatedTrOrSigned::Signed(_) => return Ok(self),
+        };
+
+        let signer_key = self.signer.get_public_key()?;
+        let response = crate::account::Account(tr.signer_id.clone())
+            .access_key(signer_key.clone())
+            .fetch_from(network)
+            .await?;
+        self.presign_offline(response.block_hash, response.data.nonce)
+    }
+
+    pub async fn presign_with_mainnet(self) -> anyhow::Result<Self> {
+        let network = NetworkConfig::mainnet();
+        self.presign_with(&network).await
+    }
+
+    pub async fn presign_with_testnet(self) -> anyhow::Result<Self> {
+        let network = NetworkConfig::testnet();
+        self.presign_with(&network).await
+    }
+
     pub async fn send_to(
         self,
         network: &NetworkConfig,
+    ) -> anyhow::Result<FinalExecutionOutcomeView> {
+        let tr = match self.tr {
+            PrepopulatedTrOrSigned::Prepopulated(_) => self
+                .presign_with(network)
+                .await?
+                .tr
+                .signed()
+                .expect("Signed transaction"),
+            PrepopulatedTrOrSigned::Signed(s) => s,
+        };
+
+        Self::send_impl(network, tr).await
+    }
+
+    pub async fn send_to_mainnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+        let network = NetworkConfig::mainnet();
+        self.send_to(&network).await
+    }
+
+    pub async fn send_to_testnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+        let network = NetworkConfig::testnet();
+        self.send_to(&network).await
+    }
+
+    // TODO: More configurable timeouts and retry policy
+    async fn send_impl(
+        network: &NetworkConfig,
+        signed_tr: SignedTransaction,
     ) -> anyhow::Result<FinalExecutionOutcomeView> {
         let retries_number = 5;
         let mut retries = (1..=retries_number).rev();
@@ -25,7 +113,7 @@ impl SendSignedTransaction {
                 .json_rpc_client()
                 .call(
                     near_jsonrpc_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
-                        signed_transaction: self.signed_transaction.clone(),
+                        signed_transaction: signed_tr.clone(),
                     },
                 )
                 .await;
@@ -47,29 +135,109 @@ impl SendSignedTransaction {
         };
         Ok(transaction_info)
     }
+}
 
-    pub async fn send_to_mainnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+pub struct ExecuteMetaTransaction {
+    pub tr: PrepopulatedTrOrSigned<SignedDelegateAction>,
+    pub signer: Box<dyn SignerTrait>,
+    pub tx_live_for: Option<BlockHeight>,
+}
+
+impl ExecuteMetaTransaction {
+    pub fn new(tr: PrepopulateTransaction, signer: Box<dyn SignerTrait>) -> Self {
+        Self {
+            tr: PrepopulatedTrOrSigned::Prepopulated(tr),
+            signer,
+            tx_live_for: None,
+        }
+    }
+
+    pub fn tx_live_for(mut self, tx_live_for: BlockHeight) -> Self {
+        self.tx_live_for = Some(tx_live_for);
+        self
+    }
+
+    pub fn presign_offline(
+        mut self,
+        block_hash: CryptoHash,
+        nonce: Nonce,
+        block_height: BlockHeight,
+    ) -> anyhow::Result<Self> {
+        let tr = match &self.tr {
+            PrepopulatedTrOrSigned::Prepopulated(tr) => tr.clone(),
+            PrepopulatedTrOrSigned::Signed(_) => return Ok(self),
+        };
+        let max_block_height = block_height
+            + self
+                .tx_live_for
+                .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT);
+        let signed_tr = self
+            .signer
+            .sign_meta(tr, nonce, block_hash, max_block_height)?;
+        self.tr = PrepopulatedTrOrSigned::Signed(signed_tr);
+        Ok(self)
+    }
+
+    pub async fn presign_with(self, network: &NetworkConfig) -> anyhow::Result<Self> {
+        let tr = match &self.tr {
+            PrepopulatedTrOrSigned::Prepopulated(tr) => tr,
+            PrepopulatedTrOrSigned::Signed(_) => return Ok(self),
+        };
+
+        let signer_key = self.signer.get_public_key()?;
+        let response = crate::account::Account(tr.signer_id.clone())
+            .access_key(signer_key.clone())
+            .fetch_from(network)
+            .await?;
+        self.presign_offline(
+            response.block_hash,
+            response.data.nonce,
+            response.block_height,
+        )
+    }
+
+    pub async fn presign_with_mainnet(self) -> anyhow::Result<Self> {
+        let network = NetworkConfig::mainnet();
+        self.presign_with(&network).await
+    }
+
+    pub async fn presign_with_testnet(self) -> anyhow::Result<Self> {
+        let network = NetworkConfig::testnet();
+        self.presign_with(&network).await
+    }
+
+    pub async fn send_to(self, network: &NetworkConfig) -> anyhow::Result<reqwest::Response> {
+        let tr = match self.tr {
+            PrepopulatedTrOrSigned::Prepopulated(_) => self
+                .presign_with(network)
+                .await?
+                .tr
+                .signed()
+                .expect("Signed transaction"),
+            PrepopulatedTrOrSigned::Signed(s) => s,
+        };
+        let transaction_info = Self::send_impl(network, tr).await?;
+        Ok(transaction_info)
+    }
+
+    pub async fn send_to_mainnet(self) -> anyhow::Result<reqwest::Response> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
 
-    pub async fn send_to_testnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+    pub async fn send_to_testnet(self) -> anyhow::Result<reqwest::Response> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct SendMetaTransaction {
-    pub signed_delegate_action: SignedDelegateAction,
-}
-
-impl SendMetaTransaction {
-    pub async fn send_to(self, network: &NetworkConfig) -> anyhow::Result<reqwest::Response> {
+    async fn send_impl(
+        network: &NetworkConfig,
+        tr: SignedDelegateAction,
+    ) -> anyhow::Result<reqwest::Response> {
         let client = reqwest::Client::new();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
-                self.signed_delegate_action
+                tr
             ).to_string(),
         });
         let resp = client
@@ -83,16 +251,6 @@ impl SendMetaTransaction {
             .send()
             .await?;
         Ok(resp)
-    }
-
-    pub async fn send_to_mainnet(self) -> anyhow::Result<reqwest::Response> {
-        let network = NetworkConfig::mainnet();
-        self.send_to(&network).await
-    }
-
-    pub async fn send_to_testnet(self) -> anyhow::Result<reqwest::Response> {
-        let network = NetworkConfig::testnet();
-        self.send_to(&network).await
     }
 }
 
