@@ -41,6 +41,7 @@ indicatif = "0.17.8"
 tracing = "0.1.40"
 tracing-indicatif = "0.3.6"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1.0", default-features = false, features = ["time"] }
 
 wasmparser = "0.211"
 

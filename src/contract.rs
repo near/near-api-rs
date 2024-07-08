@@ -3,15 +3,9 @@ use serde::de::DeserializeOwned;
 
 use crate::query::{CallResultHandler, QueryBuilder};
 
-pub struct Contract {
-    contract_id: AccountId,
-}
+pub struct Contract(pub AccountId);
 
 impl Contract {
-    pub fn new(contract_id: AccountId) -> Self {
-        Self { contract_id }
-    }
-
     pub fn view<Args, Response>(
         &self,
         method_name: &str,
@@ -23,7 +17,7 @@ impl Contract {
     {
         let args = serde_json::to_vec(&args)?;
         let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: self.contract_id.clone(),
+            account_id: self.0.clone(),
             method_name: method_name.to_owned(),
             args: near_primitives::types::FunctionArgs::from(args),
         };
@@ -43,12 +37,13 @@ mod tests {
     #[tokio::test]
     async fn fetch_from_contract() {
         let result: serde_json::Value =
-            crate::contract::Contract::new("race-of-sloths-stage.testnet".parse().unwrap())
+            crate::contract::Contract("race-of-sloths-stage.testnet".parse().unwrap())
                 .view("prs", Paging { limit: 5, page: 1 })
                 .unwrap()
                 .fetch_from_testnet()
                 .await
-                .unwrap();
+                .unwrap()
+                .data;
 
         assert!(result.is_array());
     }

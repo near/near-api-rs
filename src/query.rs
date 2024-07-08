@@ -2,12 +2,19 @@ use std::marker::PhantomData;
 
 use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
-    types::{BlockReference, Finality},
-    views::{AccessKeyList, AccountView, QueryRequest},
+    hash::CryptoHash,
+    types::{BlockHeight, BlockReference},
+    views::{AccessKeyList, AccessKeyView, AccountView, QueryRequest},
 };
 use serde::de::DeserializeOwned;
 
 use crate::config::NetworkConfig;
+
+pub struct Data<T> {
+    pub data: T,
+    pub block_height: BlockHeight,
+    pub block_hash: CryptoHash,
+}
 
 pub trait ResponseHandler {
     type Response;
@@ -28,7 +35,7 @@ where
 {
     pub fn new(request: QueryRequest, handler: Handler) -> Self {
         Self {
-            block_reference: Finality::Final.into(),
+            block_reference: BlockReference::latest(),
             request,
             handler,
         }
@@ -43,15 +50,15 @@ where
 
     pub async fn fetch_from_mainnet(self) -> anyhow::Result<Handler::Response> {
         let network = NetworkConfig::mainnet();
-        self.fetch_from(network).await
+        self.fetch_from(&network).await
     }
 
     pub async fn fetch_from_testnet(self) -> anyhow::Result<Handler::Response> {
         let network = NetworkConfig::testnet();
-        self.fetch_from(network).await
+        self.fetch_from(&network).await
     }
 
-    pub async fn fetch_from(self, network: NetworkConfig) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from(self, network: &NetworkConfig) -> anyhow::Result<Handler::Response> {
         let json_rpc_client = network.json_rpc_client();
 
         let query_response = json_rpc_client
@@ -104,14 +111,18 @@ impl<Response, PostProcessed> ResponseHandler for CallResultHandler<Response, Po
 where
     Response: DeserializeOwned,
 {
-    type Response = PostProcessed;
+    type Response = Data<PostProcessed>;
 
     fn process_response(&self, response: RpcQueryResponse) -> anyhow::Result<Self::Response> {
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::CallResult(result) =
             response.kind
         {
             let raw: Response = serde_json::from_slice(&result.result)?;
-            Ok((self.post_process)(raw))
+            Ok(Data {
+                data: (self.post_process)(raw),
+                block_height: response.block_height,
+                block_hash: response.block_hash,
+            })
         } else {
             Err(anyhow::anyhow!(
                 "Received unexpected query kind in response to a view-function query call"
@@ -124,13 +135,17 @@ where
 pub struct AccountViewHandler;
 
 impl ResponseHandler for AccountViewHandler {
-    type Response = AccountView;
+    type Response = Data<AccountView>;
 
     fn process_response(&self, response: RpcQueryResponse) -> anyhow::Result<Self::Response> {
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewAccount(account) =
             response.kind
         {
-            Ok(account)
+            Ok(Data {
+                data: account,
+                block_height: response.block_height,
+                block_hash: response.block_hash,
+            })
         } else {
             Err(anyhow::anyhow!(
                 "Received unexpected query kind in response to a view-account query call"
@@ -150,6 +165,29 @@ impl ResponseHandler for AccessKeyListHandler {
             response.kind
         {
             Ok(account)
+        } else {
+            Err(anyhow::anyhow!(
+                "Received unexpected query kind in response to a view-account query call"
+            ))
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct AccessKeyHandler;
+
+impl ResponseHandler for AccessKeyHandler {
+    type Response = Data<AccessKeyView>;
+
+    fn process_response(&self, response: RpcQueryResponse) -> anyhow::Result<Self::Response> {
+        if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKey(key) =
+            response.kind
+        {
+            Ok(Data {
+                data: key,
+                block_height: response.block_height,
+                block_hash: response.block_hash,
+            })
         } else {
             Err(anyhow::anyhow!(
                 "Received unexpected query kind in response to a view-account query call"
