@@ -7,17 +7,21 @@ use near_token::NearToken;
 
 use crate::{config::NetworkConfig, signed_delegate_action::SignedDelegateActionAsBase64};
 
+#[derive(Debug, Clone)]
 pub struct SendSignedTransaction {
     pub signed_transaction: SignedTransaction,
-    pub network: NetworkConfig,
 }
 
 impl SendSignedTransaction {
-    pub async fn send(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+    // TODO: More configurable timeouts and retry policy
+    pub async fn send_to(
+        self,
+        network: &NetworkConfig,
+    ) -> anyhow::Result<FinalExecutionOutcomeView> {
         let retries_number = 5;
         let mut retries = (1..=retries_number).rev();
         let transaction_info = loop {
-            let transaction_info_result = self.network
+            let transaction_info_result = network
                 .json_rpc_client()
                 .call(
                     near_jsonrpc_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
@@ -43,15 +47,25 @@ impl SendSignedTransaction {
         };
         Ok(transaction_info)
     }
+
+    pub async fn send_to_mainnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+        let network = NetworkConfig::mainnet();
+        self.send_to(&network).await
+    }
+
+    pub async fn send_to_testnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
+        let network = NetworkConfig::testnet();
+        self.send_to(&network).await
+    }
 }
 
+#[derive(Debug, Clone)]
 pub struct SendMetaTransaction {
     pub signed_delegate_action: SignedDelegateAction,
-    pub network: NetworkConfig,
 }
 
 impl SendMetaTransaction {
-    pub async fn send(self) -> anyhow::Result<reqwest::Response> {
+    pub async fn send_to(self, network: &NetworkConfig) -> anyhow::Result<reqwest::Response> {
         let client = reqwest::Client::new();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
@@ -60,14 +74,25 @@ impl SendMetaTransaction {
         });
         let resp = client
             .post(
-                self.network
+                network
                     .meta_transaction_relayer_url
+                    .clone()
                     .ok_or_else(|| anyhow::anyhow!("Meta transaction relayer URL is not set"))?,
             )
             .json(&json_payload)
             .send()
             .await?;
         Ok(resp)
+    }
+
+    pub async fn send_to_mainnet(self) -> anyhow::Result<reqwest::Response> {
+        let network = NetworkConfig::mainnet();
+        self.send_to(&network).await
+    }
+
+    pub async fn send_to_testnet(self) -> anyhow::Result<reqwest::Response> {
+        let network = NetworkConfig::testnet();
+        self.send_to(&network).await
     }
 }
 

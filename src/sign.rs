@@ -15,20 +15,14 @@ pub struct SignSeedPhrase {
     pub tr: PrepopulateTransaction,
     pub master_seed_phrase: String,
     pub hd_path: BIP32Path,
-    pub network: NetworkConfig,
 }
 
 impl SignSeedPhrase {
-    pub fn new(
-        master_seed_phrase: String,
-        tr: PrepopulateTransaction,
-        network: Option<NetworkConfig>,
-    ) -> Self {
+    pub fn new(master_seed_phrase: String, tr: PrepopulateTransaction) -> Self {
         Self {
             tr,
             master_seed_phrase,
             hd_path: BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
-            network: network.unwrap_or_else(NetworkConfig::mainnet),
         }
     }
 
@@ -44,10 +38,25 @@ impl SignSeedPhrase {
         let signed_transaction =
             near_primitives::transaction::SignedTransaction::new(signature, unsigned_transaction);
 
-        Ok(SendSignedTransaction {
-            signed_transaction,
-            network: self.network,
-        })
+        Ok(SendSignedTransaction { signed_transaction })
+    }
+
+    pub async fn sign_for(
+        mut self,
+        network: &NetworkConfig,
+    ) -> anyhow::Result<SendSignedTransaction> {
+        self.update_network_data(network).await?;
+        self.sign_offline()
+    }
+
+    pub async fn sign_for_mainnet(self) -> anyhow::Result<SendSignedTransaction> {
+        let network = NetworkConfig::mainnet();
+        self.sign_for(&network).await
+    }
+
+    pub async fn sign_for_testnet(self) -> anyhow::Result<SendSignedTransaction> {
+        let network = NetworkConfig::testnet();
+        self.sign_for(&network).await
     }
 
     pub fn sign_offline_meta(self) -> anyhow::Result<SendMetaTransaction> {
@@ -63,32 +72,28 @@ impl SignSeedPhrase {
 
         Ok(SendMetaTransaction {
             signed_delegate_action,
-            network: self.network,
         })
     }
 
-    pub async fn sign(mut self) -> anyhow::Result<SendSignedTransaction> {
-        let key_pair_properties = get_key_pair_properties_from_seed_phrase(
-            self.hd_path.clone(),
-            self.master_seed_phrase.clone(),
-        )?;
-
-        let signer_public_key =
-            near_crypto::PublicKey::from_str(&key_pair_properties.public_key_str)?;
-
-        let response = crate::account::Account(self.tr.signer_id.clone())
-            .access_key(signer_public_key)
-            .fetch_from(&self.network)
-            .await?;
-
-        self.tr.nonce = Some(response.data.nonce + 1);
-        self.tr.block_hash = Some(response.block_hash);
-        self.tr.block_height = Some(response.block_height);
-
-        self.sign_offline()
+    pub async fn sign_meta_for(
+        mut self,
+        network: &NetworkConfig,
+    ) -> anyhow::Result<SendMetaTransaction> {
+        self.update_network_data(network).await?;
+        self.sign_offline_meta()
     }
 
-    pub async fn sign_meta(mut self) -> anyhow::Result<SendMetaTransaction> {
+    pub async fn sign_meta_for_mainnet(self) -> anyhow::Result<SendMetaTransaction> {
+        let network = NetworkConfig::mainnet();
+        self.sign_meta_for(&network).await
+    }
+
+    pub async fn sign_meta_for_testnet(self) -> anyhow::Result<SendMetaTransaction> {
+        let network = NetworkConfig::testnet();
+        self.sign_meta_for(&network).await
+    }
+
+    async fn update_network_data(&mut self, network: &NetworkConfig) -> anyhow::Result<()> {
         let key_pair_properties = get_key_pair_properties_from_seed_phrase(
             self.hd_path.clone(),
             self.master_seed_phrase.clone(),
@@ -98,15 +103,14 @@ impl SignSeedPhrase {
             near_crypto::PublicKey::from_str(&key_pair_properties.public_key_str)?;
 
         let response = crate::account::Account(self.tr.signer_id.clone())
-            .access_key(signer_public_key)
-            .fetch_from(&self.network)
+            .access_key(signer_public_key.clone())
+            .fetch_from(network)
             .await?;
 
         self.tr.nonce = Some(response.data.nonce + 1);
         self.tr.block_hash = Some(response.block_hash);
         self.tr.block_height = Some(response.block_height);
-
-        self.sign_offline_meta()
+        Ok(())
     }
 
     fn unsigned_tx(&self) -> anyhow::Result<(Transaction, SecretKey)> {

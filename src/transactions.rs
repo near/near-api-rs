@@ -4,7 +4,7 @@ use near_primitives::{
     types::{AccountId, BlockHeight, Nonce},
 };
 
-use crate::{config::NetworkConfig, sign::SignSeedPhrase};
+use crate::sign::SignSeedPhrase;
 
 #[derive(Debug, Clone)]
 pub struct PrepopulateTransaction {
@@ -23,7 +23,6 @@ pub struct PrepopulateTransaction {
 
 pub struct ConstructTransaction {
     pub tr: PrepopulateTransaction,
-    pub network: Option<NetworkConfig>,
 }
 
 impl ConstructTransaction {
@@ -38,7 +37,6 @@ impl ConstructTransaction {
                 block_height: None,
                 meta_transaction_valid_for: None,
             },
-            network: None,
         }
     }
 
@@ -62,13 +60,8 @@ impl ConstructTransaction {
         self
     }
 
-    pub fn network(mut self, network: NetworkConfig) -> Self {
-        self.network = Some(network);
-        self
-    }
-
     pub fn with_seed(self, phrase: String) -> SignSeedPhrase {
-        SignSeedPhrase::new(phrase, self.tr, self.network)
+        SignSeedPhrase::new(phrase, self.tr)
     }
 
     pub fn meta_transaction_valid_for(mut self, blocks: BlockHeight) -> Self {
@@ -88,43 +81,42 @@ impl Transaction {
 
 #[cfg(test)]
 mod tests {
-    use near_primitives::action::{Action, TransferAction};
+    use near_primitives::{
+        action::{Action, TransferAction},
+        types::AccountId,
+    };
     use near_token::NearToken;
-
-    use crate::config::NetworkConfig;
 
     #[tokio::test]
     async fn send_transfer() {
-        let signer_id = "yurtur.testnet".to_string().parse().unwrap();
-        let receiver_id = "race-of-sloths.testnet".to_string().parse().unwrap();
+        let signer_id: AccountId = "yurtur.testnet".to_string().parse().unwrap();
+        let receiver_id: AccountId = "race-of-sloths.testnet".to_string().parse().unwrap();
 
-        let transaction = super::Transaction::construct(signer_id, receiver_id)
+        super::Transaction::construct(signer_id.clone(), receiver_id.clone())
             .add_action(Action::Transfer(TransferAction {
                 deposit: NearToken::from_millinear(100u128).as_yoctonear(),
             }))
-            .network(NetworkConfig::testnet())
-            .with_seed(include_str!("../seed_phrase").to_string());
-
-        transaction
-            .clone()
-            .sign()
+            .with_seed(include_str!("../seed_phrase").to_string())
+            .sign_for_testnet()
             .await
             .unwrap()
-            .send()
+            .send_to_testnet()
             .await
-            .unwrap();
+            .unwrap()
+            .assert_success();
 
-        assert_eq!(
-            200,
-            transaction
-                .sign_meta()
-                .await
-                .unwrap()
-                .send()
-                .await
-                .unwrap()
-                .status()
-                .as_u16()
-        )
+        super::Transaction::construct(signer_id, receiver_id)
+            .add_action(Action::Transfer(TransferAction {
+                deposit: NearToken::from_millinear(100u128).as_yoctonear(),
+            }))
+            .with_seed(include_str!("../seed_phrase").to_string())
+            .sign_meta_for_testnet()
+            .await
+            .unwrap()
+            .send_to_testnet()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
     }
 }
