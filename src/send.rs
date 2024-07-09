@@ -129,7 +129,7 @@ impl ExecuteSignedTransaction {
                 }
                 Err(ref err) => match rpc_transaction_error(err) {
                     Ok(_) => {
-                        if retries.next().is_some() {
+                        if let Some(_) = retries.next() {
                             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         } else {
                             bail!(err.to_string());
