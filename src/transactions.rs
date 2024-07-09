@@ -70,10 +70,7 @@ mod tests {
             .add_action(Action::Transfer(TransferAction {
                 deposit: NearToken::from_millinear(100u128).as_yoctonear(),
             }))
-            .signer(Signer::seed_phrase(
-                include_str!("../seed_phrase").to_string(),
-            ))
-            .presign_with_mainnet()
+            .signer(Signer::ledger())
             .send_to_testnet()
             .await
             .unwrap()
@@ -83,11 +80,7 @@ mod tests {
             .add_action(Action::Transfer(TransferAction {
                 deposit: NearToken::from_millinear(100u128).as_yoctonear(),
             }))
-            .meta_signer(Signer::seed_phrase(
-                include_str!("../seed_phrase").to_string(),
-            ))
-            .presign_offline(block_hash, nonce, block_height)
-            .unwrap()
+            .meta_signer(Signer::ledger())
             .send_to_testnet()
             .await
             .unwrap()

@@ -1,12 +1,7 @@
 use std::str::FromStr;
 
 use near_crypto::{PublicKey, SecretKey};
-use near_primitives::{
-    action::delegate::SignedDelegateAction,
-    hash::CryptoHash,
-    transaction::{SignedTransaction, Transaction},
-    types::{BlockHeight, Nonce},
-};
+use near_primitives::{hash::CryptoHash, transaction::Transaction, types::Nonce};
 use slipped10::BIP32Path;
 
 use crate::transactions::PrepopulateTransaction;
@@ -20,28 +15,32 @@ pub struct SeedSigner {
 }
 
 impl SignerTrait for SeedSigner {
-    fn sign_meta(
+    fn unsigned_tx(
         &self,
         tr: PrepopulateTransaction,
+        public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
-        max_block_height: BlockHeight,
-    ) -> anyhow::Result<SignedDelegateAction> {
-        let (unsigned_transaction, signer_secret_key) = self.unsigned_tx(tr, nonce, block_hash)?;
+    ) -> anyhow::Result<(Transaction, SecretKey)> {
+        let key_pair_properties = get_key_pair_properties_from_seed_phrase(
+            self.hd_path.clone(),
+            self.seed_phrase.clone(),
+        )?;
 
-        get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
-    }
+        let signer_secret_key: SecretKey =
+            SecretKey::from_str(&key_pair_properties.secret_keypair_str)?;
 
-    fn sign(
-        &self,
-        tr: PrepopulateTransaction,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> anyhow::Result<SignedTransaction> {
-        let (unsigned_transaction, signer_secret_key) = self.unsigned_tx(tr, nonce, block_hash)?;
-        let signature = signer_secret_key.sign(unsigned_transaction.get_hash_and_size().0.as_ref());
-
-        Ok(SignedTransaction::new(signature, unsigned_transaction))
+        Ok((
+            near_primitives::transaction::Transaction {
+                public_key,
+                block_hash,
+                nonce,
+                signer_id: tr.signer_id.clone(),
+                receiver_id: tr.receiver_id.clone(),
+                actions: tr.actions.clone(),
+            },
+            signer_secret_key,
+        ))
     }
 
     fn get_public_key(&self) -> anyhow::Result<PublicKey> {
@@ -60,34 +59,6 @@ impl SeedSigner {
             seed_phrase,
             hd_path,
         }
-    }
-
-    fn unsigned_tx(
-        &self,
-        tr: PrepopulateTransaction,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> anyhow::Result<(Transaction, SecretKey)> {
-        let key_pair_properties = get_key_pair_properties_from_seed_phrase(
-            self.hd_path.clone(),
-            self.seed_phrase.clone(),
-        )?;
-
-        let signer_secret_key: SecretKey =
-            SecretKey::from_str(&key_pair_properties.secret_keypair_str)?;
-        let signer_public_key = PublicKey::from_str(&key_pair_properties.public_key_str)?;
-
-        Ok((
-            near_primitives::transaction::Transaction {
-                public_key: signer_public_key.clone(),
-                block_hash,
-                nonce,
-                signer_id: tr.signer_id.clone(),
-                receiver_id: tr.receiver_id.clone(),
-                actions: tr.actions.clone(),
-            },
-            signer_secret_key,
-        ))
     }
 }
 
@@ -129,38 +100,4 @@ pub fn get_key_pair_properties_from_seed_phrase(
         secret_keypair_str,
     };
     Ok(key_pair_properties)
-}
-
-pub fn get_signed_delegate_action(
-    unsigned_transaction: Transaction,
-    private_key: SecretKey,
-    max_block_height: u64,
-) -> anyhow::Result<SignedDelegateAction> {
-    use near_primitives::signable_message::{SignableMessage, SignableMessageType};
-
-    let actions = unsigned_transaction
-        .actions
-        .into_iter()
-        .map(near_primitives::action::delegate::NonDelegateAction::try_from)
-        .collect::<Result<_, _>>()
-        .map_err(|_| anyhow::anyhow!("Delegate action can't contain delegate action"))?;
-    let delegate_action = near_primitives::action::delegate::DelegateAction {
-        sender_id: unsigned_transaction.signer_id.clone(),
-        receiver_id: unsigned_transaction.receiver_id,
-        actions,
-        nonce: unsigned_transaction.nonce,
-        max_block_height,
-        public_key: unsigned_transaction.public_key,
-    };
-
-    // create a new signature here signing the delegate action + discriminant
-    let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
-    let signer =
-        near_crypto::InMemorySigner::from_secret_key(unsigned_transaction.signer_id, private_key);
-    let signature = signable.sign(&signer);
-
-    Ok(near_primitives::action::delegate::SignedDelegateAction {
-        delegate_action,
-        signature,
-    })
 }

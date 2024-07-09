@@ -2422,6 +2422,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bip39",
+ "borsh",
  "bs58 0.5.1",
  "bytesize",
  "cargo-util",

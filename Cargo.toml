@@ -9,6 +9,7 @@ description = "The near protocol API that helps to interact with NEAR Protocol"
 
 [dependencies]
 anyhow = "1.0"
+borsh = "1.5"
 async-trait = "0.1"
 inquire = "0.7"
 strum = { version = "0.24", features = ["derive"] }
@@ -84,6 +85,10 @@ interactive-clap = "0.2.10"
 interactive-clap-derive = "0.2.10"
 
 rust_decimal = "1.35.0"
+
+[features]
+default = ["ledger"]
+ledger = ["near-ledger"]
 
 [dev-dependencies]
 tokio = { version = "1.0", default-features = false, features = ["full"] }

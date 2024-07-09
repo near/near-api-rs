@@ -1,4 +1,5 @@
 use anyhow::bail;
+use near_crypto::PublicKey;
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
@@ -40,12 +41,17 @@ impl ExecuteSignedTransaction {
         }
     }
 
-    pub fn presign_offline(mut self, block_hash: CryptoHash, nonce: Nonce) -> anyhow::Result<Self> {
+    pub fn presign_offline(
+        mut self,
+        public_key: PublicKey,
+        block_hash: CryptoHash,
+        nonce: Nonce,
+    ) -> anyhow::Result<Self> {
         let tr = match &self.tr {
             PrepopulatedTrOrSigned::Prepopulated(tr) => tr.clone(),
             PrepopulatedTrOrSigned::Signed(_) => return Ok(self),
         };
-        let signed_tr = self.signer.sign(tr, nonce, block_hash)?;
+        let signed_tr = self.signer.sign(tr, public_key, nonce, block_hash)?;
         self.tr = PrepopulatedTrOrSigned::Signed(signed_tr);
         Ok(self)
     }
@@ -61,7 +67,7 @@ impl ExecuteSignedTransaction {
             .access_key(signer_key.clone())
             .fetch_from(network)
             .await?;
-        self.presign_offline(response.block_hash, response.data.nonce)
+        self.presign_offline(signer_key, response.block_hash, response.data.nonce + 1)
     }
 
     pub async fn presign_with_mainnet(self) -> anyhow::Result<Self> {
@@ -123,7 +129,7 @@ impl ExecuteSignedTransaction {
                 }
                 Err(ref err) => match rpc_transaction_error(err) {
                     Ok(_) => {
-                        if let Some(_) = retries.next() {
+                        if retries.next().is_some() {
                             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         } else {
                             bail!(err.to_string());
@@ -159,6 +165,7 @@ impl ExecuteMetaTransaction {
 
     pub fn presign_offline(
         mut self,
+        public_key: PublicKey,
         block_hash: CryptoHash,
         nonce: Nonce,
         block_height: BlockHeight,
@@ -171,9 +178,9 @@ impl ExecuteMetaTransaction {
             + self
                 .tx_live_for
                 .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT);
-        let signed_tr = self
-            .signer
-            .sign_meta(tr, nonce, block_hash, max_block_height)?;
+        let signed_tr =
+            self.signer
+                .sign_meta(tr, public_key, nonce, block_hash, max_block_height)?;
         self.tr = PrepopulatedTrOrSigned::Signed(signed_tr);
         Ok(self)
     }
@@ -190,8 +197,9 @@ impl ExecuteMetaTransaction {
             .fetch_from(network)
             .await?;
         self.presign_offline(
+            signer_key,
             response.block_hash,
-            response.data.nonce,
+            response.data.nonce + 1,
             response.block_height,
         )
     }
