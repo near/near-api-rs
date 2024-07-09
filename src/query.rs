@@ -4,7 +4,7 @@ use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
     hash::CryptoHash,
     types::{BlockHeight, BlockReference},
-    views::{AccessKeyList, AccessKeyView, AccountView, QueryRequest},
+    views::{AccessKeyList, AccessKeyView, AccountView, QueryRequest, ViewStateResult},
 };
 use serde::de::DeserializeOwned;
 
@@ -191,6 +191,41 @@ impl ResponseHandler for AccessKeyHandler {
         } else {
             Err(anyhow::anyhow!(
                 "Received unexpected query kind in response to a view-account query call"
+            ))
+        }
+    }
+}
+
+pub struct ViewStateHandler<PostProcessed> {
+    post_process: Box<dyn Fn(ViewStateResult) -> PostProcessed + Send + Sync>,
+}
+
+impl<PostProcessed> ViewStateHandler<PostProcessed> {
+    pub fn with_postprocess<F>(post_process: F) -> Self
+    where
+        F: Fn(ViewStateResult) -> PostProcessed + Send + Sync + 'static,
+    {
+        Self {
+            post_process: Box::new(post_process),
+        }
+    }
+}
+
+impl<PostProcessed> ResponseHandler for ViewStateHandler<PostProcessed> {
+    type Response = Data<PostProcessed>;
+
+    fn process_response(&self, response: RpcQueryResponse) -> anyhow::Result<Self::Response> {
+        if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewState(view) =
+            response.kind
+        {
+            Ok(Data {
+                data: (self.post_process)(view),
+                block_height: response.block_height,
+                block_hash: response.block_hash,
+            })
+        } else {
+            Err(anyhow::anyhow!(
+                "Received unexpected query kind in response to a view-state query call"
             ))
         }
     }

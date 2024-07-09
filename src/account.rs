@@ -37,7 +37,7 @@ impl Account {
         )
     }
 
-    pub async fn delegation_in_pool(
+    pub fn delegation_in_pool(
         &self,
         pool: AccountId,
     ) -> anyhow::Result<QueryBuilder<CallResultHandler<u128, NearToken>>> {

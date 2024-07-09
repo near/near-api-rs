@@ -33,7 +33,7 @@ impl NetworkConfig {
             faucet_url: None,
             meta_transaction_relayer_url: None,
             fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
-            staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
+            staking_pools_factory_account_id: Some("pool.near".parse().unwrap()),
             coingecko_url: Some("https://api.coingecko.com/".parse().unwrap()),
         }
     }
