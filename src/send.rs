@@ -28,6 +28,28 @@ impl<T> PrepopulatedTrOrSigned<T> {
     }
 }
 
+impl<T> PrepopulatedTrOrSigned<T>
+where
+    PrepopulateTransaction: From<T>,
+{
+    pub fn prepopulated(self) -> PrepopulateTransaction {
+        match self {
+            PrepopulatedTrOrSigned::Prepopulated(x) => x,
+            PrepopulatedTrOrSigned::Signed(x) => x.into(),
+        }
+    }
+}
+
+impl From<SignedTransaction> for PrepopulateTransaction {
+    fn from(tr: SignedTransaction) -> Self {
+        PrepopulateTransaction {
+            signer_id: tr.transaction.signer_id,
+            receiver_id: tr.transaction.receiver_id,
+            actions: tr.transaction.actions,
+        }
+    }
+}
+
 pub struct ExecuteSignedTransaction {
     pub tr: PrepopulatedTrOrSigned<SignedTransaction>,
     pub signer: Box<dyn SignerTrait>,
@@ -39,6 +61,10 @@ impl ExecuteSignedTransaction {
             tr: PrepopulatedTrOrSigned::Prepopulated(tr),
             signer,
         }
+    }
+
+    pub fn meta(self) -> ExecuteMetaTransaction {
+        ExecuteMetaTransaction::new(self.tr.prepopulated(), self.signer)
     }
 
     pub fn presign_offline(

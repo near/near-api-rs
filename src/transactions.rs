@@ -1,9 +1,6 @@
 use near_primitives::{action::Action, types::AccountId};
 
-use crate::{
-    send::{ExecuteMetaTransaction, ExecuteSignedTransaction},
-    sign::Signer,
-};
+use crate::{send::ExecuteSignedTransaction, sign::Signer};
 
 #[derive(Debug, Clone)]
 pub struct PrepopulateTransaction {
@@ -34,12 +31,8 @@ impl ConstructTransaction {
         self
     }
 
-    pub fn signer(self, signer: Signer) -> ExecuteSignedTransaction {
+    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction {
         ExecuteSignedTransaction::new(self.tr, signer.into())
-    }
-
-    pub fn meta_signer(self, signer: Signer) -> ExecuteMetaTransaction {
-        ExecuteMetaTransaction::new(self.tr, signer.into())
     }
 }
 
@@ -70,7 +63,7 @@ mod tests {
             .add_action(Action::Transfer(TransferAction {
                 deposit: NearToken::from_millinear(100u128).as_yoctonear(),
             }))
-            .signer(Signer::ledger())
+            .with_signer(Signer::ledger())
             .send_to_testnet()
             .await
             .unwrap()
@@ -80,7 +73,8 @@ mod tests {
             .add_action(Action::Transfer(TransferAction {
                 deposit: NearToken::from_millinear(100u128).as_yoctonear(),
             }))
-            .meta_signer(Signer::ledger())
+            .with_signer(Signer::ledger())
+            .meta()
             .send_to_testnet()
             .await
             .unwrap()
