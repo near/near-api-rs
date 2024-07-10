@@ -216,11 +216,29 @@ mod tests {
 
     #[tokio::test]
     async fn exec_contract() {
-        crate::contract::Contract("race-of-sloths-stage.testnet".parse().unwrap())
-            .transact("method", ())
+        crate::contract::Contract("yurtur.testnet".parse().unwrap())
+            .transact(
+                "flip_coin",
+                serde_json::json!({
+                    "player_guess": "tails"
+                }),
+            )
             .unwrap()
             .gas(NearGas::from_tgas(100))
             .construct_tx("yurtur.testnet".parse().unwrap())
+            .with_signer(Signer::seed_phrase(
+                include_str!("../seed_phrase").to_string(),
+            ))
+            .send_to_testnet()
+            .await
+            .unwrap()
+            .assert_success();
+    }
+
+    #[tokio::test]
+    async fn deploy_contract() {
+        crate::contract::Contract("yurtur.testnet".parse().unwrap())
+            .deploy(include_bytes!("../contract_rs.wasm").to_vec())
             .with_signer(Signer::seed_phrase(
                 include_str!("../seed_phrase").to_string(),
             ))
