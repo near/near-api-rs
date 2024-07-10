@@ -249,7 +249,7 @@ mod tests {
             .gas(NearGas::from_tgas(100))
             .with_signer(
                 "yurtur.testnet".parse().unwrap(),
-                Signer::seed_phrase(include_str!("../seed_phrase").to_string()),
+                Signer::seed_phrase(include_str!("../seed_phrase").to_string()).unwrap(),
             )
             .send_to_testnet()
             .await
@@ -262,9 +262,7 @@ mod tests {
         crate::contract::Contract("yurtur.testnet".parse().unwrap())
             .deploy(include_bytes!("../contract_rs.wasm").to_vec())
             .without_init_call()
-            .with_signer(Signer::seed_phrase(
-                include_str!("../seed_phrase").to_string(),
-            ))
+            .with_signer(Signer::seed_phrase(include_str!("../seed_phrase").to_string()).unwrap())
             .send_to_testnet()
             .await
             .unwrap()
