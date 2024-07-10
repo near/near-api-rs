@@ -213,6 +213,14 @@ impl<PostProcessed> ViewStateHandler<PostProcessed> {
     }
 }
 
+impl Default for ViewStateHandler<ViewStateResult> {
+    fn default() -> Self {
+        Self {
+            post_process: Box::new(|response| response),
+        }
+    }
+}
+
 impl<PostProcessed> ResponseHandler for ViewStateHandler<PostProcessed> {
     type Response = Data<PostProcessed>;
 

@@ -1,13 +1,14 @@
 use near_gas::NearGas;
 use near_primitives::{
     action::{Action, DeployContractAction, FunctionCallAction},
-    types::AccountId,
+    types::{AccountId, StoreKey},
+    views::ViewStateResult,
 };
 use near_token::NearToken;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    query::{CallResultHandler, QueryBuilder, ViewCodeHandler},
+    query::{CallResultHandler, QueryBuilder, ViewCodeHandler, ViewStateHandler},
     transactions::{ConstructTransaction, Transaction},
 };
 
@@ -90,6 +91,23 @@ impl Contract {
 
         QueryBuilder::new(request, ViewCodeHandler)
     }
+
+    pub fn view_storage_with_prefix(
+        &self,
+        prefix: Vec<u8>,
+    ) -> QueryBuilder<ViewStateHandler<ViewStateResult>> {
+        let request = near_primitives::views::QueryRequest::ViewState {
+            account_id: self.0.clone(),
+            prefix: StoreKey::from(prefix),
+            include_proof: false,
+        };
+
+        QueryBuilder::new(request, ViewStateHandler::default())
+    }
+
+    pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler<ViewStateResult>> {
+        self.view_storage_with_prefix(vec![])
+    }
 }
 
 pub struct ContractTransactBuilder {
@@ -161,6 +179,10 @@ impl ContractTransactBuilder {
 
 #[cfg(test)]
 mod tests {
+    use near_gas::NearGas;
+
+    use crate::sign::Signer;
+
     #[derive(serde::Serialize)]
     pub struct Paging {
         limit: u32,
@@ -179,5 +201,32 @@ mod tests {
                 .data;
 
         assert!(result.is_array());
+    }
+
+    #[tokio::test]
+    async fn fetch_storage() {
+        let result = crate::contract::Contract("race-of-sloths-stage.testnet".parse().unwrap())
+            .view_storage()
+            .fetch_from_testnet()
+            .await
+            .unwrap();
+
+        println!("{:?}", result.data);
+    }
+
+    #[tokio::test]
+    async fn exec_contract() {
+        crate::contract::Contract("race-of-sloths-stage.testnet".parse().unwrap())
+            .transact("method", ())
+            .unwrap()
+            .gas(NearGas::from_tgas(100))
+            .construct_tx("yurtur.testnet".parse().unwrap())
+            .with_signer(Signer::seed_phrase(
+                include_str!("../seed_phrase").to_string(),
+            ))
+            .send_to_testnet()
+            .await
+            .unwrap()
+            .assert_success();
     }
 }
