@@ -8,6 +8,7 @@ use super::SignerTrait;
 #[derive(Debug, Clone)]
 pub struct SecretKeySigner {
     secret_key: SecretKey,
+    public_key: PublicKey,
 }
 
 impl SignerTrait for SecretKeySigner {
@@ -32,12 +33,16 @@ impl SignerTrait for SecretKeySigner {
     }
 
     fn get_public_key(&self) -> anyhow::Result<PublicKey> {
-        Ok(self.secret_key.public_key())
+        Ok(self.public_key.clone())
     }
 }
 
 impl SecretKeySigner {
     pub fn new(secret_key: SecretKey) -> Self {
-        Self { secret_key }
+        let public_key = secret_key.public_key();
+        Self {
+            secret_key,
+            public_key,
+        }
     }
 }

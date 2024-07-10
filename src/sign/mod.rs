@@ -1,6 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use near_crypto::{PublicKey, SecretKey};
+use near_crypto::{ED25519SecretKey, PublicKey, SecretKey};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
@@ -13,14 +13,12 @@ use crate::transactions::PrepopulateTransaction;
 
 use self::{
     access_keyfile_signer::AccessKeyFileSigner, ledger::LedgerSigner, secret_key::SecretKeySigner,
-    seed_signer::SeedSigner,
 };
 
 pub mod access_keyfile_signer;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
-pub mod seed_signer;
 
 pub trait SignerTrait {
     fn sign_meta(
@@ -63,7 +61,6 @@ pub trait SignerTrait {
 
 #[derive(Debug, Clone)]
 pub enum Signer {
-    SeedPhrase(SeedSigner),
     SecretKey(SecretKeySigner),
     AccessKeyFile(AccessKeyFileSigner),
     #[cfg(feature = "ledger")]
@@ -73,7 +70,6 @@ pub enum Signer {
 impl From<Signer> for Box<dyn SignerTrait> {
     fn from(signer: Signer) -> Self {
         match signer {
-            Signer::SeedPhrase(seed_signer) => Box::new(seed_signer),
             Signer::SecretKey(secret_key) => Box::new(secret_key),
             Signer::AccessKeyFile(access_keyfile_signer) => Box::new(access_keyfile_signer),
             Signer::Ledger(ledger_signer) => Box::new(ledger_signer),
@@ -82,7 +78,7 @@ impl From<Signer> for Box<dyn SignerTrait> {
 }
 
 impl Signer {
-    pub fn seed_phrase(seed_phrase: String) -> Self {
+    pub fn seed_phrase(seed_phrase: String) -> anyhow::Result<Self> {
         Self::seed_phrase_with_hd_path(
             seed_phrase,
             BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
@@ -93,8 +89,12 @@ impl Signer {
         Self::SecretKey(SecretKeySigner::new(secret_key))
     }
 
-    pub fn seed_phrase_with_hd_path(seed_phrase: String, hd_path: BIP32Path) -> Self {
-        Self::SeedPhrase(SeedSigner::new(seed_phrase, hd_path))
+    pub fn seed_phrase_with_hd_path(
+        seed_phrase: String,
+        hd_path: BIP32Path,
+    ) -> anyhow::Result<Self> {
+        let secret_key = get_secret_key_from_seed(hd_path, seed_phrase)?;
+        Ok(Self::SecretKey(SecretKeySigner::new(secret_key)))
     }
 
     pub fn access_keyfile(path: PathBuf) -> Self {
@@ -146,4 +146,22 @@ pub fn get_signed_delegate_action(
         delegate_action,
         signature,
     })
+}
+
+pub fn get_secret_key_from_seed(
+    seed_phrase_hd_path: BIP32Path,
+    master_seed_phrase: String,
+) -> anyhow::Result<SecretKey> {
+    let master_seed = bip39::Mnemonic::parse(&master_seed_phrase)?.to_seed("");
+    let derived_private_key = slipped10::derive_key_from_path(
+        &master_seed,
+        slipped10::Curve::Ed25519,
+        &seed_phrase_hd_path,
+    )
+    .map_err(|err| anyhow::anyhow!("Failed to derive a key from the master key: {}", err))?;
+
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived_private_key.key);
+    let secret_key = ED25519SecretKey(signing_key.to_keypair_bytes());
+
+    Ok(SecretKey::ED25519(secret_key))
 }
