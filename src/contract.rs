@@ -7,7 +7,7 @@ use near_token::NearToken;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    query::{CallResultHandler, QueryBuilder},
+    query::{CallResultHandler, QueryBuilder, ViewCodeHandler},
     transactions::{ConstructTransaction, Transaction},
 };
 
@@ -66,6 +66,29 @@ impl Contract {
             args,
             code,
         ))
+    }
+
+    pub fn abi(&self) -> QueryBuilder<CallResultHandler<Vec<u8>, Option<near_abi::AbiRoot>>> {
+        let request = near_primitives::views::QueryRequest::CallFunction {
+            account_id: self.0.clone(),
+            method_name: "__contract_abi".to_owned(),
+            args: near_primitives::types::FunctionArgs::from(vec![]),
+        };
+
+        QueryBuilder::new(
+            request,
+            CallResultHandler::with_postprocess(|data: Vec<u8>| {
+                serde_json::from_slice(zstd::decode_all(data.as_slice()).ok()?.as_slice()).ok()
+            }),
+        )
+    }
+
+    pub fn wasm(&self) -> QueryBuilder<ViewCodeHandler> {
+        let request = near_primitives::views::QueryRequest::ViewCode {
+            account_id: self.0.clone(),
+        };
+
+        QueryBuilder::new(request, ViewCodeHandler)
     }
 }
 

@@ -4,7 +4,9 @@ use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
     hash::CryptoHash,
     types::{BlockHeight, BlockReference},
-    views::{AccessKeyList, AccessKeyView, AccountView, QueryRequest, ViewStateResult},
+    views::{
+        AccessKeyList, AccessKeyView, AccountView, ContractCodeView, QueryRequest, ViewStateResult,
+    },
 };
 use serde::de::DeserializeOwned;
 
@@ -125,7 +127,7 @@ where
             })
         } else {
             Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-function query call"
+                "Received unexpected query kind in response to a view-call-result query call"
             ))
         }
     }
@@ -167,7 +169,7 @@ impl ResponseHandler for AccessKeyListHandler {
             Ok(account)
         } else {
             Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-account query call"
+                "Received unexpected query kind in response to a view-access-key-list query call"
             ))
         }
     }
@@ -190,7 +192,7 @@ impl ResponseHandler for AccessKeyHandler {
             })
         } else {
             Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-account query call"
+                "Received unexpected query kind in response to a view-access-key query call"
             ))
         }
     }
@@ -226,6 +228,29 @@ impl<PostProcessed> ResponseHandler for ViewStateHandler<PostProcessed> {
         } else {
             Err(anyhow::anyhow!(
                 "Received unexpected query kind in response to a view-state query call"
+            ))
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct ViewCodeHandler;
+
+impl ResponseHandler for ViewCodeHandler {
+    type Response = Data<ContractCodeView>;
+
+    fn process_response(&self, response: RpcQueryResponse) -> anyhow::Result<Self::Response> {
+        if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewCode(code) =
+            response.kind
+        {
+            Ok(Data {
+                data: code,
+                block_height: response.block_height,
+                block_hash: response.block_hash,
+            })
+        } else {
+            Err(anyhow::anyhow!(
+                "Received unexpected query kind in response to a view-code query call"
             ))
         }
     }
