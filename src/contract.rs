@@ -9,64 +9,33 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     query::{CallResultHandler, QueryBuilder, ViewCodeHandler, ViewStateHandler},
+    send::ExecuteSignedTransaction,
+    sign::Signer,
     transactions::{ConstructTransaction, Transaction},
 };
 
 pub struct Contract(pub AccountId);
 
 impl Contract {
-    pub fn view<Args, Response>(
+    pub fn call_function<Args>(
         &self,
         method_name: &str,
         args: Args,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<Response, Response>>>
+    ) -> anyhow::Result<CallFunctionBuilder>
     where
         Args: serde::Serialize,
-        Response: DeserializeOwned,
     {
         let args = serde_json::to_vec(&args)?;
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: self.0.clone(),
-            method_name: method_name.to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
 
-        Ok(QueryBuilder::new(request, CallResultHandler::default()))
-    }
-
-    pub fn transact<Args: Serialize>(
-        &self,
-        method_name: &str,
-        args: Args,
-    ) -> anyhow::Result<ContractTransactBuilder> {
-        let args = serde_json::to_vec(&args)?;
-
-        Ok(ContractTransactBuilder::call(
-            self.0.clone(),
-            method_name.to_owned(),
+        Ok(CallFunctionBuilder {
+            contract: self.0.clone(),
+            method_name: method_name.to_string(),
             args,
-        ))
+        })
     }
 
-    pub fn deploy(&self, code: Vec<u8>) -> ConstructTransaction {
-        Transaction::construct(self.0.clone(), self.0.clone())
-            .add_action(Action::DeployContract(DeployContractAction { code }))
-    }
-
-    pub fn deploy_with_init<Args: Serialize>(
-        &self,
-        code: Vec<u8>,
-        method_name: &str,
-        args: Args,
-    ) -> anyhow::Result<ContractTransactBuilder> {
-        let args = serde_json::to_vec(&args)?;
-
-        Ok(ContractTransactBuilder::deploy_with_init(
-            self.0.clone(),
-            method_name.to_string(),
-            args,
-            code,
-        ))
+    pub fn deploy(&self, code: Vec<u8>) -> DeployContractBuilder {
+        DeployContractBuilder::new(self.0.clone(), code)
     }
 
     pub fn abi(&self) -> QueryBuilder<CallResultHandler<Vec<u8>, Option<near_abi::AbiRoot>>> {
@@ -108,40 +77,91 @@ impl Contract {
     pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler<ViewStateResult>> {
         self.view_storage_with_prefix(vec![])
     }
+
+    pub fn inspect() {
+        todo!()
+    }
+}
+
+pub struct DeployContractBuilder {
+    contract: AccountId,
+    code: Vec<u8>,
+}
+
+impl DeployContractBuilder {
+    pub fn new(contract: AccountId, code: Vec<u8>) -> Self {
+        Self { contract, code }
+    }
+
+    pub fn without_init_call(self) -> ConstructTransaction {
+        Transaction::construct(self.contract.clone(), self.contract.clone()).add_action(
+            Action::DeployContract(DeployContractAction { code: self.code }),
+        )
+    }
+
+    pub fn with_init_call<Args: Serialize>(
+        self,
+        method_name: &str,
+        args: Args,
+    ) -> anyhow::Result<ContractTransactBuilder> {
+        let args = serde_json::to_vec(&args)?;
+
+        Ok(ContractTransactBuilder::new(
+            self.contract,
+            method_name.to_string(),
+            args,
+            Some(Action::DeployContract(DeployContractAction {
+                code: self.code,
+            })),
+        ))
+    }
+}
+
+pub struct CallFunctionBuilder {
+    contract: AccountId,
+    method_name: String,
+    args: Vec<u8>,
+}
+
+impl CallFunctionBuilder {
+    pub fn as_read_only<Response: DeserializeOwned>(
+        self,
+    ) -> QueryBuilder<CallResultHandler<Response, Response>> {
+        let request = near_primitives::views::QueryRequest::CallFunction {
+            account_id: self.contract,
+            method_name: self.method_name,
+            args: near_primitives::types::FunctionArgs::from(self.args),
+        };
+
+        QueryBuilder::new(request, CallResultHandler::default())
+    }
+
+    pub fn as_transaction(self) -> ContractTransactBuilder {
+        ContractTransactBuilder::new(self.contract, self.method_name, self.args, None)
+    }
 }
 
 pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,
-    code: Option<Vec<u8>>,
     args: Vec<u8>,
+    pre_action: Option<Action>,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
 
 impl ContractTransactBuilder {
-    pub fn call(contract: AccountId, method_name: String, args: Vec<u8>) -> Self {
-        Self {
-            contract,
-            method_name,
-            args,
-            code: None,
-            gas: None,
-            deposit: None,
-        }
-    }
-
-    pub fn deploy_with_init(
+    fn new(
         contract: AccountId,
         method_name: String,
         args: Vec<u8>,
-        code: Vec<u8>,
+        pre_action: Option<Action>,
     ) -> Self {
         Self {
             contract,
             method_name,
-            code: Some(code),
             args,
+            pre_action,
             gas: None,
             deposit: None,
         }
@@ -157,13 +177,12 @@ impl ContractTransactBuilder {
         self
     }
 
-    pub fn construct_tx(self, signer_id: AccountId) -> ConstructTransaction {
+    pub fn with_signer(self, signer_id: AccountId, signer: Signer) -> ExecuteSignedTransaction {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
-        let tx: ConstructTransaction = if let Some(code) = self.code {
-            Transaction::construct(signer_id, self.contract)
-                .add_action(Action::DeployContract(DeployContractAction { code }))
+        let tx: ConstructTransaction = if let Some(preaction) = self.pre_action {
+            Transaction::construct(signer_id, self.contract).add_action(preaction)
         } else {
             Transaction::construct(signer_id.clone(), self.contract)
         };
@@ -174,6 +193,7 @@ impl ContractTransactBuilder {
             gas: gas.as_gas(),
             deposit: deposit.as_yoctonear(),
         })))
+        .with_signer(signer)
     }
 }
 
@@ -193,8 +213,9 @@ mod tests {
     async fn fetch_from_contract() {
         let result: serde_json::Value =
             crate::contract::Contract("race-of-sloths-stage.testnet".parse().unwrap())
-                .view("prs", Paging { limit: 5, page: 1 })
+                .call_function("prs", Paging { limit: 5, page: 1 })
                 .unwrap()
+                .as_read_only()
                 .fetch_from_testnet()
                 .await
                 .unwrap()
@@ -217,18 +238,19 @@ mod tests {
     #[tokio::test]
     async fn exec_contract() {
         crate::contract::Contract("yurtur.testnet".parse().unwrap())
-            .transact(
+            .call_function(
                 "flip_coin",
                 serde_json::json!({
                     "player_guess": "tails"
                 }),
             )
             .unwrap()
+            .as_transaction()
             .gas(NearGas::from_tgas(100))
-            .construct_tx("yurtur.testnet".parse().unwrap())
-            .with_signer(Signer::seed_phrase(
-                include_str!("../seed_phrase").to_string(),
-            ))
+            .with_signer(
+                "yurtur.testnet".parse().unwrap(),
+                Signer::seed_phrase(include_str!("../seed_phrase").to_string()),
+            )
             .send_to_testnet()
             .await
             .unwrap()
@@ -239,6 +261,7 @@ mod tests {
     async fn deploy_contract() {
         crate::contract::Contract("yurtur.testnet".parse().unwrap())
             .deploy(include_bytes!("../contract_rs.wasm").to_vec())
+            .without_init_call()
             .with_signer(Signer::seed_phrase(
                 include_str!("../seed_phrase").to_string(),
             ))

@@ -55,32 +55,6 @@ impl Account {
             CallResultHandler::with_postprocess(NearToken::from_yoctonear),
         ))
     }
-
-    // pub async fn delegations(&self) -> anyhow::Result<BTreeMap<AccountId, NearToken>> {
-    //     let validators = if let Ok(fastnear) = self.client.fastnear() {
-    //         fastnear.account_delegated_in(&self.account_id).await?
-    //     } else if let Ok(staking) = self.client.stake() {
-    //         staking.staking_pools().await?
-    //     } else {
-    //         bail!("FastNear and Staking pool factory are not set");
-    //     };
-
-    //     futures::stream::iter(validators)
-    //         .map(|validator_account_id| async {
-    //             let balance = self.delegation_in_pool(&validator_account_id).await?;
-    //             Ok::<_, anyhow::Error>((validator_account_id, balance))
-    //         })
-    //         .buffer_unordered(self.client.concurrency_limit)
-    //         .filter(|balance_result| {
-    //             futures::future::ready(if let Ok((_, balance)) = balance_result {
-    //                 !balance.is_zero()
-    //             } else {
-    //                 true
-    //             })
-    //         })
-    //         .try_collect()
-    //         .await
-    // }
 }
 
 #[cfg(test)]
