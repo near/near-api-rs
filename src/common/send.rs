@@ -59,6 +59,8 @@ impl From<SignedTransaction> for PrepopulateTransaction {
 pub struct ExecuteSignedTransaction<T: Transactionable> {
     pub tr: TransactionableOrSigned<T, SignedTransaction>,
     pub signer: Box<dyn SignerTrait>,
+    pub retries: u8,
+    pub sleep_duration: std::time::Duration,
 }
 
 impl<T: Transactionable> ExecuteSignedTransaction<T> {
@@ -66,11 +68,23 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         Self {
             tr: TransactionableOrSigned::Prepopulated(tr),
             signer,
+            retries: 5,
+            sleep_duration: std::time::Duration::from_secs(1),
         }
     }
 
     pub fn meta(self) -> ExecuteMetaTransaction<T> {
         ExecuteMetaTransaction::new(self.tr.transactionable(), self.signer)
+    }
+
+    pub fn with_retries(mut self, retries: u8) -> Self {
+        self.retries = retries;
+        self
+    }
+
+    pub fn with_sleep_duration(mut self, sleep_duration: std::time::Duration) -> Self {
+        self.sleep_duration = sleep_duration;
+        self
     }
 
     pub fn presign_offline(
@@ -119,6 +133,9 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         self,
         network: &NetworkConfig,
     ) -> anyhow::Result<FinalExecutionOutcomeView> {
+        let sleep_duration = self.sleep_duration;
+        let retries = self.retries;
+
         let (signed, tr) = match self.tr {
             TransactionableOrSigned::Prepopulated(_) => {
                 match self.presign_with(network).await?.tr {
@@ -130,7 +147,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         };
         T::validate_with_network(&tr.prepopulated(), network)?;
 
-        Self::send_impl(network, signed).await
+        Self::send_impl(network, signed, retries, sleep_duration).await
     }
 
     pub async fn send_to_mainnet(self) -> anyhow::Result<FinalExecutionOutcomeView> {
@@ -143,13 +160,13 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         self.send_to(&network).await
     }
 
-    // TODO: More configurable timeouts and retry policy
     async fn send_impl(
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
+        retries: u8,
+        sleep_duration: std::time::Duration,
     ) -> anyhow::Result<FinalExecutionOutcomeView> {
-        let retries_number = 5;
-        let mut retries = (1..=retries_number).rev();
+        let mut retries = (1..=retries).rev();
         let transaction_info = loop {
             let transaction_info_result = network
                 .json_rpc_client()
@@ -166,7 +183,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
                 Err(ref err) => match rpc_transaction_error(err) {
                     Ok(_) => {
                         if retries.next().is_some() {
-                            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                            tokio::time::sleep(sleep_duration).await;
                         } else {
                             bail!(err.to_string());
                         }

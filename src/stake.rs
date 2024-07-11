@@ -8,6 +8,7 @@ use crate::{
     transactions::ConstructTransaction,
 };
 
+// TODO: Would be nice to have aggregated info from staking pool. That would return staked, unstaked, total.
 pub struct Delegation(pub AccountId);
 
 impl Delegation {
