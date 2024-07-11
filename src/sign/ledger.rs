@@ -8,7 +8,6 @@ use near_primitives::{
     transaction::Transaction,
     types::Nonce,
 };
-use serde::Deserialize;
 use slipped10::BIP32Path;
 
 use crate::transactions::PrepopulateTransaction;
@@ -134,10 +133,4 @@ impl SignerTrait for LedgerSigner {
             near_crypto::ED25519PublicKey::from(public_key.to_bytes()),
         ))
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AccountKeyPair {
-    pub public_key: near_crypto::PublicKey,
-    pub private_key: near_crypto::SecretKey,
 }

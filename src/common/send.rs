@@ -128,7 +128,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
             }
             TransactionableOrSigned::Signed((s, tr)) => (s, tr),
         };
-        T::validate_with_network(&tr.prepopulated(), network);
+        T::validate_with_network(&tr.prepopulated(), network)?;
 
         Self::send_impl(network, signed).await
     }
@@ -265,7 +265,7 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
             }
             TransactionableOrSigned::Signed((s, tr)) => (s, tr),
         };
-        T::validate_with_network(&tr.prepopulated(), network);
+        T::validate_with_network(&tr.prepopulated(), network)?;
         let transaction_info = Self::send_impl(network, signed).await?;
         Ok(transaction_info)
     }

@@ -19,7 +19,7 @@ impl<T> SecretBuilder<T> {
         Self { next_step }
     }
 
-    pub fn auto_generate(self) -> AutoGenerateBuilder<T> {
+    pub fn new_keypair(self) -> AutoGenerateBuilder<T> {
         AutoGenerateBuilder {
             next_step: self.next_step,
             master_seed_phrase: None,
@@ -27,6 +27,11 @@ impl<T> SecretBuilder<T> {
             hd_path: None,
             passphrase: None,
         }
+    }
+
+    pub fn use_keypair_from(self, signer: Signer) -> anyhow::Result<T> {
+        let pk: PublicKey = signer.as_signer().get_public_key()?;
+        (self.next_step)(pk)
     }
 }
 
@@ -60,7 +65,7 @@ impl<T> AutoGenerateBuilder<T> {
         self
     }
 
-    pub fn with_seed_phrase(self) -> anyhow::Result<(String, T)> {
+    pub fn generate_seed_phrase(self) -> anyhow::Result<(String, T)> {
         let master_seed_phrase =
             if let Some(master_seed_phrase) = self.master_seed_phrase.as_deref() {
                 master_seed_phrase.to_owned()
@@ -82,21 +87,21 @@ impl<T> AutoGenerateBuilder<T> {
         Ok((master_seed_phrase, (self.next_step)(pk)?))
     }
 
-    pub fn with_secret_key(self) -> anyhow::Result<(SecretKey, T)> {
+    pub fn generate_secret_key(self) -> anyhow::Result<(SecretKey, T)> {
         let hd_path = self
             .hd_path
             .clone()
             .unwrap_or(DEFAULT_HD_PATH.parse().expect("Valid HD path"));
         let passphrase = self.passphrase.clone();
-        let (seed_phrase, next) = self.with_seed_phrase()?;
+        let (seed_phrase, next) = self.generate_seed_phrase()?;
 
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, passphrase)?;
 
         Ok((secret_key, next))
     }
 
-    pub fn save_to_file(self, path: PathBuf) -> anyhow::Result<T> {
-        let (seed, next) = self.with_seed_phrase()?;
+    pub fn save_generated_seed_to_file(self, path: PathBuf) -> anyhow::Result<T> {
+        let (seed, next) = self.generate_seed_phrase()?;
         std::fs::write(path, seed)?;
         Ok(next)
     }

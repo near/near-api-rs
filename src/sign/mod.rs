@@ -1,5 +1,9 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
+use anyhow::Context;
 use near_crypto::{ED25519SecretKey, PublicKey, SecretKey};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
@@ -7,6 +11,7 @@ use near_primitives::{
     transaction::{SignedTransaction, Transaction},
     types::{BlockHeight, Nonce},
 };
+use serde::Deserialize;
 use slipped10::BIP32Path;
 
 use crate::transactions::PrepopulateTransaction;
@@ -19,6 +24,20 @@ pub mod access_keyfile_signer;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AccountKeyPair {
+    pub public_key: near_crypto::PublicKey,
+    pub private_key: near_crypto::SecretKey,
+}
+
+impl AccountKeyPair {
+    fn load_access_key_file(path: &Path) -> anyhow::Result<AccountKeyPair> {
+        let data = std::fs::read_to_string(path).context("Access key file not found!")?;
+        serde_json::from_str(&data)
+            .with_context(|| format!("Error reading data from file: {:?}", &path))
+    }
+}
 
 pub trait SignerTrait {
     fn sign_meta(
@@ -72,6 +91,7 @@ impl From<Signer> for Box<dyn SignerTrait> {
         match signer {
             Signer::SecretKey(secret_key) => Box::new(secret_key),
             Signer::AccessKeyFile(access_keyfile_signer) => Box::new(access_keyfile_signer),
+            #[cfg(feature = "ledger")]
             Signer::Ledger(ledger_signer) => Box::new(ledger_signer),
         }
     }
@@ -108,8 +128,8 @@ impl Signer {
         Ok(Self::SecretKey(SecretKeySigner::new(secret_key)))
     }
 
-    pub fn access_keyfile(path: PathBuf) -> Self {
-        Self::AccessKeyFile(AccessKeyFileSigner::new(path))
+    pub fn access_keyfile(path: PathBuf) -> anyhow::Result<Self> {
+        Ok(Self::AccessKeyFile(AccessKeyFileSigner::new(path)?))
     }
 
     #[cfg(feature = "ledger")]
@@ -165,7 +185,7 @@ pub fn get_secret_key_from_seed(
     password: Option<String>,
 ) -> anyhow::Result<SecretKey> {
     let master_seed =
-        bip39::Mnemonic::parse(&master_seed_phrase)?.to_seed(password.unwrap_or_default());
+        bip39::Mnemonic::parse(master_seed_phrase)?.to_seed(password.unwrap_or_default());
     let derived_private_key = slipped10::derive_key_from_path(
         &master_seed,
         slipped10::Curve::Ed25519,

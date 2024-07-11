@@ -326,8 +326,8 @@ mod tests {
                 "yurtur.testnet".parse().unwrap(),
                 NearToken::from_millinear(100),
             )
-            .auto_generate()
-            .save_to_file("account_seed".into())
+            .new_keypair()
+            .save_generated_seed_to_file("account_seed".into())
             .unwrap()
             .with_signer(
                 Signer::seed_phrase(include_str!("../seed_phrase").to_string(), None).unwrap(),
@@ -342,8 +342,8 @@ mod tests {
         let account: AccountId = "humblebee.testnet".parse().unwrap();
         let (key, tx) = super::Account::create_account()
             .sponsor_by_faucet_service(account.clone())
-            .auto_generate()
-            .with_secret_key()
+            .new_keypair()
+            .generate_secret_key()
             .unwrap();
 
         tx.send_to_testnet_faucet()
@@ -365,8 +365,8 @@ mod tests {
     async fn implicit() {
         let _ = super::Account::create_account()
             .implicit()
-            .auto_generate()
-            .save_to_file("account_seed".into())
+            .new_keypair()
+            .save_generated_seed_to_file("account_seed".into())
             .unwrap();
     }
 }
