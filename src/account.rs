@@ -88,7 +88,10 @@ impl Account {
         )
     }
 
-    pub fn delete_account(&self, beneficiary_id: AccountId) -> ConstructTransaction {
+    pub fn delete_account_with_beneficiary(
+        &self,
+        beneficiary_id: AccountId,
+    ) -> ConstructTransaction {
         ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(
             near_primitives::transaction::Action::DeleteAccount(
                 near_primitives::transaction::DeleteAccountAction { beneficiary_id },
@@ -296,7 +299,7 @@ impl AddKeyBuilder {
 
 #[cfg(test)]
 mod tests {
-    use near_primitives::types::BlockReference;
+    use near_primitives::types::{AccountId, BlockReference};
     use near_token::NearToken;
 
     use crate::sign::Signer;
@@ -319,7 +322,7 @@ mod tests {
     async fn create_account() {
         super::Account::create_account()
             .fund_myself(
-                "smile.yurtur.tesnet".parse().unwrap(),
+                "hahasdasdas.testnet".parse().unwrap(),
                 "yurtur.testnet".parse().unwrap(),
                 NearToken::from_millinear(100),
             )
@@ -336,19 +339,31 @@ mod tests {
 
     #[tokio::test]
     async fn faucet() {
-        let response = super::Account::create_account()
-            .sponsor_by_faucet_service("smile.yurtur.tesnet".parse().unwrap())
+        let account: AccountId = "humblebee.testnet".parse().unwrap();
+        let (key, tx) = super::Account::create_account()
+            .sponsor_by_faucet_service(account.clone())
             .auto_generate()
-            .save_to_file("account_seed".into())
-            .unwrap()
-            .send_to_testnet_faucet()
-            .await
+            .with_secret_key()
             .unwrap();
+
+        tx.send_to_testnet_faucet()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+
+        super::Account(account)
+            .delete_account_with_beneficiary(TESTNET_ACCOUNT.parse().unwrap())
+            .with_signer(Signer::secret_key(key))
+            .send_to_testnet()
+            .await
+            .unwrap()
+            .assert_success();
     }
 
     #[tokio::test]
     async fn implicit() {
-        let public_key = super::Account::create_account()
+        let _ = super::Account::create_account()
             .implicit()
             .auto_generate()
             .save_to_file("account_seed".into())
