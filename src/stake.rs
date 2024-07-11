@@ -1,6 +1,6 @@
 use near_primitives::types::AccountId;
 
-use crate::query::{QueryBuilder, ViewStateHandler};
+use crate::common::query::{QueryBuilder, ViewStateHandler};
 
 pub struct Staking {}
 

@@ -78,10 +78,20 @@ impl From<Signer> for Box<dyn SignerTrait> {
 }
 
 impl Signer {
-    pub fn seed_phrase(seed_phrase: String) -> anyhow::Result<Self> {
+    pub fn as_signer(&self) -> &dyn SignerTrait {
+        match self {
+            Signer::SecretKey(secret_key) => secret_key,
+            Signer::AccessKeyFile(access_keyfile_signer) => access_keyfile_signer,
+            #[cfg(feature = "ledger")]
+            Signer::Ledger(ledger_signer) => ledger_signer,
+        }
+    }
+
+    pub fn seed_phrase(seed_phrase: String, password: Option<String>) -> anyhow::Result<Self> {
         Self::seed_phrase_with_hd_path(
             seed_phrase,
             BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
+            password,
         )
     }
 
@@ -92,8 +102,9 @@ impl Signer {
     pub fn seed_phrase_with_hd_path(
         seed_phrase: String,
         hd_path: BIP32Path,
+        password: Option<String>,
     ) -> anyhow::Result<Self> {
-        let secret_key = get_secret_key_from_seed(hd_path, seed_phrase)?;
+        let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
         Ok(Self::SecretKey(SecretKeySigner::new(secret_key)))
     }
 
@@ -151,8 +162,10 @@ pub fn get_signed_delegate_action(
 pub fn get_secret_key_from_seed(
     seed_phrase_hd_path: BIP32Path,
     master_seed_phrase: String,
+    password: Option<String>,
 ) -> anyhow::Result<SecretKey> {
-    let master_seed = bip39::Mnemonic::parse(&master_seed_phrase)?.to_seed("");
+    let master_seed =
+        bip39::Mnemonic::parse(&master_seed_phrase)?.to_seed(password.unwrap_or_default());
     let derived_private_key = slipped10::derive_key_from_path(
         &master_seed,
         slipped10::Curve::Ed25519,

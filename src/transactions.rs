@@ -1,6 +1,10 @@
 use near_primitives::{action::Action, types::AccountId};
 
-use crate::{send::ExecuteSignedTransaction, sign::Signer};
+use crate::{
+    common::send::{ExecuteSignedTransaction, Transactionable},
+    config::NetworkConfig,
+    sign::Signer,
+};
 
 #[derive(Debug, Clone)]
 pub struct PrepopulateTransaction {
@@ -9,8 +13,17 @@ pub struct PrepopulateTransaction {
     pub actions: Vec<Action>,
 }
 
-#[derive(Debug, Clone)]
+pub struct TransactionWithSign<T: Transactionable> {
+    pub tx: T,
+}
 
+impl<T: Transactionable> TransactionWithSign<T> {
+    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction<T> {
+        ExecuteSignedTransaction::new(self.tx, signer.into())
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ConstructTransaction {
     pub tr: PrepopulateTransaction,
 }
@@ -31,8 +44,27 @@ impl ConstructTransaction {
         self
     }
 
-    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction {
-        ExecuteSignedTransaction::new(self.tr, signer.into())
+    pub fn add_actions(mut self, action: Vec<Action>) -> Self {
+        self.tr.actions.extend(action);
+        self
+    }
+
+    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction<Self> {
+        ExecuteSignedTransaction::new(self, signer.into())
+    }
+}
+
+impl Transactionable for ConstructTransaction {
+    fn prepopulated(&self) -> PrepopulateTransaction {
+        PrepopulateTransaction {
+            signer_id: self.tr.signer_id.clone(),
+            receiver_id: self.tr.receiver_id.clone(),
+            actions: self.tr.actions.clone(),
+        }
+    }
+
+    fn validate_with_network(_: &PrepopulateTransaction, _: &NetworkConfig) -> anyhow::Result<()> {
+        Ok(())
     }
 }
 
@@ -41,6 +73,20 @@ pub struct Transaction;
 impl Transaction {
     pub fn construct(signer_id: AccountId, receiver_id: AccountId) -> ConstructTransaction {
         ConstructTransaction::new(signer_id, receiver_id)
+    }
+
+    pub fn sign_transaction(
+        unsigned_tx: near_primitives::transaction::Transaction,
+        signer: Signer,
+    ) -> anyhow::Result<ExecuteSignedTransaction<ConstructTransaction>> {
+        ConstructTransaction::new(unsigned_tx.signer_id, unsigned_tx.receiver_id)
+            .add_actions(unsigned_tx.actions)
+            .with_signer(signer)
+            .presign_offline(
+                unsigned_tx.public_key,
+                unsigned_tx.block_hash,
+                unsigned_tx.nonce,
+            )
     }
 }
 
