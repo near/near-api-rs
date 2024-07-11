@@ -19,8 +19,8 @@ impl<T> SecretBuilder<T> {
         Self { next_step }
     }
 
-    pub fn new_keypair(self) -> AutoGenerateBuilder<T> {
-        AutoGenerateBuilder {
+    pub fn new_keypair(self) -> GenerateKeypairBuilder<T> {
+        GenerateKeypairBuilder {
             next_step: self.next_step,
             master_seed_phrase: None,
             word_count: None,
@@ -35,7 +35,7 @@ impl<T> SecretBuilder<T> {
     }
 }
 
-pub struct AutoGenerateBuilder<T> {
+pub struct GenerateKeypairBuilder<T> {
     next_step: Box<SecretCallback<T>>,
 
     pub master_seed_phrase: Option<String>,
@@ -44,7 +44,7 @@ pub struct AutoGenerateBuilder<T> {
     pub passphrase: Option<String>,
 }
 
-impl<T> AutoGenerateBuilder<T> {
+impl<T> GenerateKeypairBuilder<T> {
     pub fn master_seed_phrase(mut self, master_seed_phrase: String) -> Self {
         self.master_seed_phrase = Some(master_seed_phrase);
         self
