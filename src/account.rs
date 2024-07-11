@@ -12,9 +12,7 @@ use serde_json::json;
 use url::Url;
 
 use crate::common::{
-    query::{
-        AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, CallResultHandler, QueryBuilder,
-    },
+    query::{AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder},
     secret::SecretBuilder,
 };
 use crate::{
@@ -54,25 +52,6 @@ impl Account {
         )
     }
 
-    pub fn delegation_in_pool(
-        &self,
-        pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<u128, NearToken>>> {
-        let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0.clone(),
-        }))?;
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: pool,
-            method_name: "get_account_staked_balance".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
-
-        Ok(QueryBuilder::new(
-            request,
-            CallResultHandler::with_postprocess(NearToken::from_yoctonear),
-        ))
-    }
-
     pub fn add_key(&self, access_key: AccessKeyPermission) -> AddKeyBuilder {
         AddKeyBuilder {
             account_id: self.0.clone(),
@@ -86,6 +65,19 @@ impl Account {
                 public_key,
             })),
         )
+    }
+
+    pub fn delete_keys(&self, public_keys: Vec<PublicKey>) -> ConstructTransaction {
+        let actions = public_keys
+            .into_iter()
+            .map(|public_key| {
+                near_primitives::transaction::Action::DeleteKey(Box::new(DeleteKeyAction {
+                    public_key,
+                }))
+            })
+            .collect();
+
+        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_actions(actions)
     }
 
     pub fn delete_account_with_beneficiary(

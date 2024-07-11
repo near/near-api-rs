@@ -184,6 +184,11 @@ impl ContractTransactBuilder {
         signer_id: AccountId,
         signer: Signer,
     ) -> ExecuteSignedTransaction<ConstructTransaction> {
+        self.with_signer_account(signer_id).with_signer(signer)
+    }
+
+    // Re-used by stake.rs as we do have extra signer_id context, but we don't need there a signer
+    pub(crate) fn with_signer_account(self, signer_id: AccountId) -> ConstructTransaction {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
@@ -199,7 +204,6 @@ impl ContractTransactBuilder {
             gas: gas.as_gas(),
             deposit: deposit.as_yoctonear(),
         })))
-        .with_signer(signer)
     }
 }
 
