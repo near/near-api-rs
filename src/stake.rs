@@ -3,10 +3,14 @@ use near_primitives::types::AccountId;
 use near_token::NearToken;
 
 use crate::{
-    common::query::{CallResultHandler, QueryBuilder, ViewStateHandler},
+    common::query::{CallResultHandler, Data, PostprocessHandler, QueryBuilder, ViewStateHandler},
     contract::Contract,
     transactions::ConstructTransaction,
 };
+
+fn near_data_to_near_token(data: Data<u128>) -> NearToken {
+    NearToken::from_yoctonear(data.data)
+}
 
 // TODO: Would be nice to have aggregated info from staking pool. That would return staked, unstaked, total.
 pub struct Delegation(pub AccountId);
@@ -15,7 +19,7 @@ impl Delegation {
     pub fn view_staked_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<u128, NearToken>>> {
+    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -27,14 +31,17 @@ impl Delegation {
 
         Ok(QueryBuilder::new(
             request,
-            CallResultHandler::with_postprocess(NearToken::from_yoctonear),
+            PostprocessHandler::new(
+                CallResultHandler::default(),
+                Box::new(near_data_to_near_token),
+            ),
         ))
     }
 
     pub fn view_unstaked_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<u128, NearToken>>> {
+    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -46,14 +53,17 @@ impl Delegation {
 
         Ok(QueryBuilder::new(
             request,
-            CallResultHandler::with_postprocess(NearToken::from_yoctonear),
+            PostprocessHandler::new(
+                CallResultHandler::default(),
+                Box::new(near_data_to_near_token),
+            ),
         ))
     }
 
     pub fn view_total_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<u128, NearToken>>> {
+    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -65,14 +75,17 @@ impl Delegation {
 
         Ok(QueryBuilder::new(
             request,
-            CallResultHandler::with_postprocess(NearToken::from_yoctonear),
+            PostprocessHandler::new(
+                CallResultHandler::default(),
+                Box::new(near_data_to_near_token),
+            ),
         ))
     }
 
     pub fn is_account_unstaked_balance_available_for_withdrawal(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<bool, bool>>> {
+    ) -> anyhow::Result<QueryBuilder<CallResultHandler<bool>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -187,7 +200,8 @@ impl Staking {
     pub fn staking_pools(
         &self,
         factory: AccountId,
-    ) -> QueryBuilder<ViewStateHandler<std::collections::BTreeSet<AccountId>>> {
+    ) -> QueryBuilder<PostprocessHandler<std::collections::BTreeSet<AccountId>, ViewStateHandler>>
+    {
         let request = near_primitives::views::QueryRequest::ViewState {
             account_id: factory,
             prefix: near_primitives::types::StoreKey::from(b"se".to_vec()),
@@ -196,8 +210,9 @@ impl Staking {
 
         QueryBuilder::new(
             request,
-            ViewStateHandler::with_postprocess(|query_result| {
+            PostprocessHandler::new(ViewStateHandler, |query_result| {
                 query_result
+                    .data
                     .values
                     .into_iter()
                     .flat_map(|item| String::from_utf8(item.value.into()))
@@ -230,7 +245,7 @@ mod tests {
             .await
             .unwrap();
 
-        for pool in pools.data.iter() {
+        for pool in pools.iter() {
             println!("{}", pool);
         }
     }

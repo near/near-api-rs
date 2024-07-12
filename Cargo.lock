@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "Inflector"
+version = "0.11.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
+
+[[package]]
 name = "actix"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2055,8 +2061,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7295a8d03a71e15612a524a8e1dec1a913459e0000e530405f20d09fb0f014f7"
 dependencies = [
  "interactive-clap-derive",
- "strum",
- "strum_macros",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
 ]
 
 [[package]]
@@ -2439,6 +2445,7 @@ dependencies = [
  "keyring",
  "linked-hash-map",
  "near-abi",
+ "near-contract-standards",
  "near-crypto",
  "near-gas",
  "near-jsonrpc-client",
@@ -2460,8 +2467,8 @@ dependencies = [
  "shellexpand",
  "slipped10",
  "smart-default 0.7.1",
- "strum",
- "strum_macros",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
  "textwrap",
  "thiserror",
  "tokio",
@@ -2540,6 +2547,15 @@ dependencies = [
  "json_comments",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "near-contract-standards"
+version = "5.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b7682ed5a41e8818518808b2e263b5f482ae7b9b37fff1df5383beb888bbed8"
+dependencies = [
+ "near-sdk",
 ]
 
 [[package]]
@@ -2681,7 +2697,7 @@ dependencies = [
  "serde",
  "serde_repr",
  "serde_yaml",
- "strum",
+ "strum 0.24.1",
  "thiserror",
 ]
 
@@ -2738,7 +2754,7 @@ dependencies = [
  "serde_with",
  "sha3",
  "smart-default 0.6.0",
- "strum",
+ "strum 0.24.1",
  "thiserror",
  "tracing",
  "zstd",
@@ -2787,6 +2803,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "near-sdk"
+version = "5.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "951ac0ba9c90e4ed6e927914d2ecee3d8ae2d74e794656b5ca42a992bd370863"
+dependencies = [
+ "base64 0.21.7",
+ "borsh",
+ "bs58 0.5.1",
+ "near-account-id",
+ "near-gas",
+ "near-sdk-macros",
+ "near-sys",
+ "near-token",
+ "once_cell",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "near-sdk-macros"
+version = "5.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa2d758ff2701e7a53292a9dc2eeede6ed648574456c14f2464bf0a3ba047be3"
+dependencies = [
+ "Inflector",
+ "darling",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
+ "syn 2.0.68",
+]
+
+[[package]]
 name = "near-socialdb-client"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2808,6 +2860,12 @@ name = "near-stdx"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29e1897481272eb144328abd51ca9f59b5b558e7a6dc6e2177c8c9bb18fbd818"
+
+[[package]]
+name = "near-sys"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbf4ca5c805cb78700e10e43484902d8da05f25788db277999d209568aaf4c8e"
 
 [[package]]
 name = "near-time"
@@ -4339,8 +4397,14 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.24.3",
 ]
+
+[[package]]
+name = "strum"
+version = "0.26.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 
 [[package]]
 name = "strum_macros"
@@ -4353,6 +4417,19 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.26.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.68",
 ]
 
 [[package]]

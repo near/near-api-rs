@@ -1,15 +1,19 @@
+use std::marker::PhantomData;
+
 use near_gas::NearGas;
 use near_primitives::{
     action::{Action, DeployContractAction, FunctionCallAction},
     types::{AccountId, StoreKey},
-    views::ViewStateResult,
 };
 use near_token::NearToken;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     common::{
-        query::{CallResultHandler, QueryBuilder, ViewCodeHandler, ViewStateHandler},
+        query::{
+            CallResultHandler, Data, PostprocessHandler, QueryBuilder, ViewCodeHandler,
+            ViewStateHandler,
+        },
         send::ExecuteSignedTransaction,
     },
     sign::Signer,
@@ -40,7 +44,10 @@ impl Contract {
         DeployContractBuilder::new(self.0.clone(), code)
     }
 
-    pub fn abi(&self) -> QueryBuilder<CallResultHandler<Vec<u8>, Option<near_abi::AbiRoot>>> {
+    pub fn abi(
+        &self,
+    ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
+    {
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: self.0.clone(),
             method_name: "__contract_abi".to_owned(),
@@ -49,9 +56,13 @@ impl Contract {
 
         QueryBuilder::new(
             request,
-            CallResultHandler::with_postprocess(|data: Vec<u8>| {
-                serde_json::from_slice(zstd::decode_all(data.as_slice()).ok()?.as_slice()).ok()
-            }),
+            PostprocessHandler::new(
+                CallResultHandler::default(),
+                Box::new(|data: Data<Vec<u8>>| {
+                    serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice())
+                        .ok()
+                }),
+            ),
         )
     }
 
@@ -63,20 +74,17 @@ impl Contract {
         QueryBuilder::new(request, ViewCodeHandler)
     }
 
-    pub fn view_storage_with_prefix(
-        &self,
-        prefix: Vec<u8>,
-    ) -> QueryBuilder<ViewStateHandler<ViewStateResult>> {
+    pub fn view_storage_with_prefix(&self, prefix: Vec<u8>) -> QueryBuilder<ViewStateHandler> {
         let request = near_primitives::views::QueryRequest::ViewState {
             account_id: self.0.clone(),
             prefix: StoreKey::from(prefix),
             include_proof: false,
         };
 
-        QueryBuilder::new(request, ViewStateHandler::default())
+        QueryBuilder::new(request, ViewStateHandler)
     }
 
-    pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler<ViewStateResult>> {
+    pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler> {
         self.view_storage_with_prefix(vec![])
     }
 
@@ -128,14 +136,14 @@ pub struct CallFunctionBuilder {
 impl CallFunctionBuilder {
     pub fn as_read_only<Response: DeserializeOwned>(
         self,
-    ) -> QueryBuilder<CallResultHandler<Response, Response>> {
+    ) -> QueryBuilder<CallResultHandler<Response>> {
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
             args: near_primitives::types::FunctionArgs::from(self.args),
         };
 
-        QueryBuilder::new(request, CallResultHandler::default())
+        QueryBuilder::new(request, CallResultHandler(PhantomData))
     }
 
     pub fn as_transaction(self) -> ContractTransactBuilder {

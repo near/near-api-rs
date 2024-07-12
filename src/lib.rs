@@ -3,6 +3,7 @@ pub mod config;
 pub mod contract;
 pub mod fastnear;
 pub mod stake;
+pub mod tokens;
 pub mod types;
 
 pub mod sign;
