@@ -1,9 +1,13 @@
 use near_gas::NearGas;
 use near_primitives::types::AccountId;
 use near_token::NearToken;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    common::query::{CallResultHandler, Data, PostprocessHandler, QueryBuilder, ViewStateHandler},
+    common::query::{
+        CallResultHandler, Data, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
+        QueryBuilder, ViewStateHandler,
+    },
     contract::Contract,
     transactions::ConstructTransaction,
 };
@@ -12,7 +16,15 @@ fn near_data_to_near_token(data: Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserBalance {
+    pub staked: NearToken,
+    pub unstaked: NearToken,
+    pub total: NearToken,
+}
+
 // TODO: Would be nice to have aggregated info from staking pool. That would return staked, unstaked, total.
+#[derive(Clone, Debug)]
 pub struct Delegation(pub AccountId);
 
 impl Delegation {
@@ -80,6 +92,48 @@ impl Delegation {
                 Box::new(near_data_to_near_token),
             ),
         ))
+    }
+
+    pub fn view_balance(
+        self,
+        pool: AccountId,
+    ) -> anyhow::Result<
+        MultiQueryBuilder<
+            PostprocessHandler<
+                UserBalance,
+                MultiQueryHandler<(
+                    CallResultHandler<u128>,
+                    CallResultHandler<u128>,
+                    CallResultHandler<u128>,
+                )>,
+            >,
+        >,
+    > {
+        let postprocess = PostprocessHandler::new(
+            MultiQueryHandler::new((
+                CallResultHandler::default(),
+                CallResultHandler::default(),
+                CallResultHandler::default(),
+            )),
+            |(staked, unstaked, total)| {
+                let staked = near_data_to_near_token(staked);
+                let unstaked = near_data_to_near_token(unstaked);
+                let total = near_data_to_near_token(total);
+
+                UserBalance {
+                    staked,
+                    unstaked,
+                    total,
+                }
+            },
+        );
+
+        let multiquery = MultiQueryBuilder::new(postprocess)
+            .add_query_builder(self.clone().view_staked_balance(pool.clone())?)
+            .add_query_builder(self.clone().view_staked_balance(pool.clone())?)
+            .add_query_builder(self.view_total_balance(pool)?);
+
+        Ok(multiquery)
     }
 
     pub fn is_account_unstaked_balance_available_for_withdrawal(
