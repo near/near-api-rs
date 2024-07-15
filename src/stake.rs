@@ -1,12 +1,19 @@
+use std::collections::BTreeMap;
+
 use near_gas::NearGas;
-use near_primitives::types::AccountId;
+use near_jsonrpc_client::methods::{
+    query::{RpcQueryRequest, RpcQueryResponse},
+    validators::RpcValidatorResponse,
+};
+use near_primitives::types::{AccountId, BlockReference, EpochReference};
 use near_token::NearToken;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     common::query::{
         CallResultHandler, Data, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
-        QueryBuilder, ViewStateHandler,
+        QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc,
+        ValidatorQueryBuilder, ViewStateHandler,
     },
     contract::Contract,
     transactions::ConstructTransaction,
@@ -31,7 +38,9 @@ impl Delegation {
     pub fn view_staked_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> anyhow::Result<
+        QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>,
+    > {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -42,7 +51,8 @@ impl Delegation {
         };
 
         Ok(QueryBuilder::new(
-            request,
+            SimpleQuery { request },
+            BlockReference::latest(),
             PostprocessHandler::new(
                 CallResultHandler::default(),
                 Box::new(near_data_to_near_token),
@@ -53,7 +63,9 @@ impl Delegation {
     pub fn view_unstaked_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> anyhow::Result<
+        QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>,
+    > {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -64,7 +76,8 @@ impl Delegation {
         };
 
         Ok(QueryBuilder::new(
-            request,
+            SimpleQuery { request },
+            BlockReference::latest(),
             PostprocessHandler::new(
                 CallResultHandler::default(),
                 Box::new(near_data_to_near_token),
@@ -75,7 +88,9 @@ impl Delegation {
     pub fn view_total_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> anyhow::Result<
+        QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>,
+    > {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -86,7 +101,8 @@ impl Delegation {
         };
 
         Ok(QueryBuilder::new(
-            request,
+            SimpleQuery { request },
+            BlockReference::latest(),
             PostprocessHandler::new(
                 CallResultHandler::default(),
                 Box::new(near_data_to_near_token),
@@ -101,6 +117,7 @@ impl Delegation {
         MultiQueryBuilder<
             PostprocessHandler<
                 UserBalance,
+                RpcQueryResponse,
                 MultiQueryHandler<(
                     CallResultHandler<u128>,
                     CallResultHandler<u128>,
@@ -128,7 +145,7 @@ impl Delegation {
             },
         );
 
-        let multiquery = MultiQueryBuilder::new(postprocess)
+        let multiquery = MultiQueryBuilder::new(postprocess, BlockReference::latest())
             .add_query_builder(self.clone().view_staked_balance(pool.clone())?)
             .add_query_builder(self.clone().view_staked_balance(pool.clone())?)
             .add_query_builder(self.view_total_balance(pool)?);
@@ -150,7 +167,11 @@ impl Delegation {
             args: near_primitives::types::FunctionArgs::from(args),
         };
 
-        Ok(QueryBuilder::new(request, CallResultHandler::default()))
+        Ok(QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            CallResultHandler::default(),
+        ))
     }
 
     pub fn deposit(
@@ -251,29 +272,148 @@ impl Delegation {
 pub struct Staking {}
 
 impl Staking {
-    pub fn staking_pools(
-        &self,
-        factory: AccountId,
-    ) -> QueryBuilder<PostprocessHandler<std::collections::BTreeSet<AccountId>, ViewStateHandler>>
-    {
-        let request = near_primitives::views::QueryRequest::ViewState {
-            account_id: factory,
-            prefix: near_primitives::types::StoreKey::from(b"se".to_vec()),
-            include_proof: false,
-        };
-
+    pub fn active_staking_pools() -> QueryBuilder<
+        PostprocessHandler<
+            std::collections::BTreeSet<AccountId>,
+            RpcQueryResponse,
+            ViewStateHandler,
+        >,
+    > {
         QueryBuilder::new(
-            request,
+            ActiveStakingPoolQuery,
+            BlockReference::latest(),
             PostprocessHandler::new(ViewStateHandler, |query_result| {
                 query_result
                     .data
                     .values
                     .into_iter()
-                    .flat_map(|item| String::from_utf8(item.value.into()))
-                    .flat_map(|result| result.parse())
+                    .filter_map(|item| borsh::from_slice(&item.value).ok())
                     .collect()
             }),
         )
+    }
+
+    pub fn epoch_validators_info() -> ValidatorQueryBuilder<RpcValidatorHandler> {
+        ValidatorQueryBuilder::new(
+            SimpleValidatorRpc,
+            EpochReference::Latest,
+            RpcValidatorHandler,
+        )
+    }
+
+    pub fn validators_stake() -> ValidatorQueryBuilder<
+        PostprocessHandler<
+            BTreeMap<AccountId, NearToken>,
+            RpcValidatorResponse,
+            RpcValidatorHandler,
+        >,
+    > {
+        ValidatorQueryBuilder::new(
+            SimpleValidatorRpc,
+            EpochReference::Latest,
+            PostprocessHandler::new(RpcValidatorHandler, |validator_response| {
+                validator_response
+                    .current_proposals
+                    .into_iter()
+                    .map(|validator_stake_view| {
+                        let validator_stake = validator_stake_view.into_validator_stake();
+                        validator_stake.account_and_stake()
+                    })
+                    .chain(validator_response.current_validators.into_iter().map(
+                        |current_epoch_validator_info| {
+                            (
+                                current_epoch_validator_info.account_id,
+                                current_epoch_validator_info.stake,
+                            )
+                        },
+                    ))
+                    .chain(validator_response.next_validators.into_iter().map(
+                        |next_epoch_validator_info| {
+                            (
+                                next_epoch_validator_info.account_id,
+                                next_epoch_validator_info.stake,
+                            )
+                        },
+                    ))
+                    .map(|(account_id, stake)| (account_id, NearToken::from_yoctonear(stake)))
+                    .collect()
+            }),
+        )
+    }
+
+    pub fn staking_pool_reward_fee(
+        pool: AccountId,
+    ) -> QueryBuilder<CallResultHandler<RewardFeeFraction>> {
+        Contract(pool)
+            .call_function("get_reward_fee_fraction", ())
+            .expect("arguments are not expected")
+            .as_read_only()
+    }
+
+    pub fn staking_pool_delegators(pool: AccountId) -> QueryBuilder<CallResultHandler<u64>> {
+        Contract(pool)
+            .call_function("get_number_of_accounts", ())
+            .expect("arguments are not expected")
+            .as_read_only()
+    }
+
+    pub fn staking_pool_total_stake(
+        pool: AccountId,
+    ) -> QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>
+    {
+        let request = near_primitives::views::QueryRequest::CallFunction {
+            account_id: pool,
+            method_name: "get_total_staked_balance".to_owned(),
+            args: near_primitives::types::FunctionArgs::from(vec![]),
+        };
+
+        QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            PostprocessHandler::new(
+                CallResultHandler::default(),
+                Box::new(near_data_to_near_token),
+            ),
+        )
+    }
+
+    pub fn staking_pool_info(
+        pool: AccountId,
+    ) -> MultiQueryBuilder<
+        PostprocessHandler<
+            StakingPoolInfo,
+            RpcQueryResponse,
+            MultiQueryHandler<(
+                CallResultHandler<RewardFeeFraction>,
+                CallResultHandler<u64>,
+                CallResultHandler<u128>,
+            )>,
+        >,
+    > {
+        let pool_clone = pool.clone();
+        let postprocess = PostprocessHandler::new(
+            MultiQueryHandler::new((
+                CallResultHandler::default(),
+                CallResultHandler::default(),
+                CallResultHandler::default(),
+            )),
+            move |(reward_fee, delegators, total_stake)| {
+                let total = near_data_to_near_token(total_stake);
+
+                StakingPoolInfo {
+                    validator_id: pool_clone.clone(),
+
+                    fee: Some(reward_fee.data),
+                    delegators: Some(delegators.data),
+                    stake: total,
+                }
+            },
+        );
+
+        MultiQueryBuilder::new(postprocess, BlockReference::latest())
+            .add_query_builder(Self::staking_pool_reward_fee(pool.clone()))
+            .add_query_builder(Self::staking_pool_delegators(pool.clone()))
+            .add_query_builder(Self::staking_pool_total_stake(pool))
     }
 
     pub fn delegation(account_id: AccountId) -> Delegation {
@@ -281,20 +421,55 @@ impl Staking {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StakingPoolInfo {
+    pub validator_id: near_primitives::types::AccountId,
+    pub fee: Option<RewardFeeFraction>,
+    pub delegators: Option<u64>,
+    pub stake: NearToken,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Eq, serde::Deserialize)]
+pub struct RewardFeeFraction {
+    pub numerator: u32,
+    pub denominator: u32,
+}
+
+pub struct ActiveStakingPoolQuery;
+
+impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
+    type RpcReference = BlockReference;
+
+    fn create_query(
+        &self,
+        network: &crate::config::NetworkConfig,
+        reference: Self::RpcReference,
+    ) -> anyhow::Result<RpcQueryRequest> {
+        Ok(RpcQueryRequest {
+            block_reference: reference,
+            request: near_primitives::views::QueryRequest::ViewState {
+                account_id: network
+                    .staking_pools_factory_account_id
+                    .clone()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Staking pools factory account ID is not set for the network"
+                        )
+                    })?,
+                prefix: near_primitives::types::StoreKey::from(b"se".to_vec()),
+                include_proof: false,
+            },
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
-
-    use crate::config::NetworkConfig;
+    use super::Staking;
 
     #[tokio::test]
     async fn get_pools() {
-        let staking = super::Staking {};
-        let pools = staking
-            .staking_pools(
-                NetworkConfig::mainnet()
-                    .staking_pools_factory_account_id
-                    .unwrap(),
-            )
+        let pools = Staking::active_staking_pools()
             .fetch_from_mainnet()
             .await
             .unwrap();

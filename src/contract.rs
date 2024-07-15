@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
 use near_gas::NearGas;
+use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
     action::{Action, DeployContractAction, FunctionCallAction},
-    types::{AccountId, StoreKey},
+    types::{AccountId, BlockReference, StoreKey},
 };
 use near_token::NearToken;
 use serde::{de::DeserializeOwned, Serialize};
@@ -11,8 +12,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::{
     common::{
         query::{
-            CallResultHandler, Data, PostprocessHandler, QueryBuilder, ViewCodeHandler,
-            ViewStateHandler,
+            CallResultHandler, Data, PostprocessHandler, QueryBuilder, SimpleQuery,
+            ViewCodeHandler, ViewStateHandler,
         },
         send::ExecuteSignedTransaction,
     },
@@ -46,8 +47,9 @@ impl Contract {
 
     pub fn abi(
         &self,
-    ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
-    {
+    ) -> QueryBuilder<
+        PostprocessHandler<Option<near_abi::AbiRoot>, RpcQueryResponse, CallResultHandler<Vec<u8>>>,
+    > {
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: self.0.clone(),
             method_name: "__contract_abi".to_owned(),
@@ -55,7 +57,8 @@ impl Contract {
         };
 
         QueryBuilder::new(
-            request,
+            SimpleQuery { request },
+            BlockReference::latest(),
             PostprocessHandler::new(
                 CallResultHandler::default(),
                 Box::new(|data: Data<Vec<u8>>| {
@@ -71,7 +74,11 @@ impl Contract {
             account_id: self.0.clone(),
         };
 
-        QueryBuilder::new(request, ViewCodeHandler)
+        QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            ViewCodeHandler,
+        )
     }
 
     pub fn view_storage_with_prefix(&self, prefix: Vec<u8>) -> QueryBuilder<ViewStateHandler> {
@@ -81,7 +88,11 @@ impl Contract {
             include_proof: false,
         };
 
-        QueryBuilder::new(request, ViewStateHandler)
+        QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            ViewStateHandler,
+        )
     }
 
     pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler> {
@@ -143,7 +154,11 @@ impl CallFunctionBuilder {
             args: near_primitives::types::FunctionArgs::from(self.args),
         };
 
-        QueryBuilder::new(request, CallResultHandler(PhantomData))
+        QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            CallResultHandler(PhantomData),
+        )
     }
 
     pub fn as_transaction(self) -> ContractTransactBuilder {

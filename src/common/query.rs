@@ -1,68 +1,128 @@
 use std::marker::PhantomData;
 
 use anyhow::{anyhow, bail};
+use borsh::{BorshDeserialize, BorshSerialize};
 use futures::future::join_all;
-use near_jsonrpc_client::methods::query::RpcQueryResponse;
+use near_jsonrpc_client::methods::{
+    query::{RpcQueryRequest, RpcQueryResponse},
+    validators::RpcValidatorRequest,
+    RpcMethod,
+};
 use near_primitives::{
     hash::CryptoHash,
-    types::{BlockHeight, BlockReference},
+    types::{BlockHeight, BlockReference, EpochReference},
     views::{
-        AccessKeyList, AccessKeyView, AccountView, ContractCodeView, QueryRequest, ViewStateResult,
+        AccessKeyList, AccessKeyView, AccountView, ContractCodeView, EpochValidatorInfo,
+        QueryRequest, ViewStateResult,
     },
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::config::NetworkConfig;
 
+#[derive(Debug, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct Data<T> {
     pub data: T,
     pub block_height: BlockHeight,
     pub block_hash: CryptoHash,
 }
 
-pub trait ResponseHandler {
+pub trait ResponseHandler<QueryResponse> {
     type Response;
 
     // TODO: Add error type
 
     /// NOTE: responses should always > 1
-    fn process_response(&self, responses: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response>;
+    fn process_response(&self, responses: Vec<QueryResponse>) -> anyhow::Result<Self::Response>;
     fn request_amount(&self) -> usize {
         1
     }
 }
 
-pub struct MultiQueryBuilder<ResponseHandler> {
-    block_reference: BlockReference,
-    requests: Vec<QueryRequest>,
+pub trait QueryCreator<Method: RpcMethod> {
+    type RpcReference;
+    fn create_query(
+        &self,
+        network: &NetworkConfig,
+        reference: Self::RpcReference,
+    ) -> anyhow::Result<Method>;
+}
+
+pub struct SimpleQuery {
+    pub request: QueryRequest,
+}
+
+impl QueryCreator<RpcQueryRequest> for SimpleQuery {
+    type RpcReference = BlockReference;
+    fn create_query(
+        &self,
+        _network: &NetworkConfig,
+        reference: BlockReference,
+    ) -> anyhow::Result<RpcQueryRequest> {
+        Ok(RpcQueryRequest {
+            block_reference: reference,
+            request: self.request.clone(),
+        })
+    }
+}
+
+pub struct SimpleValidatorRpc;
+
+impl QueryCreator<RpcValidatorRequest> for SimpleValidatorRpc {
+    type RpcReference = EpochReference;
+    fn create_query(
+        &self,
+        _network: &NetworkConfig,
+        reference: EpochReference,
+    ) -> anyhow::Result<RpcValidatorRequest> {
+        Ok(RpcValidatorRequest {
+            epoch_reference: reference,
+        })
+    }
+}
+
+pub type QueryBuilder<T> = RpcBuilder<T, RpcQueryRequest, BlockReference>;
+pub type MultiQueryBuilder<T> = MultiRpcBuilder<T, RpcQueryRequest, BlockReference>;
+
+pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochReference>;
+
+pub struct MultiRpcBuilder<ResponseHandler, Method, Reference> {
+    reference: Reference,
+    requests: Vec<Box<dyn QueryCreator<Method, RpcReference = Reference>>>,
     handler: ResponseHandler,
 }
 
-impl<Handler> MultiQueryBuilder<Handler>
+impl<Handler, Method: RpcMethod, Reference> MultiRpcBuilder<Handler, Method, Reference>
 where
-    Handler: ResponseHandler,
+    Handler: ResponseHandler<Method::Response>,
+    Method: RpcMethod + 'static,
+    Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
+    Reference: Clone,
 {
-    pub fn new(handler: Handler) -> Self {
+    pub fn new(handler: Handler, reference: Reference) -> Self {
         Self {
-            block_reference: BlockReference::latest(),
+            reference,
             requests: vec![],
             handler,
         }
     }
 
-    pub fn add_query(mut self, request: QueryRequest) -> Self {
+    pub fn add_query(
+        mut self,
+        request: Box<dyn QueryCreator<Method, RpcReference = Reference>>,
+    ) -> Self {
         self.requests.push(request);
         self
     }
 
-    pub fn add_query_builder<T>(mut self, query_builder: QueryBuilder<T>) -> Self {
+    pub fn add_query_builder<T>(mut self, query_builder: RpcBuilder<T, Method, Reference>) -> Self {
         self.requests.push(query_builder.request);
         self
     }
 
-    pub fn as_of(self, block_reference: near_primitives::types::BlockReference) -> Self {
+    pub fn as_of(self, block_reference: Reference) -> Self {
         Self {
-            block_reference,
+            reference: block_reference,
             ..self
         }
     }
@@ -80,12 +140,14 @@ where
     pub async fn fetch_from(self, network: &NetworkConfig) -> anyhow::Result<Handler::Response> {
         let json_rpc_client = network.json_rpc_client();
 
-        let requests = self.requests.into_iter().map(|request| {
-            json_rpc_client.call(near_jsonrpc_client::methods::query::RpcQueryRequest {
-                block_reference: self.block_reference.clone(),
-                request,
-            })
-        });
+        let requests: Vec<_> = self
+            .requests
+            .into_iter()
+            .map(|request| anyhow::Ok(request.create_query(network, self.reference.clone())?))
+            .collect::<Result<_, _>>()?;
+        let requests = requests
+            .into_iter()
+            .map(|request| json_rpc_client.call(request));
 
         let requests: Vec<_> = join_all(requests)
             .await
@@ -99,29 +161,32 @@ where
     }
 }
 
-pub struct QueryBuilder<ResponseHandler> {
-    block_reference: BlockReference,
-    request: QueryRequest,
+pub struct RpcBuilder<ResponseHandler, Method, Reference> {
+    reference: Reference,
+    request: Box<dyn QueryCreator<Method, RpcReference = Reference>>,
     handler: ResponseHandler,
 }
 
-impl<Handler> QueryBuilder<Handler>
+impl<Handler, Method, Reference> RpcBuilder<Handler, Method, Reference>
 where
-    Handler: ResponseHandler,
+    Handler: ResponseHandler<Method::Response>,
+    Method: RpcMethod + 'static,
+    Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
 {
-    pub fn new(request: QueryRequest, handler: Handler) -> Self {
+    pub fn new(
+        request: impl QueryCreator<Method, RpcReference = Reference> + 'static,
+        reference: Reference,
+        handler: Handler,
+    ) -> Self {
         Self {
-            block_reference: BlockReference::latest(),
-            request,
+            reference,
+            request: Box::new(request),
             handler,
         }
     }
 
-    pub fn as_of(self, block_reference: near_primitives::types::BlockReference) -> Self {
-        Self {
-            block_reference,
-            ..self
-        }
+    pub fn as_of(self, reference: Reference) -> Self {
+        Self { reference, ..self }
     }
 
     pub async fn fetch_from_mainnet(self) -> anyhow::Result<Handler::Response> {
@@ -138,10 +203,7 @@ where
         let json_rpc_client = network.json_rpc_client();
 
         let query_response = json_rpc_client
-            .call(near_jsonrpc_client::methods::query::RpcQueryRequest {
-                block_reference: self.block_reference,
-                request: self.request,
-            })
+            .call(self.request.create_query(network, self.reference)?)
             .await?;
 
         self.handler.process_response(vec![query_response])
@@ -152,17 +214,14 @@ pub struct MultiQueryHandler<Handlers> {
     handlers: Handlers,
 }
 
-impl<H1, H2, R1, R2> ResponseHandler for MultiQueryHandler<(H1, H2)>
+impl<QR, H1, H2, R1, R2> ResponseHandler<QR> for MultiQueryHandler<(H1, H2)>
 where
-    H1: ResponseHandler<Response = R1>,
-    H2: ResponseHandler<Response = R2>,
+    H1: ResponseHandler<QR, Response = R1>,
+    H2: ResponseHandler<QR, Response = R2>,
 {
     type Response = (R1, R2);
 
-    fn process_response(
-        &self,
-        mut responses: Vec<RpcQueryResponse>,
-    ) -> anyhow::Result<Self::Response> {
+    fn process_response(&self, mut responses: Vec<QR>) -> anyhow::Result<Self::Response> {
         let (h1, h2) = &self.handlers;
 
         let first_response =
@@ -177,18 +236,15 @@ where
     }
 }
 
-impl<H1, H2, H3, R1, R2, R3> ResponseHandler for MultiQueryHandler<(H1, H2, H3)>
+impl<QR, H1, H2, H3, R1, R2, R3> ResponseHandler<QR> for MultiQueryHandler<(H1, H2, H3)>
 where
-    H1: ResponseHandler<Response = R1>,
-    H2: ResponseHandler<Response = R2>,
-    H3: ResponseHandler<Response = R3>,
+    H1: ResponseHandler<QR, Response = R1>,
+    H2: ResponseHandler<QR, Response = R2>,
+    H3: ResponseHandler<QR, Response = R3>,
 {
     type Response = (R1, R2, R3);
 
-    fn process_response(
-        &self,
-        mut responses: Vec<RpcQueryResponse>,
-    ) -> anyhow::Result<Self::Response> {
+    fn process_response(&self, mut responses: Vec<QR>) -> anyhow::Result<Self::Response> {
         let (h1, h2, h3) = &self.handlers;
 
         let first_response =
@@ -214,12 +270,14 @@ impl<Handlers> MultiQueryHandler<Handlers> {
     }
 }
 
-pub struct PostprocessHandler<PostProcessed, Handler: ResponseHandler> {
+pub struct PostprocessHandler<PostProcessed, Response, Handler: ResponseHandler<Response>> {
     post_process: Box<dyn Fn(Handler::Response) -> PostProcessed + Send + Sync>,
     handler: Handler,
 }
 
-impl<PostProcessed, Handler: ResponseHandler> PostprocessHandler<PostProcessed, Handler> {
+impl<PostProcessed, Response, Handler: ResponseHandler<Response>>
+    PostprocessHandler<PostProcessed, Response, Handler>
+{
     pub fn new<F>(handler: Handler, post_process: F) -> Self
     where
         F: Fn(Handler::Response) -> PostProcessed + Send + Sync + 'static,
@@ -231,13 +289,14 @@ impl<PostProcessed, Handler: ResponseHandler> PostprocessHandler<PostProcessed, 
     }
 }
 
-impl<PostProcessed, Handler> ResponseHandler for PostprocessHandler<PostProcessed, Handler>
+impl<PostProcessed, QueryResponse, Handler> ResponseHandler<QueryResponse>
+    for PostprocessHandler<PostProcessed, QueryResponse, Handler>
 where
-    Handler: ResponseHandler,
+    Handler: ResponseHandler<QueryResponse>,
 {
     type Response = PostProcessed;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(&self, response: Vec<QueryResponse>) -> anyhow::Result<Self::Response> {
         Handler::process_response(&self.handler, response).map(|data| (self.post_process)(data))
     }
 
@@ -249,7 +308,7 @@ where
 #[derive(Default)]
 pub struct CallResultHandler<Response>(pub PhantomData<Response>);
 
-impl<Response> ResponseHandler for CallResultHandler<Response>
+impl<Response> ResponseHandler<RpcQueryResponse> for CallResultHandler<Response>
 where
     Response: DeserializeOwned,
 {
@@ -281,7 +340,7 @@ where
 #[derive(Default)]
 pub struct AccountViewHandler;
 
-impl ResponseHandler for AccountViewHandler {
+impl ResponseHandler<RpcQueryResponse> for AccountViewHandler {
     type Response = Data<AccountView>;
 
     fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
@@ -309,7 +368,7 @@ impl ResponseHandler for AccountViewHandler {
 #[derive(Default)]
 pub struct AccessKeyListHandler;
 
-impl ResponseHandler for AccessKeyListHandler {
+impl ResponseHandler<RpcQueryResponse> for AccessKeyListHandler {
     type Response = AccessKeyList;
 
     fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
@@ -332,7 +391,7 @@ impl ResponseHandler for AccessKeyListHandler {
 #[derive(Default)]
 pub struct AccessKeyHandler;
 
-impl ResponseHandler for AccessKeyHandler {
+impl ResponseHandler<RpcQueryResponse> for AccessKeyHandler {
     type Response = Data<AccessKeyView>;
 
     fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
@@ -359,7 +418,7 @@ impl ResponseHandler for AccessKeyHandler {
 #[derive(Default)]
 pub struct ViewStateHandler;
 
-impl ResponseHandler for ViewStateHandler {
+impl ResponseHandler<RpcQueryResponse> for ViewStateHandler {
     type Response = Data<ViewStateResult>;
 
     fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
@@ -386,7 +445,7 @@ impl ResponseHandler for ViewStateHandler {
 #[derive(Default)]
 pub struct ViewCodeHandler;
 
-impl ResponseHandler for ViewCodeHandler {
+impl ResponseHandler<RpcQueryResponse> for ViewCodeHandler {
     type Response = Data<ContractCodeView>;
 
     fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
@@ -407,5 +466,23 @@ impl ResponseHandler for ViewCodeHandler {
                 "Received unexpected query kind in response to a view-code query call"
             ))
         }
+    }
+}
+
+pub struct RpcValidatorHandler;
+
+impl ResponseHandler<EpochValidatorInfo> for RpcValidatorHandler {
+    type Response = EpochValidatorInfo;
+
+    fn process_response(
+        &self,
+        response: Vec<EpochValidatorInfo>,
+    ) -> anyhow::Result<Self::Response> {
+        let response = response
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("No response for the view code handler"))?;
+
+        Ok(response)
     }
 }

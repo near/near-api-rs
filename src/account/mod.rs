@@ -2,11 +2,12 @@ use near_crypto::PublicKey;
 use near_primitives::{
     account::{AccessKey, AccessKeyPermission},
     action::{AddKeyAction, DeleteKeyAction},
-    types::AccountId,
+    types::{AccountId, BlockReference},
 };
 
 use crate::common::query::{
-    AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder,
+    AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder, RpcBuilder,
+    SimpleQuery,
 };
 use crate::transactions::ConstructTransaction;
 
@@ -19,29 +20,35 @@ pub struct Account(pub AccountId);
 
 impl Account {
     pub fn view(&self) -> QueryBuilder<AccountViewHandler> {
+        let request = near_primitives::views::QueryRequest::ViewAccount {
+            account_id: self.0.clone(),
+        };
         QueryBuilder::new(
-            near_primitives::views::QueryRequest::ViewAccount {
-                account_id: self.0.clone(),
-            },
+            SimpleQuery { request },
+            BlockReference::latest(),
             Default::default(),
         )
     }
 
     pub fn access_key(&self, signer_public_key: PublicKey) -> QueryBuilder<AccessKeyHandler> {
-        QueryBuilder::new(
-            near_primitives::views::QueryRequest::ViewAccessKey {
-                account_id: self.0.clone(),
-                public_key: signer_public_key,
-            },
+        let request = near_primitives::views::QueryRequest::ViewAccessKey {
+            account_id: self.0.clone(),
+            public_key: signer_public_key,
+        };
+        RpcBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
             Default::default(),
         )
     }
 
     pub fn list_keys(&self) -> QueryBuilder<AccessKeyListHandler> {
-        QueryBuilder::new(
-            near_primitives::views::QueryRequest::ViewAccessKeyList {
-                account_id: self.0.clone(),
-            },
+        let request = near_primitives::views::QueryRequest::ViewAccessKeyList {
+            account_id: self.0.clone(),
+        };
+        RpcBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
             Default::default(),
         )
     }

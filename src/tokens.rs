@@ -4,9 +4,10 @@ use near_contract_standards::{
     fungible_token::metadata::FungibleTokenMetadata,
     non_fungible_token::{metadata::NFTContractMetadata, Token},
 };
+use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
     action::{Action, TransferAction},
-    types::AccountId,
+    types::{AccountId, BlockReference},
     views::AccountView,
 };
 use near_token::NearToken;
@@ -16,7 +17,7 @@ use serde_json::json;
 use crate::{
     common::query::{
         AccountViewHandler, CallResultHandler, Data, MultiQueryBuilder, MultiQueryHandler,
-        PostprocessHandler, QueryBuilder,
+        PostprocessHandler, QueryBuilder, SimpleQuery,
     },
     contract::Contract,
     transactions::ConstructTransaction,
@@ -39,9 +40,14 @@ pub struct Balance {
 pub struct Tokens(AccountId);
 
 impl Tokens {
-    pub fn near_balance(self) -> QueryBuilder<PostprocessHandler<Balance, AccountViewHandler>> {
+    pub fn near_balance(
+        self,
+    ) -> QueryBuilder<PostprocessHandler<Balance, RpcQueryResponse, AccountViewHandler>> {
+        let request = near_primitives::views::QueryRequest::ViewAccount { account_id: self.0 };
+
         QueryBuilder::new(
-            near_primitives::views::QueryRequest::ViewAccount { account_id: self.0 },
+            SimpleQuery { request },
+            BlockReference::latest(),
             PostprocessHandler::new(
                 AccountViewHandler,
                 Box::new(|account: Data<AccountView>| {
@@ -96,6 +102,7 @@ impl Tokens {
         MultiQueryBuilder<
             PostprocessHandler<
                 FungibleToken,
+                RpcQueryResponse,
                 MultiQueryHandler<(
                     CallResultHandler<FungibleTokenMetadata>,
                     CallResultHandler<u128>,
@@ -115,7 +122,7 @@ impl Tokens {
             },
         );
 
-        let query_builder = MultiQueryBuilder::new(postprocess)
+        let query_builder = MultiQueryBuilder::new(postprocess, BlockReference::latest())
             .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
             .add_query_builder(
                 Contract(ft_contract)
