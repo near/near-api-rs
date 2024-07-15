@@ -9,18 +9,20 @@ use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
     transaction::{SignedTransaction, Transaction},
-    types::{BlockHeight, Nonce},
+    types::{AccountId, BlockHeight, Nonce},
 };
 use serde::Deserialize;
 use slipped10::BIP32Path;
 
-use crate::transactions::PrepopulateTransaction;
+use crate::{config::NetworkConfig, transactions::PrepopulateTransaction};
 
 use self::{
-    access_keyfile_signer::AccessKeyFileSigner, ledger::LedgerSigner, secret_key::SecretKeySigner,
+    access_keyfile_signer::AccessKeyFileSigner, keystore::KeystoreSigner, ledger::LedgerSigner,
+    secret_key::SecretKeySigner,
 };
 
 pub mod access_keyfile_signer;
+pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
@@ -84,6 +86,7 @@ pub enum Signer {
     AccessKeyFile(AccessKeyFileSigner),
     #[cfg(feature = "ledger")]
     Ledger(LedgerSigner),
+    Keystore(KeystoreSigner),
 }
 
 impl From<Signer> for Box<dyn SignerTrait> {
@@ -93,6 +96,7 @@ impl From<Signer> for Box<dyn SignerTrait> {
             Signer::AccessKeyFile(access_keyfile_signer) => Box::new(access_keyfile_signer),
             #[cfg(feature = "ledger")]
             Signer::Ledger(ledger_signer) => Box::new(ledger_signer),
+            Signer::Keystore(keystore_signer) => Box::new(keystore_signer),
         }
     }
 }
@@ -104,6 +108,7 @@ impl Signer {
             Signer::AccessKeyFile(access_keyfile_signer) => access_keyfile_signer,
             #[cfg(feature = "ledger")]
             Signer::Ledger(ledger_signer) => ledger_signer,
+            Signer::Keystore(keystore_signer) => keystore_signer,
         }
     }
 
@@ -142,6 +147,19 @@ impl Signer {
     #[cfg(feature = "ledger")]
     pub fn ledger_with_hd_path(hd_path: BIP32Path) -> Self {
         Self::Ledger(LedgerSigner::new(hd_path))
+    }
+
+    pub fn keystore(pub_key: PublicKey) -> Self {
+        Self::Keystore(KeystoreSigner::new_with_pubkey(pub_key))
+    }
+
+    pub async fn keystore_search_for_keys(
+        account_id: AccountId,
+        network: &NetworkConfig,
+    ) -> anyhow::Result<Self> {
+        Ok(Self::Keystore(
+            KeystoreSigner::search_for_keys(account_id, network).await?,
+        ))
     }
 }
 
