@@ -1,15 +1,26 @@
+use near_primitives::{hash::CryptoHash, types::BlockHeight};
+
+pub mod contract;
+pub mod stake;
+pub mod tokens;
+pub mod transactions;
+
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    borsh::BorshDeserialize,
+    borsh::BorshSerialize,
+)]
+pub struct Data<T> {
+    pub data: T,
+    pub block_height: BlockHeight,
+    pub block_hash: CryptoHash,
+}
+
 #[derive(Eq, Hash, Clone, Debug, PartialEq)]
 pub struct ApiKey(pub near_jsonrpc_client::auth::ApiKey);
-
-#[derive(Debug, serde::Deserialize)]
-pub struct StakingPool {
-    pub pool_id: near_primitives::types::AccountId,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct StakingResponse {
-    pub pools: Vec<StakingPool>,
-}
 
 impl From<ApiKey> for near_jsonrpc_client::auth::ApiKey {
     fn from(api_key: ApiKey) -> Self {

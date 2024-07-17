@@ -10,7 +10,7 @@ use near_primitives::{
 };
 use slipped10::BIP32Path;
 
-use crate::transactions::PrepopulateTransaction;
+use crate::types::transactions::PrepopulateTransaction;
 
 use super::SignerTrait;
 

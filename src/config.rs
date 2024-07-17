@@ -1,14 +1,11 @@
 use anyhow::Context;
 use std::str::FromStr;
-use tracing_indicatif::span_ext::IndicatifSpanExt;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NetworkConfig {
     pub network_name: String,
     pub rpc_url: url::Url,
     pub rpc_api_key: Option<crate::types::ApiKey>,
-    pub wallet_url: url::Url,
-    pub explorer_transaction_url: url::Url,
     // https://github.com/near/near-cli-rs/issues/116
     pub linkdrop_account_id: Option<near_primitives::types::AccountId>,
     // https://docs.near.org/social/contract
@@ -17,7 +14,6 @@ pub struct NetworkConfig {
     pub meta_transaction_relayer_url: Option<url::Url>,
     pub fastnear_url: Option<url::Url>,
     pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
-    pub coingecko_url: Option<url::Url>,
 }
 
 impl NetworkConfig {
@@ -25,8 +21,6 @@ impl NetworkConfig {
         Self {
             network_name: "mainnet".to_string(),
             rpc_url: "https://archival-rpc.mainnet.near.org".parse().unwrap(),
-            wallet_url: "https://app.mynearwallet.com/".parse().unwrap(),
-            explorer_transaction_url: "https://explorer.near.org/transactions/".parse().unwrap(),
             rpc_api_key: None,
             linkdrop_account_id: Some("near".parse().unwrap()),
             near_social_db_contract_account_id: Some("social.near".parse().unwrap()),
@@ -34,7 +28,6 @@ impl NetworkConfig {
             meta_transaction_relayer_url: None,
             fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
             staking_pools_factory_account_id: Some("pool.near".parse().unwrap()),
-            coingecko_url: Some("https://api.coingecko.com/".parse().unwrap()),
         }
     }
 
@@ -42,10 +35,6 @@ impl NetworkConfig {
         NetworkConfig {
             network_name: "testnet".to_string(),
             rpc_url: "https://archival-rpc.testnet.near.org".parse().unwrap(),
-            wallet_url: "https://testnet.mynearwallet.com/".parse().unwrap(),
-            explorer_transaction_url: "https://explorer.testnet.near.org/transactions/"
-                .parse()
-                .unwrap(),
             rpc_api_key: None,
             linkdrop_account_id: Some("testnet".parse().unwrap()),
             near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
@@ -53,13 +42,10 @@ impl NetworkConfig {
             meta_transaction_relayer_url: Some("http://localhost:3030/relay".parse().unwrap()),
             fastnear_url: None,
             staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
-            coingecko_url: None,
         }
     }
 
-    #[tracing::instrument(name = "Connecting to RPC", skip_all)]
     pub fn json_rpc_client(&self) -> near_jsonrpc_client::JsonRpcClient {
-        tracing::Span::current().pb_set_message(self.rpc_url.as_str());
         let mut json_rpc_client =
             near_jsonrpc_client::JsonRpcClient::connect(self.rpc_url.as_ref());
         if let Some(rpc_api_key) = &self.rpc_api_key {
@@ -82,6 +68,26 @@ impl NetworkConfig {
             "testnet" => near_primitives::types::AccountId::from_str("v1.social08.testnet")
                 .context("Internal error"),
             _ => anyhow::bail!("This network does not provide the \"near-social\" contract"),
+        }
+    }
+}
+
+#[cfg(feature = "workspaces")]
+impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkConfig {
+    fn from(network: near_workspaces::Worker<T>) -> Self {
+        use near_workspaces::network::NetworkInfo;
+
+        let info = network.info();
+        Self {
+            network_name: info.name.clone(),
+            rpc_url: info.rpc_url.clone(),
+            rpc_api_key: None,
+            linkdrop_account_id: None,
+            near_social_db_contract_account_id: None,
+            faucet_url: None,
+            meta_transaction_relayer_url: None,
+            fastnear_url: None,
+            staking_pools_factory_account_id: None,
         }
     }
 }

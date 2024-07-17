@@ -3,9 +3,8 @@ use std::path::PathBuf;
 use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{hash::CryptoHash, transaction::Transaction, types::Nonce};
 
-use crate::transactions::PrepopulateTransaction;
-
 use super::{AccountKeyPair, SignerTrait};
+use crate::types::transactions::PrepopulateTransaction;
 
 #[derive(Debug, Clone)]
 pub struct AccessKeyFileSigner {

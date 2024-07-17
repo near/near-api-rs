@@ -9,7 +9,9 @@ use near_primitives::{
 };
 use near_token::NearToken;
 
-use crate::{config::NetworkConfig, sign::SignerTrait, transactions::PrepopulateTransaction};
+use crate::{
+    config::NetworkConfig, signer::SignerTrait, types::transactions::PrepopulateTransaction,
+};
 
 use super::{
     signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,

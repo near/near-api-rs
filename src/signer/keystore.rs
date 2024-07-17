@@ -7,7 +7,7 @@ use near_primitives::{
     views::AccessKeyPermissionView,
 };
 
-use crate::{config::NetworkConfig, transactions::PrepopulateTransaction};
+use crate::{config::NetworkConfig, types::transactions::PrepopulateTransaction};
 
 use super::{AccountKeyPair, SignerTrait};
 

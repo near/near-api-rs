@@ -10,7 +10,8 @@ use url::Url;
 use crate::{
     common::{secret::SecretBuilder, send::Transactionable},
     config::NetworkConfig,
-    transactions::{ConstructTransaction, PrepopulateTransaction, TransactionWithSign},
+    transactions::{ConstructTransaction, TransactionWithSign},
+    types::transactions::PrepopulateTransaction,
 };
 
 pub struct CreateAccountBuilder;

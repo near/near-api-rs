@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use anyhow::{anyhow, bail};
-use borsh::{BorshDeserialize, BorshSerialize};
 use futures::future::join_all;
 use near_jsonrpc_client::methods::{
     query::{RpcQueryRequest, RpcQueryResponse},
@@ -9,23 +8,15 @@ use near_jsonrpc_client::methods::{
     RpcMethod,
 };
 use near_primitives::{
-    hash::CryptoHash,
-    types::{BlockHeight, BlockReference, EpochReference},
+    types::{BlockReference, EpochReference},
     views::{
         AccessKeyList, AccessKeyView, AccountView, ContractCodeView, EpochValidatorInfo,
         QueryRequest, ViewStateResult,
     },
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 
-use crate::config::NetworkConfig;
-
-#[derive(Debug, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
-pub struct Data<T> {
-    pub data: T,
-    pub block_height: BlockHeight,
-    pub block_hash: CryptoHash,
-}
+use crate::{config::NetworkConfig, types::Data};
 
 pub trait ResponseHandler<QueryResponse> {
     type Response;

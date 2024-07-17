@@ -12,13 +12,14 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::{
     common::{
         query::{
-            CallResultHandler, Data, PostprocessHandler, QueryBuilder, SimpleQuery,
-            ViewCodeHandler, ViewStateHandler,
+            CallResultHandler, PostprocessHandler, QueryBuilder, SimpleQuery, ViewCodeHandler,
+            ViewStateHandler,
         },
         send::ExecuteSignedTransaction,
     },
-    sign::Signer,
+    signer::Signer,
     transactions::{ConstructTransaction, Transaction},
+    types::{contract::ContractSourceMetadata, Data},
 };
 
 pub struct Contract(pub AccountId);
@@ -106,19 +107,6 @@ impl Contract {
             .expect("arguments are always serializable")
             .as_read_only()
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct ContractSourceMetadata {
-    pub version: Option<String>,
-    pub link: Option<String>,
-    pub standards: Vec<Standard>,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct Standard {
-    pub standard: String,
-    pub version: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -252,7 +240,7 @@ impl ContractTransactBuilder {
 mod tests {
     use near_gas::NearGas;
 
-    use crate::sign::Signer;
+    use crate::signer::Signer;
 
     #[derive(serde::Serialize)]
     pub struct Paging {

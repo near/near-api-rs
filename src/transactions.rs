@@ -3,15 +3,9 @@ use near_primitives::{action::Action, types::AccountId};
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    sign::Signer,
+    signer::Signer,
+    types::transactions::PrepopulateTransaction,
 };
-
-#[derive(Debug, Clone)]
-pub struct PrepopulateTransaction {
-    pub signer_id: AccountId,
-    pub receiver_id: AccountId,
-    pub actions: Vec<Action>,
-}
 
 pub struct TransactionWithSign<T: Transactionable> {
     pub tx: T,
@@ -98,7 +92,7 @@ mod tests {
     };
     use near_token::NearToken;
 
-    use crate::{sign::Signer, transactions::Transaction};
+    use crate::{signer::Signer, transactions::Transaction};
 
     #[tokio::test]
     async fn send_transfer() {

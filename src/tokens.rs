@@ -11,38 +11,27 @@ use near_primitives::{
     views::AccountView,
 };
 use near_token::NearToken;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
     common::query::{
-        AccountViewHandler, CallResultHandler, Data, MultiQueryBuilder, MultiQueryHandler,
+        AccountViewHandler, CallResultHandler, MultiQueryBuilder, MultiQueryHandler,
         PostprocessHandler, QueryBuilder, SimpleQuery,
     },
     contract::Contract,
     transactions::ConstructTransaction,
+    types::{
+        tokens::{FungibleToken, UserBalance},
+        Data,
+    },
 };
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct FungibleToken {
-    pub balance: u128,
-    pub decimals: u8,
-    pub symbol: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Balance {
-    pub liquid: NearToken,
-    pub locked: NearToken,
-    pub storage_usage: u64,
-}
-
-pub struct Tokens(AccountId);
+pub struct Tokens(pub AccountId);
 
 impl Tokens {
     pub fn near_balance(
         self,
-    ) -> QueryBuilder<PostprocessHandler<Balance, RpcQueryResponse, AccountViewHandler>> {
+    ) -> QueryBuilder<PostprocessHandler<UserBalance, RpcQueryResponse, AccountViewHandler>> {
         let request = near_primitives::views::QueryRequest::ViewAccount { account_id: self.0 };
 
         QueryBuilder::new(
@@ -55,7 +44,7 @@ impl Tokens {
                     let liquid = NearToken::from_yoctonear(account.amount);
                     let locked = NearToken::from_yoctonear(account.locked);
                     let storage_usage = account.storage_usage;
-                    Balance {
+                    UserBalance {
                         liquid,
                         locked,
                         storage_usage,

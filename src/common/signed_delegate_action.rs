@@ -28,10 +28,6 @@ impl std::fmt::Display for SignedDelegateActionAsBase64 {
     }
 }
 
-impl interactive_clap::ToCli for SignedDelegateActionAsBase64 {
-    type CliVariant = SignedDelegateActionAsBase64;
-}
-
 impl From<near_primitives::action::delegate::SignedDelegateAction>
     for SignedDelegateActionAsBase64
 {

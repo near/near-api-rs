@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use near_crypto::{PublicKey, SecretKey};
 use slipped10::BIP32Path;
 
-use crate::sign::{get_secret_key_from_seed, Signer};
+use crate::signer::{get_secret_key_from_seed, Signer};
 
 const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
 const DEFAULT_WORD_COUNT: usize = 12;

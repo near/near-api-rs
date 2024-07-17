@@ -14,10 +14,10 @@ use near_primitives::{
 use serde::Deserialize;
 use slipped10::BIP32Path;
 
-use crate::{config::NetworkConfig, transactions::PrepopulateTransaction};
+use crate::{config::NetworkConfig, types::transactions::PrepopulateTransaction};
 
 use self::{
-    access_keyfile_signer::AccessKeyFileSigner, keystore::KeystoreSigner, ledger::LedgerSigner,
+    access_keyfile_signer::AccessKeyFileSigner, keystore::KeystoreSigner,
     secret_key::SecretKeySigner,
 };
 
@@ -85,7 +85,7 @@ pub enum Signer {
     SecretKey(SecretKeySigner),
     AccessKeyFile(AccessKeyFileSigner),
     #[cfg(feature = "ledger")]
-    Ledger(LedgerSigner),
+    Ledger(ledger::LedgerSigner),
     Keystore(KeystoreSigner),
 }
 
@@ -139,14 +139,14 @@ impl Signer {
 
     #[cfg(feature = "ledger")]
     pub fn ledger() -> Self {
-        Self::Ledger(LedgerSigner::new(
+        Self::Ledger(ledger::LedgerSigner::new(
             BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"),
         ))
     }
 
     #[cfg(feature = "ledger")]
     pub fn ledger_with_hd_path(hd_path: BIP32Path) -> Self {
-        Self::Ledger(LedgerSigner::new(hd_path))
+        Self::Ledger(ledger::LedgerSigner::new(hd_path))
     }
 
     pub fn keystore(pub_key: PublicKey) -> Self {
@@ -160,6 +160,11 @@ impl Signer {
         Ok(Self::Keystore(
             KeystoreSigner::search_for_keys(account_id, network).await?,
         ))
+    }
+
+    #[cfg(feature = "workspaces")]
+    pub fn from_workspace(account: &near_workspaces::Account) -> Self {
+        Self::secret_key(account.secret_key().to_string().parse().unwrap())
     }
 }
 

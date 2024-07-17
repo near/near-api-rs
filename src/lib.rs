@@ -1,11 +1,17 @@
-pub mod account;
-pub mod config;
-pub mod contract;
-pub mod stake;
-pub mod tokens;
-pub mod transactions;
+mod account;
+mod config;
+mod contract;
+mod stake;
+mod tokens;
+mod transactions;
 
-pub mod common;
-pub mod fastnear;
-pub mod sign;
+mod common;
+mod fastnear;
+
+pub mod signer;
 pub mod types;
+
+pub use {
+    account::Account, config::NetworkConfig, contract::Contract, fastnear::FastNear,
+    stake::Delegation, stake::Staking, tokens::Tokens, transactions::Transaction,
+};

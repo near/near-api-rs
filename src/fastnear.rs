@@ -3,7 +3,15 @@ use std::collections::BTreeSet;
 use near_primitives::types::AccountId;
 use serde::de::DeserializeOwned;
 
-use crate::types::StakingResponse;
+#[derive(Debug, serde::Deserialize)]
+pub struct StakingPool {
+    pool_id: near_primitives::types::AccountId,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct StakingResponse {
+    pools: Vec<StakingPool>,
+}
 
 pub struct FastNearBuilder<T: DeserializeOwned, PostProcessed> {
     query: String,
@@ -46,9 +54,9 @@ impl<T: DeserializeOwned, PostProcessed> FastNearBuilder<T, PostProcessed> {
     }
 }
 
-pub struct FastNearHandler {}
+pub struct FastNear {}
 
-impl FastNearHandler {
+impl FastNear {
     pub async fn pools_delegated_by(
         &self,
         account_id: &AccountId,

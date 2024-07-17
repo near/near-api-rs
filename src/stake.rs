@@ -7,27 +7,23 @@ use near_jsonrpc_client::methods::{
 };
 use near_primitives::types::{AccountId, BlockReference, EpochReference};
 use near_token::NearToken;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     common::query::{
-        CallResultHandler, Data, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
-        QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc,
-        ValidatorQueryBuilder, ViewStateHandler,
+        CallResultHandler, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler, QueryBuilder,
+        QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc, ValidatorQueryBuilder,
+        ViewStateHandler,
     },
     contract::Contract,
     transactions::ConstructTransaction,
+    types::{
+        stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
+        Data,
+    },
 };
 
 fn near_data_to_near_token(data: Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UserBalance {
-    pub staked: NearToken,
-    pub unstaked: NearToken,
-    pub total: NearToken,
 }
 
 // TODO: Would be nice to have aggregated info from staking pool. That would return staked, unstaked, total.
@@ -116,7 +112,7 @@ impl Delegation {
     ) -> anyhow::Result<
         MultiQueryBuilder<
             PostprocessHandler<
-                UserBalance,
+                UserStakeBalance,
                 RpcQueryResponse,
                 MultiQueryHandler<(
                     CallResultHandler<u128>,
@@ -137,7 +133,7 @@ impl Delegation {
                 let unstaked = near_data_to_near_token(unstaked);
                 let total = near_data_to_near_token(total);
 
-                UserBalance {
+                UserStakeBalance {
                     staked,
                     unstaked,
                     total,
@@ -419,20 +415,6 @@ impl Staking {
     pub fn delegation(account_id: AccountId) -> Delegation {
         Delegation(account_id)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StakingPoolInfo {
-    pub validator_id: near_primitives::types::AccountId,
-    pub fee: Option<RewardFeeFraction>,
-    pub delegators: Option<u64>,
-    pub stake: NearToken,
-}
-
-#[derive(Debug, Clone, PartialEq, Default, Eq, serde::Deserialize)]
-pub struct RewardFeeFraction {
-    pub numerator: u32,
-    pub denominator: u32,
 }
 
 pub struct ActiveStakingPoolQuery;

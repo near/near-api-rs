@@ -154,7 +154,7 @@ mod tests {
     use near_primitives::types::{AccountId, BlockReference};
     use near_token::NearToken;
 
-    use crate::sign::Signer;
+    use crate::signer::Signer;
 
     const TESTNET_ACCOUNT: &str = "yurtur.testnet";
 
