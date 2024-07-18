@@ -15,8 +15,13 @@ pub struct SecretBuilder<T> {
 }
 
 impl<T> SecretBuilder<T> {
-    pub fn new(next_step: Box<SecretCallback<T>>) -> Self {
-        Self { next_step }
+    pub fn new<Fn>(next_step: Fn) -> Self
+    where
+        Fn: FnOnce(PublicKey) -> anyhow::Result<T> + 'static,
+    {
+        Self {
+            next_step: Box::new(next_step),
+        }
     }
 
     pub fn new_keypair(self) -> GenerateKeypairBuilder<T> {
@@ -29,8 +34,12 @@ impl<T> SecretBuilder<T> {
         }
     }
 
-    pub fn use_keypair_from(self, signer: Signer) -> anyhow::Result<T> {
+    pub fn use_public_key_from(self, signer: Signer) -> anyhow::Result<T> {
         let pk: PublicKey = signer.as_signer().get_public_key()?;
+        (self.next_step)(pk)
+    }
+
+    pub fn use_public_key(self, pk: PublicKey) -> anyhow::Result<T> {
         (self.next_step)(pk)
     }
 }
