@@ -23,7 +23,7 @@ impl StorageBuilder {
                     "account_id": self.account_id,
                 }),
             )?
-            .as_read_only())
+            .read_only())
     }
 
     pub fn deposit(
@@ -38,7 +38,7 @@ impl StorageBuilder {
                     "account_id": receiver_account_id.to_string(),
                 }),
             )?
-            .as_transaction()
+            .transaction()
             .deposit(amount)
             .with_signer_account(self.account_id))
     }
@@ -51,7 +51,7 @@ impl StorageBuilder {
                     "amount": amount.as_yoctonear()
                 }),
             )?
-            .as_transaction()
+            .transaction()
             .deposit(NearToken::from_yoctonear(1))
             .with_signer_account(self.account_id))
     }

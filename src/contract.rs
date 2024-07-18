@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use near_gas::NearGas;
-use near_jsonrpc_client::methods::query::RpcQueryResponse;
+
 use near_primitives::{
     action::{Action, DeployContractAction, FunctionCallAction},
     types::{AccountId, BlockReference, StoreKey},
@@ -48,9 +48,8 @@ impl Contract {
 
     pub fn abi(
         self,
-    ) -> QueryBuilder<
-        PostprocessHandler<Option<near_abi::AbiRoot>, RpcQueryResponse, CallResultHandler<Vec<u8>>>,
-    > {
+    ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
+    {
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: self.0.clone(),
             method_name: "__contract_abi".to_owned(),
@@ -105,7 +104,7 @@ impl Contract {
     ) -> QueryBuilder<CallResultHandler<ContractSourceMetadata>> {
         self.call_function("contract_source_metadata", ())
             .expect("arguments are always serializable")
-            .as_read_only()
+            .read_only()
     }
 }
 
@@ -151,7 +150,7 @@ pub struct CallFunctionBuilder {
 }
 
 impl CallFunctionBuilder {
-    pub fn as_read_only<Response: DeserializeOwned>(
+    pub fn read_only<Response: DeserializeOwned>(
         self,
     ) -> QueryBuilder<CallResultHandler<Response>> {
         let request = near_primitives::views::QueryRequest::CallFunction {
@@ -167,7 +166,7 @@ impl CallFunctionBuilder {
         )
     }
 
-    pub fn as_transaction(self) -> ContractTransactBuilder {
+    pub fn transaction(self) -> ContractTransactBuilder {
         ContractTransactBuilder::new(self.contract, self.method_name, self.args, None)
     }
 }
@@ -254,7 +253,7 @@ mod tests {
             crate::contract::Contract("race-of-sloths-stage.testnet".parse().unwrap())
                 .call_function("prs", Paging { limit: 5, page: 1 })
                 .unwrap()
-                .as_read_only()
+                .read_only()
                 .fetch_from_testnet()
                 .await
                 .unwrap()
@@ -284,7 +283,7 @@ mod tests {
                 }),
             )
             .unwrap()
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(100))
             .with_signer(
                 "yurtur.testnet".parse().unwrap(),

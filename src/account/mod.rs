@@ -161,9 +161,10 @@ mod tests {
     #[tokio::test]
     async fn load_account() {
         let account = super::Account(TESTNET_ACCOUNT.parse().unwrap());
+
         assert!(account
             .view()
-            .as_of(BlockReference::latest())
+            .at(BlockReference::latest())
             .fetch_from_testnet()
             .await
             .is_ok());

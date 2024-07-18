@@ -4,7 +4,6 @@ use near_contract_standards::{
     fungible_token::metadata::FungibleTokenMetadata,
     non_fungible_token::{metadata::NFTContractMetadata, Token},
 };
-use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
     action::{Action, TransferAction},
     types::{AccountId, BlockReference},
@@ -29,9 +28,7 @@ use crate::{
 pub struct Tokens(pub AccountId);
 
 impl Tokens {
-    pub fn near_balance(
-        self,
-    ) -> QueryBuilder<PostprocessHandler<UserBalance, RpcQueryResponse, AccountViewHandler>> {
+    pub fn near_balance(self) -> QueryBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
         let request = near_primitives::views::QueryRequest::ViewAccount { account_id: self.0 };
 
         QueryBuilder::new(
@@ -59,7 +56,7 @@ impl Tokens {
     ) -> anyhow::Result<QueryBuilder<CallResultHandler<NFTContractMetadata>>> {
         Ok(Contract(contract_id)
             .call_function("nft_metadata", ())?
-            .as_read_only())
+            .read_only())
     }
 
     pub fn nft_assets(
@@ -73,7 +70,7 @@ impl Tokens {
                     "account_id": self.0.to_string(),
                 }),
             )?
-            .as_read_only())
+            .read_only())
     }
 
     pub fn ft_metadata(
@@ -81,7 +78,7 @@ impl Tokens {
     ) -> anyhow::Result<QueryBuilder<CallResultHandler<Vec<FungibleTokenMetadata>>>> {
         Ok(Contract(contract_id)
             .call_function("ft_metadata", ())?
-            .as_read_only())
+            .read_only())
     }
 
     pub fn ft_balance(
@@ -91,7 +88,6 @@ impl Tokens {
         MultiQueryBuilder<
             PostprocessHandler<
                 FungibleToken,
-                RpcQueryResponse,
                 MultiQueryHandler<(
                     CallResultHandler<FungibleTokenMetadata>,
                     CallResultHandler<u128>,
@@ -121,7 +117,7 @@ impl Tokens {
                             "account_id": self.0
                         }),
                     )?
-                    .as_read_only::<()>(),
+                    .read_only::<()>(),
             );
 
         Ok(query_builder)
@@ -148,7 +144,7 @@ impl Tokens {
                     "amount": amount
                 }),
             )?
-            .as_transaction()
+            .transaction()
             .with_signer_account(self.0))
     }
 
@@ -166,7 +162,7 @@ impl Tokens {
                     "token_id": token_id
                 }),
             )?
-            .as_transaction()
+            .transaction()
             .with_signer_account(self.0))
     }
 }

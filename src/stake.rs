@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use near_gas::NearGas;
-use near_jsonrpc_client::methods::{
-    query::{RpcQueryRequest, RpcQueryResponse},
-    validators::RpcValidatorResponse,
-};
+use near_jsonrpc_client::methods::query::RpcQueryRequest;
 use near_primitives::types::{AccountId, BlockReference, EpochReference};
 use near_token::NearToken;
 
@@ -34,9 +31,7 @@ impl Delegation {
     pub fn view_staked_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<
-        QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>,
-    > {
+    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -59,9 +54,7 @@ impl Delegation {
     pub fn view_unstaked_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<
-        QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>,
-    > {
+    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -84,9 +77,7 @@ impl Delegation {
     pub fn view_total_balance(
         self,
         pool: AccountId,
-    ) -> anyhow::Result<
-        QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>,
-    > {
+    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0,
         }))?;
@@ -113,7 +104,6 @@ impl Delegation {
         MultiQueryBuilder<
             PostprocessHandler<
                 UserStakeBalance,
-                RpcQueryResponse,
                 MultiQueryHandler<(
                     CallResultHandler<u128>,
                     CallResultHandler<u128>,
@@ -177,7 +167,7 @@ impl Delegation {
     ) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("deposit", ())?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .deposit(amount)
             .with_signer_account(self.0))
@@ -190,7 +180,7 @@ impl Delegation {
     ) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("deposit_and_stake", ())?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .deposit(amount)
             .with_signer_account(self.0))
@@ -203,7 +193,7 @@ impl Delegation {
 
         Ok(Contract(pool)
             .call_function("stake", args)?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .with_signer_account(self.0))
     }
@@ -211,7 +201,7 @@ impl Delegation {
     pub fn stake_all(self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("stake_all", ())?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .with_signer_account(self.0))
     }
@@ -227,7 +217,7 @@ impl Delegation {
 
         Ok(Contract(pool)
             .call_function("unstake", args)?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .with_signer_account(self.0))
     }
@@ -235,7 +225,7 @@ impl Delegation {
     pub fn unstake_all(self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("unstake_all", ())?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .with_signer_account(self.0))
     }
@@ -251,7 +241,7 @@ impl Delegation {
 
         Ok(Contract(pool)
             .call_function("withdraw", args)?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .with_signer_account(self.0))
     }
@@ -259,7 +249,7 @@ impl Delegation {
     pub fn withdraw_all(self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("withdraw_all", ())?
-            .as_transaction()
+            .transaction()
             .gas(NearGas::from_tgas(50))
             .with_signer_account(self.0))
     }
@@ -268,13 +258,9 @@ impl Delegation {
 pub struct Staking {}
 
 impl Staking {
-    pub fn active_staking_pools() -> QueryBuilder<
-        PostprocessHandler<
-            std::collections::BTreeSet<AccountId>,
-            RpcQueryResponse,
-            ViewStateHandler,
-        >,
-    > {
+    pub fn active_staking_pools(
+    ) -> QueryBuilder<PostprocessHandler<std::collections::BTreeSet<AccountId>, ViewStateHandler>>
+    {
         QueryBuilder::new(
             ActiveStakingPoolQuery,
             BlockReference::latest(),
@@ -298,11 +284,7 @@ impl Staking {
     }
 
     pub fn validators_stake() -> ValidatorQueryBuilder<
-        PostprocessHandler<
-            BTreeMap<AccountId, NearToken>,
-            RpcValidatorResponse,
-            RpcValidatorHandler,
-        >,
+        PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>,
     > {
         ValidatorQueryBuilder::new(
             SimpleValidatorRpc,
@@ -343,20 +325,19 @@ impl Staking {
         Contract(pool)
             .call_function("get_reward_fee_fraction", ())
             .expect("arguments are not expected")
-            .as_read_only()
+            .read_only()
     }
 
     pub fn staking_pool_delegators(pool: AccountId) -> QueryBuilder<CallResultHandler<u64>> {
         Contract(pool)
             .call_function("get_number_of_accounts", ())
             .expect("arguments are not expected")
-            .as_read_only()
+            .read_only()
     }
 
     pub fn staking_pool_total_stake(
         pool: AccountId,
-    ) -> QueryBuilder<PostprocessHandler<NearToken, RpcQueryResponse, CallResultHandler<u128>>>
-    {
+    ) -> QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: pool,
             method_name: "get_total_staked_balance".to_owned(),
@@ -378,7 +359,6 @@ impl Staking {
     ) -> MultiQueryBuilder<
         PostprocessHandler<
             StakingPoolInfo,
-            RpcQueryResponse,
             MultiQueryHandler<(
                 CallResultHandler<RewardFeeFraction>,
                 CallResultHandler<u64>,

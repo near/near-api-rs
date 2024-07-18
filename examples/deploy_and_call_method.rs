@@ -17,7 +17,7 @@ async fn main() {
     let current_value: Data<i8> = Contract(account.id().clone())
         .call_function("get_num", ())
         .unwrap()
-        .as_read_only()
+        .read_only()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -27,7 +27,7 @@ async fn main() {
     Contract(account.id().clone())
         .call_function("increment", ())
         .unwrap()
-        .as_transaction()
+        .transaction()
         .with_signer(account.id().clone(), Signer::from_workspace(&account))
         .send_to(&network)
         .await
@@ -37,7 +37,7 @@ async fn main() {
     let current_value: Data<i8> = Contract(account.id().clone())
         .call_function("get_num", ())
         .unwrap()
-        .as_read_only()
+        .read_only()
         .fetch_from(&network)
         .await
         .unwrap();
