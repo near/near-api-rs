@@ -1,11 +1,8 @@
 use anyhow::{bail, Context};
-use near_crypto::{PublicKey, SecretKey, Signature};
+use near_crypto::{PublicKey, SecretKey};
 use near_ledger::NEARLedgerError;
 use near_primitives::{
-    action::delegate::SignedDelegateAction,
-    hash::CryptoHash,
-    signable_message::{SignableMessage, SignableMessageType},
-    transaction::Transaction,
+    action::delegate::SignedDelegateAction, hash::CryptoHash, transaction::Transaction,
     types::Nonce,
 };
 use slipped10::BIP32Path;
@@ -31,24 +28,19 @@ impl LedgerSigner {
     pub fn new(hd_path: BIP32Path) -> Self {
         Self { hd_path }
     }
+}
 
-    pub fn sign_borsh(&self, data: Vec<u8>) -> anyhow::Result<Signature> {
-        let signature = match near_ledger::sign_transaction(data, self.hd_path.clone()) {
-            Ok(signature) => {
-                near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)
-                    .context("Signature is not expected to fail on deserialization")?
-            }
-            Err(NEARLedgerError::APDUExchangeError(msg)) if msg.contains(SW_BUFFER_OVERFLOW) => {
-                bail!(ERR_OVERFLOW_MEMO);
-            }
-            Err(near_ledger_error) => {
-                bail!(
-                    "Error occurred while signing the transaction: {:?}",
-                    near_ledger_error
-                );
-            }
-        };
-        Ok(signature)
+fn map_ledger_err(ledger_error: NEARLedgerError) -> anyhow::Error {
+    match ledger_error {
+        NEARLedgerError::APDUExchangeError(msg) if msg.contains(SW_BUFFER_OVERFLOW) => {
+            anyhow::anyhow!(ERR_OVERFLOW_MEMO)
+        }
+        near_ledger_error => {
+            anyhow::anyhow!(
+                "Error occurred while signing the transaction: {:?}",
+                near_ledger_error
+            )
+        }
     }
 }
 
@@ -69,10 +61,16 @@ impl SignerTrait for LedgerSigner {
             actions: tr.actions.clone(),
         };
 
-        let signature = self.sign_borsh(
+        let signature = near_ledger::sign_transaction(
             borsh::to_vec(&unsigned_tx)
                 .context("Unexpected to fail serialization of the unsigned tx")?,
-        )?;
+            self.hd_path.clone(),
+        )
+        .map_err(map_ledger_err)?;
+
+        let signature =
+            near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)
+                .context("Signature is not expected to fail on deserialization")?;
 
         Ok(near_primitives::transaction::SignedTransaction::new(
             signature,
@@ -103,10 +101,16 @@ impl SignerTrait for LedgerSigner {
             public_key,
         };
 
-        let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
-        let borsh_data = borsh::to_vec(&signable)
-            .context("Delegate action is not expected to fail on serialization")?;
-        let signature = self.sign_borsh(borsh_data)?;
+        let signature = near_ledger::sign_message_nep366_delegate_action(
+            &delegate_action,
+            self.hd_path.clone(),
+        )
+        .map_err(map_ledger_err)?;
+
+        let signature =
+            near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)
+                .context("Signature is not expected to fail on deserialization")?;
+
         Ok(SignedDelegateAction {
             delegate_action,
             signature,
