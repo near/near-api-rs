@@ -14,6 +14,8 @@ use crate::types::transactions::PrepopulateTransaction;
 
 use super::SignerTrait;
 
+// TODO: currently the ledger is blocking the thread as it's implemented synchronously.
+
 const SW_BUFFER_OVERFLOW: &str = "0x6990";
 const ERR_OVERFLOW_MEMO: &str = "Buffer overflow on Ledger device occured. \
 Transaction is too large for signature. \

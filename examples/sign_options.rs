@@ -15,6 +15,7 @@ async fn main() {
     let (new_seed_phrase, tx) = Account(account.id().clone())
         .add_key(AccessKeyPermission::FullAccess)
         .new_keypair()
+        // Passphrase is optional. You can also configure hd_path
         .passphrase("smile".to_string())
         .generate_seed_phrase()
         .unwrap();
