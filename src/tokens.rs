@@ -25,6 +25,7 @@ use crate::{
     },
 };
 
+#[derive(Debug, Clone)]
 pub struct Tokens {
     account_id: AccountId,
 }
@@ -131,47 +132,56 @@ impl Tokens {
         Ok(query_builder)
     }
 
-    pub fn send_near(self, receiver_id: AccountId, amount: NearToken) -> ConstructTransaction {
-        ConstructTransaction::new(self.account_id, receiver_id).add_action(Action::Transfer(
+    pub fn send_to(self, receiver_id: AccountId) -> SendTo {
+        SendTo {
+            from: self.account_id,
+            receiver_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SendTo {
+    from: AccountId,
+    receiver_id: AccountId,
+}
+
+impl SendTo {
+    pub fn near(self, amount: NearToken) -> ConstructTransaction {
+        ConstructTransaction::new(self.from, self.receiver_id).add_action(Action::Transfer(
             TransferAction {
                 deposit: amount.as_yoctonear(),
             },
         ))
     }
 
-    pub fn send_ft(
-        self,
-        ft_contract: AccountId,
-        receiver_id: AccountId,
-        amount: u128,
-    ) -> anyhow::Result<ConstructTransaction> {
+    pub fn ft(self, ft_contract: AccountId, amount: u128) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(ft_contract)
             .call_function(
                 "ft_transfer",
                 json!({
-                    "receiver_id": receiver_id,
+                    "receiver_id": self.receiver_id,
                     "amount": amount
                 }),
             )?
             .transaction()
-            .with_signer_account(self.account_id))
+            .with_signer_account(self.from))
     }
 
-    pub fn send_nft(
+    pub fn nft(
         self,
         nft_contract: AccountId,
-        receiver_id: AccountId,
         token_id: String,
     ) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(nft_contract)
             .call_function(
                 "nft_transfer",
                 json!({
-                    "receiver_id": receiver_id.to_string(),
+                    "receiver_id": self.receiver_id,
                     "token_id": token_id
                 }),
             )?
             .transaction()
-            .with_signer_account(self.account_id))
+            .with_signer_account(self.from))
     }
 }

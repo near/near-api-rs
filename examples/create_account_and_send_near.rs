@@ -33,7 +33,8 @@ async fn main() {
         .unwrap();
 
     near::Tokens::of(account.id().clone())
-        .send_near(new_account.clone(), NearToken::from_near(1))
+        .send_to(new_account.clone())
+        .near(NearToken::from_near(1))
         .with_signer(Signer::from_workspace(&account))
         .send_to(&network)
         .await
