@@ -25,11 +25,19 @@ use crate::{
     },
 };
 
-pub struct Tokens(pub AccountId);
+pub struct Tokens {
+    account_id: AccountId,
+}
 
 impl Tokens {
+    pub fn of(account_id: AccountId) -> Self {
+        Self { account_id }
+    }
+
     pub fn near_balance(self) -> QueryBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
-        let request = near_primitives::views::QueryRequest::ViewAccount { account_id: self.0 };
+        let request = near_primitives::views::QueryRequest::ViewAccount {
+            account_id: self.account_id,
+        };
 
         QueryBuilder::new(
             SimpleQuery { request },
@@ -67,7 +75,7 @@ impl Tokens {
             .call_function(
                 "nft_tokens_for_owner",
                 json!({
-                    "account_id": self.0.to_string(),
+                    "account_id": self.account_id.to_string(),
                 }),
             )?
             .read_only())
@@ -114,7 +122,7 @@ impl Tokens {
                     .call_function(
                         "ft_balance_of",
                         json!({
-                            "account_id": self.0
+                            "account_id": self.account_id
                         }),
                     )?
                     .read_only::<()>(),
@@ -124,7 +132,7 @@ impl Tokens {
     }
 
     pub fn send_near(self, receiver_id: AccountId, amount: NearToken) -> ConstructTransaction {
-        ConstructTransaction::new(self.0, receiver_id).add_action(Action::Transfer(
+        ConstructTransaction::new(self.account_id, receiver_id).add_action(Action::Transfer(
             TransferAction {
                 deposit: amount.as_yoctonear(),
             },
@@ -140,12 +148,12 @@ impl Tokens {
             .call_function(
                 "ft_transfer",
                 json!({
-                    "receiver_id": self.0.to_string(),
+                    "receiver_id": self.account_id.to_string(),
                     "amount": amount
                 }),
             )?
             .transaction()
-            .with_signer_account(self.0))
+            .with_signer_account(self.account_id))
     }
 
     pub fn send_nft(
@@ -163,6 +171,6 @@ impl Tokens {
                 }),
             )?
             .transaction()
-            .with_signer_account(self.0))
+            .with_signer_account(self.account_id))
     }
 }

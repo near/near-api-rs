@@ -8,7 +8,7 @@ async fn main() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    let balance = near::Tokens(account.id().clone())
+    let balance = near::Tokens::of(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -32,19 +32,19 @@ async fn main() {
         .await
         .unwrap();
 
-    near::Tokens(account.id().clone())
+    near::Tokens::of(account.id().clone())
         .send_near(new_account.clone(), NearToken::from_near(1))
         .with_signer(Signer::from_workspace(&account))
         .send_to(&network)
         .await
         .unwrap();
 
-    let new_acccount_balance = near::Tokens(account.id().clone())
+    let new_acccount_balance = near::Tokens::of(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
         .unwrap();
-    let bob_balance = near::Tokens(new_account)
+    let bob_balance = near::Tokens::of(new_account)
         .near_balance()
         .fetch_from(&network)
         .await
