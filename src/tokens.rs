@@ -142,13 +142,14 @@ impl Tokens {
     pub fn send_ft(
         self,
         ft_contract: AccountId,
+        receiver_id: AccountId,
         amount: u128,
     ) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(ft_contract)
             .call_function(
                 "ft_transfer",
                 json!({
-                    "receiver_id": self.account_id.to_string(),
+                    "receiver_id": receiver_id,
                     "amount": amount
                 }),
             )?
