@@ -9,10 +9,9 @@ async fn main() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
+    // Deploying token contract
     Contract(token.id().clone())
         .deploy(include_bytes!("./resources/fungible_token.wasm").to_vec())
-        // You can add init call as well using `with_init_call`
         .with_init_call(
             "new_default_meta",
             json!({
@@ -26,6 +25,7 @@ async fn main() {
         .await
         .unwrap();
 
+    // Verifying that user has 1000 tokens
     let tokens = Tokens::of(token.id().clone())
         .ft_balance(token.id().clone())
         .unwrap()
@@ -35,6 +35,9 @@ async fn main() {
 
     println!("Owner has {} tokens", tokens.to_whole());
 
+    // Paying for storage for the account.
+    // This is required to store the tokens on the account
+    // TODO: This should be done automatically by the SDK
     Account(token.id().clone())
         .storage(token.id().clone())
         .deposit(account.id().clone(), NearToken::from_millinear(100))
@@ -44,9 +47,10 @@ async fn main() {
         .await
         .unwrap();
 
+    // Transfer 100 tokens to the account
     Tokens::of(token.id().clone())
         .send_to(account.id().clone())
-        // Send 100 tokens with 24 decimals (default for FT)
+        // We are using 24 decimals in contract
         .ft(token.id().clone(), FTBalance::from_whole(100, 24))
         .unwrap()
         .with_signer(Signer::from_workspace(&token))
@@ -72,7 +76,7 @@ async fn main() {
 
     println!("Owner has {} tokens", tokens.to_whole());
 
-    // We validate decimals at the network level
+    // We validate decimals at the network level so this should fail with a validation error
     let token = Tokens::of(token.id().clone())
         .send_to(account.id().clone())
         .ft(token.id().clone(), FTBalance::from_whole(1, 8))
