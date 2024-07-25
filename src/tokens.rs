@@ -197,6 +197,7 @@ impl SendTo {
                 }),
             )?
             .transaction()
+            .deposit(NearToken::from_yoctonear(1))
             .with_signer_account(self.from))
     }
 }
