@@ -2,6 +2,7 @@ mod account;
 mod config;
 mod contract;
 mod stake;
+mod storage;
 mod tokens;
 mod transactions;
 
@@ -13,5 +14,6 @@ pub mod types;
 
 pub use {
     account::Account, config::NetworkConfig, contract::Contract, fastnear::FastNear,
-    stake::Delegation, stake::Staking, tokens::Tokens, transactions::Transaction,
+    stake::Delegation, stake::Staking, storage::StorageDeposit, tokens::Tokens,
+    transactions::Transaction,
 };

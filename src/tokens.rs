@@ -114,7 +114,9 @@ impl Tokens {
                 CallResultHandler(PhantomData::<FungibleTokenMetadata>),
                 CallResultHandler(PhantomData::<U128>),
             )),
-            |(metadata, amount)| FTBalance::from_smallest(amount.data.0, metadata.data.decimals),
+            |(metadata, amount)| {
+                FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
+            },
         );
 
         let query_builder = MultiQueryBuilder::new(postprocess, BlockReference::latest())
@@ -166,7 +168,7 @@ impl SendTo {
                 "ft_transfer",
                 json!({
                     "receiver_id": self.receiver_id,
-                    "amount": U128(amount.to_smallest()),
+                    "amount": U128(amount.amount()),
                 }),
             )?
             .transaction()

@@ -1,4 +1,6 @@
-use near::{signer::Signer, types::tokens::FTBalance, Account, Contract, NetworkConfig, Tokens};
+use near::{
+    signer::Signer, types::tokens::FTBalance, Contract, NetworkConfig, StorageDeposit, Tokens,
+};
 use near_sdk::NearToken;
 use serde_json::json;
 
@@ -38,11 +40,10 @@ async fn main() {
     // Paying for storage for the account.
     // This is required to store the tokens on the account
     // TODO: This should be done automatically by the SDK
-    Account(token.id().clone())
-        .storage(token.id().clone())
+    StorageDeposit::on_contract(token.id().clone())
         .deposit(account.id().clone(), NearToken::from_millinear(100))
         .unwrap()
-        .with_signer(Signer::from_workspace(&token))
+        .with_signer(token.id().clone(), Signer::from_workspace(&token))
         .send_to(&network)
         .await
         .unwrap();
@@ -50,8 +51,10 @@ async fn main() {
     // Transfer 100 tokens to the account
     Tokens::of(token.id().clone())
         .send_to(account.id().clone())
-        // We are using 24 decimals in contract
-        .ft(token.id().clone(), FTBalance::from_whole(100, 24))
+        .ft(
+            token.id().clone(),
+            FTBalance::with_decimals(24).with_whole_amount(100),
+        )
         .unwrap()
         .with_signer(Signer::from_workspace(&token))
         .send_to(&network)
@@ -79,7 +82,10 @@ async fn main() {
     // We validate decimals at the network level so this should fail with a validation error
     let token = Tokens::of(token.id().clone())
         .send_to(account.id().clone())
-        .ft(token.id().clone(), FTBalance::from_whole(1, 8))
+        .ft(
+            token.id().clone(),
+            FTBalance::with_decimals(8).with_whole_amount(100),
+        )
         .unwrap()
         .with_signer(Signer::from_workspace(&token))
         .send_to(&network)
