@@ -43,6 +43,7 @@ pub trait QueryCreator<Method: RpcMethod> {
     ) -> anyhow::Result<Method>;
 }
 
+#[derive(Clone, Debug)]
 pub struct SimpleQuery {
     pub request: QueryRequest,
 }
@@ -61,6 +62,7 @@ impl QueryCreator<RpcQueryRequest> for SimpleQuery {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct SimpleValidatorRpc;
 
 impl QueryCreator<RpcValidatorRequest> for SimpleValidatorRpc {
@@ -205,6 +207,7 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct MultiQueryHandler<Handlers> {
     handlers: Handlers,
 }
@@ -266,7 +269,6 @@ impl<Handlers> MultiQueryHandler<Handlers> {
         Self { handlers }
     }
 }
-
 pub struct PostprocessHandler<PostProcessed, Handler: ResponseHandler> {
     post_process: Box<dyn Fn(Handler::Response) -> PostProcessed + Send + Sync>,
     handler: Handler,
@@ -303,7 +305,7 @@ where
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct CallResultHandler<Response>(pub PhantomData<Response>);
 
 impl<Response> ResponseHandler for CallResultHandler<Response>
@@ -336,7 +338,7 @@ where
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct AccountViewHandler;
 
 impl ResponseHandler for AccountViewHandler {
@@ -365,7 +367,7 @@ impl ResponseHandler for AccountViewHandler {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct AccessKeyListHandler;
 
 impl ResponseHandler for AccessKeyListHandler {
@@ -389,7 +391,7 @@ impl ResponseHandler for AccessKeyListHandler {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct AccessKeyHandler;
 
 impl ResponseHandler for AccessKeyHandler {
@@ -417,7 +419,7 @@ impl ResponseHandler for AccessKeyHandler {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct ViewStateHandler;
 
 impl ResponseHandler for ViewStateHandler {
@@ -445,7 +447,7 @@ impl ResponseHandler for ViewStateHandler {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct ViewCodeHandler;
 
 impl ResponseHandler for ViewCodeHandler {
@@ -473,6 +475,7 @@ impl ResponseHandler for ViewCodeHandler {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct RpcValidatorHandler;
 
 impl ResponseHandler for RpcValidatorHandler {

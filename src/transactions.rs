@@ -10,6 +10,7 @@ use crate::{
     types::transactions::PrepopulateTransaction,
 };
 
+#[derive(Clone, Debug)]
 pub struct TransactionWithSign<T: Transactionable> {
     pub tx: T,
 }
@@ -75,6 +76,7 @@ impl Transactionable for ConstructTransaction {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Transaction;
 
 impl Transaction {

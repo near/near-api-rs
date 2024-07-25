@@ -18,6 +18,7 @@ use self::create::CreateAccountBuilder;
 
 mod create;
 
+#[derive(Clone, Debug)]
 pub struct Account(pub AccountId);
 
 impl Account {

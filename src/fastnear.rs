@@ -54,6 +54,7 @@ impl<T: DeserializeOwned, PostProcessed> FastNearBuilder<T, PostProcessed> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FastNear {}
 
 impl FastNear {

@@ -22,6 +22,7 @@ use crate::{
     types::{contract::ContractSourceMetadata, Data},
 };
 
+#[derive(Clone, Debug)]
 pub struct Contract(pub AccountId);
 
 impl Contract {
@@ -144,6 +145,7 @@ impl DeployContractBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CallFunctionBuilder {
     contract: AccountId,
     method_name: String,
@@ -172,6 +174,7 @@ impl CallFunctionBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,

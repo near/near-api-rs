@@ -9,6 +9,7 @@ use crate::{
     transactions::ConstructTransaction,
 };
 
+#[derive(Clone, Debug)]
 pub struct StorageDeposit(AccountId);
 
 impl StorageDeposit {

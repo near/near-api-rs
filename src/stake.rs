@@ -23,7 +23,6 @@ fn near_data_to_near_token(data: Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)
 }
 
-// TODO: Would be nice to have aggregated info from staking pool. That would return staked, unstaked, total.
 #[derive(Clone, Debug)]
 pub struct Delegation(pub AccountId);
 
@@ -255,6 +254,7 @@ impl Delegation {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Staking {}
 
 impl Staking {
@@ -397,6 +397,7 @@ impl Staking {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct ActiveStakingPoolQuery;
 
 impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {

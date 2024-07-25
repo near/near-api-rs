@@ -202,6 +202,7 @@ impl SendTo {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FTTransactionable {
     prepopulated: PrepopulateTransaction,
     decimals: u8,

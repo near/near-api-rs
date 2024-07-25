@@ -14,6 +14,7 @@ use crate::{
     types::transactions::PrepopulateTransaction,
 };
 
+#[derive(Clone, Debug)]
 pub struct CreateAccountBuilder;
 
 impl CreateAccountBuilder {
@@ -98,6 +99,7 @@ impl CreateAccountBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CreateAccountByFaucet {
     pub new_account_id: AccountId,
     pub public_key: PublicKey,
@@ -132,6 +134,7 @@ impl CreateAccountByFaucet {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CreateAccountFundMyselfTx {
     prepopulated: PrepopulateTransaction,
 }
