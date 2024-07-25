@@ -8,7 +8,7 @@ use serde_json::json;
 use url::Url;
 
 use crate::{
-    common::{secret::SecretBuilder, send::Transactionable},
+    common::{query::QueryBuilder, secret::SecretBuilder, send::Transactionable},
     config::NetworkConfig,
     transactions::{ConstructTransaction, TransactionWithSign},
     types::transactions::PrepopulateTransaction,
@@ -137,27 +137,38 @@ pub struct CreateAccountFundMyselfTx {
 }
 
 impl Transactionable for CreateAccountFundMyselfTx {
+    type Handler = ();
+
     fn prepopulated(&self) -> PrepopulateTransaction {
         self.prepopulated.clone()
     }
 
     fn validate_with_network(
-        tx: &PrepopulateTransaction,
+        &self,
         network: &NetworkConfig,
+        _query_response: Option<()>,
     ) -> anyhow::Result<()> {
-        if tx.receiver_id.is_sub_account_of(&tx.signer_id) {
+        if self
+            .prepopulated
+            .receiver_id
+            .is_sub_account_of(&self.prepopulated.signer_id)
+        {
             return Ok(());
         }
 
         match &network.linkdrop_account_id {
             Some(linkdrop) => {
-                if &tx.receiver_id != linkdrop {
-                    bail!("Account can be created either under signer account or under linkdrop account. Expected: {:?}, got: {:?}", linkdrop, tx.receiver_id.get_parent_account_id().map(ToString::to_string).unwrap_or_default());
+                if &self.prepopulated.receiver_id != linkdrop {
+                    bail!("Account can be created either under signer account or under linkdrop account. Expected: {:?}, got: {:?}", linkdrop, self.prepopulated.receiver_id.get_parent_account_id().map(ToString::to_string).unwrap_or_default());
                 }
             }
             None => bail!("Can't create top-level account"),
         }
 
         Ok(())
+    }
+
+    fn prequery(&self) -> Option<QueryBuilder<()>> {
+        None
     }
 }

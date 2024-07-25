@@ -1,5 +1,6 @@
 use anyhow::bail;
 use near_crypto::PublicKey;
+use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
@@ -8,25 +9,32 @@ use near_primitives::{
     views::FinalExecutionOutcomeView,
 };
 use near_token::NearToken;
+use reqwest::Response;
 
 use crate::{
     config::NetworkConfig, signer::SignerTrait, types::transactions::PrepopulateTransaction,
 };
 
 use super::{
-    signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
+    query::{QueryBuilder, ResponseHandler},
+    signed_delegate_action::SignedDelegateActionAsBase64,
+    META_TRANSACTION_VALID_FOR_DEFAULT,
 };
 
 pub trait Transactionable {
+    type Handler: ResponseHandler<QueryResponse = RpcQueryResponse>;
+
     fn prepopulated(&self) -> PrepopulateTransaction;
     fn validate_with_network(
-        tx: &PrepopulateTransaction,
+        &self,
         network: &NetworkConfig,
+        query_response: Option<<Self::Handler as ResponseHandler>::Response>,
     ) -> anyhow::Result<()>;
+    fn prequery(&self) -> Option<QueryBuilder<Self::Handler>>;
 }
 
 pub enum TransactionableOrSigned<T, Signed> {
-    Prepopulated(T),
+    Transactionable(T),
     Signed((Signed, T)),
 }
 
@@ -34,7 +42,7 @@ impl<T, Signed> TransactionableOrSigned<T, Signed> {
     pub fn signed(self) -> Option<Signed> {
         match self {
             TransactionableOrSigned::Signed((signed, _)) => Some(signed),
-            TransactionableOrSigned::Prepopulated(_) => None,
+            TransactionableOrSigned::Transactionable(_) => None,
         }
     }
 }
@@ -42,7 +50,7 @@ impl<T, Signed> TransactionableOrSigned<T, Signed> {
 impl<T, S> TransactionableOrSigned<T, S> {
     pub fn transactionable(self) -> T {
         match self {
-            TransactionableOrSigned::Prepopulated(tr) => tr,
+            TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed((_, tr)) => tr,
         }
     }
@@ -68,7 +76,7 @@ pub struct ExecuteSignedTransaction<T: Transactionable> {
 impl<T: Transactionable> ExecuteSignedTransaction<T> {
     pub fn new(tr: T, signer: Box<dyn SignerTrait>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Prepopulated(tr),
+            tr: TransactionableOrSigned::Transactionable(tr),
             signer,
             retries: 5,
             sleep_duration: std::time::Duration::from_secs(1),
@@ -96,7 +104,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         nonce: Nonce,
     ) -> anyhow::Result<Self> {
         let tr = match &self.tr {
-            TransactionableOrSigned::Prepopulated(tr) => tr,
+            TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
         let signed_tr = self
@@ -108,7 +116,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
 
     pub async fn presign_with(self, network: &NetworkConfig) -> anyhow::Result<Self> {
         let tr = match &self.tr {
-            TransactionableOrSigned::Prepopulated(tr) => tr,
+            TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
@@ -138,17 +146,30 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         let sleep_duration = self.sleep_duration;
         let retries = self.retries;
 
-        let (signed, tr) = match self.tr {
-            TransactionableOrSigned::Prepopulated(_) => {
-                match self.presign_with(network).await?.tr {
-                    TransactionableOrSigned::Signed((s, tr)) => (s, tr),
-                    TransactionableOrSigned::Prepopulated(_) => unreachable!(),
-                }
-            }
-            TransactionableOrSigned::Signed((s, tr)) => (s, tr),
+        let (signed, transactionable) = match &self.tr {
+            TransactionableOrSigned::Transactionable(tr) => (None, tr),
+            TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
-        T::validate_with_network(&tr.prepopulated(), network)?;
 
+        match transactionable.prequery() {
+            Some(query_builder) => {
+                let query_response = query_builder.fetch_from(network).await?;
+                transactionable.validate_with_network(network, Some(query_response))?;
+            }
+            None => {
+                transactionable.validate_with_network(network, None)?;
+            }
+        }
+
+        let signed = match signed {
+            Some(s) => s,
+            None => self
+                .presign_with(network)
+                .await?
+                .tr
+                .signed()
+                .expect("Expect to have it signed"),
+        };
         Self::send_impl(network, signed, retries, sleep_duration).await
     }
 
@@ -207,7 +228,7 @@ pub struct ExecuteMetaTransaction<T> {
 impl<T: Transactionable> ExecuteMetaTransaction<T> {
     pub fn new(tr: T, signer: Box<dyn SignerTrait>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Prepopulated(tr),
+            tr: TransactionableOrSigned::Transactionable(tr),
             signer,
             tx_live_for: None,
         }
@@ -226,7 +247,7 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
         block_height: BlockHeight,
     ) -> anyhow::Result<Self> {
         let tr = match &self.tr {
-            TransactionableOrSigned::Prepopulated(tr) => tr,
+            TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
@@ -247,7 +268,7 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
 
     pub async fn presign_with(self, network: &NetworkConfig) -> anyhow::Result<Self> {
         let tr = match &self.tr {
-            TransactionableOrSigned::Prepopulated(tr) => tr,
+            TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
@@ -274,17 +295,31 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
         self.presign_with(&network).await
     }
 
-    pub async fn send_to(self, network: &NetworkConfig) -> anyhow::Result<reqwest::Response> {
-        let (signed, tr) = match self.tr {
-            TransactionableOrSigned::Prepopulated(_) => {
-                match self.presign_with(network).await?.tr {
-                    TransactionableOrSigned::Signed((s, tr)) => (s, tr),
-                    TransactionableOrSigned::Prepopulated(_) => unreachable!(),
-                }
-            }
-            TransactionableOrSigned::Signed((s, tr)) => (s, tr),
+    pub async fn send_to(self, network: &NetworkConfig) -> anyhow::Result<Response> {
+        let (signed, transactionable) = match &self.tr {
+            TransactionableOrSigned::Transactionable(tr) => (None, tr),
+            TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
-        T::validate_with_network(&tr.prepopulated(), network)?;
+
+        match transactionable.prequery() {
+            Some(query_builder) => {
+                let query_response = query_builder.fetch_from(network).await?;
+                transactionable.validate_with_network(network, Some(query_response))?;
+            }
+            None => {
+                transactionable.validate_with_network(network, None)?;
+            }
+        };
+
+        let signed = match signed {
+            Some(s) => s,
+            None => self
+                .presign_with(network)
+                .await?
+                .tr
+                .signed()
+                .expect("Expect to have it signed"),
+        };
         let transaction_info = Self::send_impl(network, signed).await?;
         Ok(transaction_info)
     }

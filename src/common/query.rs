@@ -24,7 +24,7 @@ pub trait ResponseHandler {
 
     // TODO: Add error type
 
-    /// NOTE: responses should always > 1
+    /// NOTE: responses should always >= 1
     fn process_response(
         &self,
         responses: Vec<Self::QueryResponse>,
@@ -156,10 +156,10 @@ where
     }
 }
 
-pub struct RpcBuilder<ResponseHandler, Method, Reference> {
+pub struct RpcBuilder<Handler, Method, Reference> {
     reference: Reference,
     request: Box<dyn QueryCreator<Method, RpcReference = Reference>>,
-    handler: ResponseHandler,
+    handler: Handler,
 }
 
 impl<Handler, Method, Reference> RpcBuilder<Handler, Method, Reference>
@@ -489,5 +489,14 @@ impl ResponseHandler for RpcValidatorHandler {
             .ok_or_else(|| anyhow!("No response for the view code handler"))?;
 
         Ok(response)
+    }
+}
+
+impl ResponseHandler for () {
+    type Response = ();
+    type QueryResponse = RpcQueryResponse;
+
+    fn process_response(&self, _: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+        Ok(())
     }
 }

@@ -129,17 +129,18 @@ impl DeployContractBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> anyhow::Result<ContractTransactBuilder> {
+    ) -> anyhow::Result<ConstructTransaction> {
         let args = serde_json::to_vec(&args)?;
 
         Ok(ContractTransactBuilder::new(
-            self.contract,
+            self.contract.clone(),
             method_name.to_string(),
             args,
             Some(Action::DeployContract(DeployContractAction {
                 code: self.code,
             })),
-        ))
+        )
+        .with_signer_account(self.contract))
     }
 }
 

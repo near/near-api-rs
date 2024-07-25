@@ -1,7 +1,10 @@
 use near_primitives::{action::Action, types::AccountId};
 
 use crate::{
-    common::send::{ExecuteSignedTransaction, Transactionable},
+    common::{
+        query::QueryBuilder,
+        send::{ExecuteSignedTransaction, Transactionable},
+    },
     config::NetworkConfig,
     signer::Signer,
     types::transactions::PrepopulateTransaction,
@@ -49,6 +52,8 @@ impl ConstructTransaction {
 }
 
 impl Transactionable for ConstructTransaction {
+    type Handler = ();
+
     fn prepopulated(&self) -> PrepopulateTransaction {
         PrepopulateTransaction {
             signer_id: self.tr.signer_id.clone(),
@@ -57,8 +62,16 @@ impl Transactionable for ConstructTransaction {
         }
     }
 
-    fn validate_with_network(_: &PrepopulateTransaction, _: &NetworkConfig) -> anyhow::Result<()> {
+    fn validate_with_network(
+        &self,
+        _: &NetworkConfig,
+        _query_response: Option<()>,
+    ) -> anyhow::Result<()> {
         Ok(())
+    }
+
+    fn prequery(&self) -> Option<QueryBuilder<()>> {
+        None
     }
 }
 

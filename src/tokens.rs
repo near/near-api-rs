@@ -9,18 +9,23 @@ use near_primitives::{
     types::{AccountId, BlockReference},
     views::AccountView,
 };
+use near_sdk::json_types::U128;
 use near_token::NearToken;
 use serde_json::json;
 
 use crate::{
-    common::query::{
-        AccountViewHandler, CallResultHandler, MultiQueryBuilder, MultiQueryHandler,
-        PostprocessHandler, QueryBuilder, SimpleQuery,
+    common::{
+        query::{
+            AccountViewHandler, CallResultHandler, MultiQueryBuilder, MultiQueryHandler,
+            PostprocessHandler, QueryBuilder, SimpleQuery,
+        },
+        send::Transactionable,
     },
     contract::Contract,
-    transactions::ConstructTransaction,
+    transactions::{ConstructTransaction, TransactionWithSign},
     types::{
-        tokens::{FungibleToken, UserBalance},
+        tokens::{FTBalance, UserBalance},
+        transactions::PrepopulateTransaction,
         Data,
     },
 };
@@ -84,7 +89,7 @@ impl Tokens {
 
     pub fn ft_metadata(
         contract_id: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<Vec<FungibleTokenMetadata>>>> {
+    ) -> anyhow::Result<QueryBuilder<CallResultHandler<FungibleTokenMetadata>>> {
         Ok(Contract(contract_id)
             .call_function("ft_metadata", ())?
             .read_only())
@@ -96,10 +101,10 @@ impl Tokens {
     ) -> anyhow::Result<
         MultiQueryBuilder<
             PostprocessHandler<
-                FungibleToken,
+                FTBalance,
                 MultiQueryHandler<(
                     CallResultHandler<FungibleTokenMetadata>,
-                    CallResultHandler<u128>,
+                    CallResultHandler<U128>,
                 )>,
             >,
         >,
@@ -107,13 +112,9 @@ impl Tokens {
         let postprocess = PostprocessHandler::new(
             MultiQueryHandler::new((
                 CallResultHandler(PhantomData::<FungibleTokenMetadata>),
-                CallResultHandler(PhantomData),
+                CallResultHandler(PhantomData::<U128>),
             )),
-            |(metadata, amount)| FungibleToken {
-                balance: amount.data,
-                decimals: metadata.data.decimals,
-                symbol: metadata.data.symbol,
-            },
+            |(metadata, amount)| FTBalance::from_smallest(amount.data.0, metadata.data.decimals),
         );
 
         let query_builder = MultiQueryBuilder::new(postprocess, BlockReference::latest())
@@ -155,17 +156,29 @@ impl SendTo {
         ))
     }
 
-    pub fn ft(self, ft_contract: AccountId, amount: u128) -> anyhow::Result<ConstructTransaction> {
-        Ok(Contract(ft_contract)
+    pub fn ft(
+        self,
+        ft_contract: AccountId,
+        amount: FTBalance,
+    ) -> anyhow::Result<TransactionWithSign<FTTransactionable>> {
+        let tr = Contract(ft_contract)
             .call_function(
                 "ft_transfer",
                 json!({
                     "receiver_id": self.receiver_id,
-                    "amount": amount
+                    "amount": U128(amount.to_smallest()),
                 }),
             )?
             .transaction()
-            .with_signer_account(self.from))
+            .deposit(NearToken::from_yoctonear(1))
+            .with_signer_account(self.from);
+
+        Ok(TransactionWithSign {
+            tx: FTTransactionable {
+                prepopulated: tr.tr,
+                decimals: amount.decimals(),
+            },
+        })
     }
 
     pub fn nft(
@@ -183,5 +196,38 @@ impl SendTo {
             )?
             .transaction()
             .with_signer_account(self.from))
+    }
+}
+
+pub struct FTTransactionable {
+    prepopulated: PrepopulateTransaction,
+    decimals: u8,
+}
+
+impl Transactionable for FTTransactionable {
+    type Handler = CallResultHandler<FungibleTokenMetadata>;
+
+    fn prepopulated(&self) -> PrepopulateTransaction {
+        self.prepopulated.clone()
+    }
+
+    fn validate_with_network(
+        &self,
+        _network: &crate::NetworkConfig,
+        query_response: Option<Data<FungibleTokenMetadata>>,
+    ) -> anyhow::Result<()> {
+        let metadata = query_response.ok_or_else(|| anyhow::anyhow!("No metadata found"))?;
+        if metadata.data.decimals != self.decimals {
+            return Err(anyhow::anyhow!(
+                "Decimals mismatch: expected {}, got {}",
+                metadata.data.decimals,
+                self.decimals,
+            ));
+        }
+        Ok(())
+    }
+
+    fn prequery(&self) -> Option<QueryBuilder<Self::Handler>> {
+        Tokens::ft_metadata(self.prepopulated.receiver_id.clone()).ok()
     }
 }

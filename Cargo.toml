@@ -38,6 +38,7 @@ near-primitives = "0.23"
 near-jsonrpc-client = "0.10.1"
 near-jsonrpc-primitives = "0.23"
 near-contract-standards = "5.2"
+near-sdk = "5.2"
 
 near-gas = { version = "0.2.3", features = [
     "serde",
