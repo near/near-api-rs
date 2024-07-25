@@ -27,7 +27,7 @@ pub struct Contract(pub AccountId);
 
 impl Contract {
     pub fn call_function<Args>(
-        self,
+        &self,
         method_name: &str,
         args: Args,
     ) -> anyhow::Result<CallFunctionBuilder>
@@ -43,12 +43,12 @@ impl Contract {
         })
     }
 
-    pub fn deploy(self, code: Vec<u8>) -> DeployContractBuilder {
+    pub fn deploy(&self, code: Vec<u8>) -> DeployContractBuilder {
         DeployContractBuilder::new(self.0.clone(), code)
     }
 
     pub fn abi(
-        self,
+        &self,
     ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
     {
         let request = near_primitives::views::QueryRequest::CallFunction {
@@ -70,7 +70,7 @@ impl Contract {
         )
     }
 
-    pub fn wasm(self) -> QueryBuilder<ViewCodeHandler> {
+    pub fn wasm(&self) -> QueryBuilder<ViewCodeHandler> {
         let request = near_primitives::views::QueryRequest::ViewCode {
             account_id: self.0.clone(),
         };
@@ -82,7 +82,7 @@ impl Contract {
         )
     }
 
-    pub fn view_storage_with_prefix(self, prefix: Vec<u8>) -> QueryBuilder<ViewStateHandler> {
+    pub fn view_storage_with_prefix(&self, prefix: Vec<u8>) -> QueryBuilder<ViewStateHandler> {
         let request = near_primitives::views::QueryRequest::ViewState {
             account_id: self.0.clone(),
             prefix: StoreKey::from(prefix),
@@ -96,12 +96,12 @@ impl Contract {
         )
     }
 
-    pub fn view_storage(self) -> QueryBuilder<ViewStateHandler> {
+    pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler> {
         self.view_storage_with_prefix(vec![])
     }
 
     pub fn contract_source_metadata(
-        self,
+        &self,
     ) -> QueryBuilder<CallResultHandler<ContractSourceMetadata>> {
         self.call_function("contract_source_metadata", ())
             .expect("arguments are always serializable")

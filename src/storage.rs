@@ -18,10 +18,10 @@ impl StorageDeposit {
     }
 
     pub fn view_account_storage(
-        self,
+        &self,
         account_id: AccountId,
     ) -> anyhow::Result<QueryBuilder<CallResultHandler<StorageBalance>>> {
-        Ok(Contract(self.0)
+        Ok(Contract(self.0.clone())
             .call_function(
                 "storage_balance_of",
                 json!({
@@ -32,11 +32,11 @@ impl StorageDeposit {
     }
 
     pub fn deposit(
-        self,
+        &self,
         receiver_account_id: AccountId,
         amount: NearToken,
     ) -> anyhow::Result<ContractTransactBuilder> {
-        Ok(Contract(self.0)
+        Ok(Contract(self.0.clone())
             .call_function(
                 "storage_deposit",
                 json!({
@@ -48,11 +48,11 @@ impl StorageDeposit {
     }
 
     pub fn withdraw(
-        self,
+        &self,
         account_id: AccountId,
         amount: NearToken,
     ) -> anyhow::Result<ConstructTransaction> {
-        Ok(Contract(self.0)
+        Ok(Contract(self.0.clone())
             .call_function(
                 "storage_withdraw",
                 json!({

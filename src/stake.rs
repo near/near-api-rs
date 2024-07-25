@@ -28,11 +28,11 @@ pub struct Delegation(pub AccountId);
 
 impl Delegation {
     pub fn view_staked_balance(
-        self,
+        &self,
         pool: AccountId,
     ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0,
+            "account_id": self.0.clone(),
         }))?;
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: pool,
@@ -51,11 +51,11 @@ impl Delegation {
     }
 
     pub fn view_unstaked_balance(
-        self,
+        &self,
         pool: AccountId,
     ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0,
+            "account_id": self.0.clone(),
         }))?;
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: pool,
@@ -74,11 +74,11 @@ impl Delegation {
     }
 
     pub fn view_total_balance(
-        self,
+        &self,
         pool: AccountId,
     ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0,
+            "account_id": self.0.clone(),
         }))?;
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: pool,
@@ -97,7 +97,7 @@ impl Delegation {
     }
 
     pub fn view_balance(
-        self,
+        &self,
         pool: AccountId,
     ) -> anyhow::Result<
         MultiQueryBuilder<
@@ -131,19 +131,19 @@ impl Delegation {
         );
 
         let multiquery = MultiQueryBuilder::new(postprocess, BlockReference::latest())
-            .add_query_builder(self.clone().view_staked_balance(pool.clone())?)
-            .add_query_builder(self.clone().view_staked_balance(pool.clone())?)
+            .add_query_builder(self.view_staked_balance(pool.clone())?)
+            .add_query_builder(self.view_staked_balance(pool.clone())?)
             .add_query_builder(self.view_total_balance(pool)?);
 
         Ok(multiquery)
     }
 
     pub fn is_account_unstaked_balance_available_for_withdrawal(
-        self,
+        &self,
         pool: AccountId,
     ) -> anyhow::Result<QueryBuilder<CallResultHandler<bool>>> {
         let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0,
+            "account_id": self.0.clone(),
         }))?;
 
         let request = near_primitives::views::QueryRequest::CallFunction {
@@ -160,7 +160,7 @@ impl Delegation {
     }
 
     pub fn deposit(
-        self,
+        &self,
         pool: AccountId,
         amount: NearToken,
     ) -> anyhow::Result<ConstructTransaction> {
@@ -169,11 +169,11 @@ impl Delegation {
             .transaction()
             .gas(NearGas::from_tgas(50))
             .deposit(amount)
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
     pub fn deposit_and_stake(
-        self,
+        &self,
         pool: AccountId,
         amount: NearToken,
     ) -> anyhow::Result<ConstructTransaction> {
@@ -182,10 +182,14 @@ impl Delegation {
             .transaction()
             .gas(NearGas::from_tgas(50))
             .deposit(amount)
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
-    pub fn stake(self, pool: AccountId, amount: NearToken) -> anyhow::Result<ConstructTransaction> {
+    pub fn stake(
+        &self,
+        pool: AccountId,
+        amount: NearToken,
+    ) -> anyhow::Result<ConstructTransaction> {
         let args = serde_json::json!({
             "amount": amount.as_yoctonear(),
         });
@@ -194,19 +198,19 @@ impl Delegation {
             .call_function("stake", args)?
             .transaction()
             .gas(NearGas::from_tgas(50))
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
-    pub fn stake_all(self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
+    pub fn stake_all(&self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("stake_all", ())?
             .transaction()
             .gas(NearGas::from_tgas(50))
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
     pub fn unstake(
-        self,
+        &self,
         pool: AccountId,
         amount: NearToken,
     ) -> anyhow::Result<ConstructTransaction> {
@@ -218,19 +222,19 @@ impl Delegation {
             .call_function("unstake", args)?
             .transaction()
             .gas(NearGas::from_tgas(50))
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
-    pub fn unstake_all(self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
+    pub fn unstake_all(&self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("unstake_all", ())?
             .transaction()
             .gas(NearGas::from_tgas(50))
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
     pub fn withdraw(
-        self,
+        &self,
         pool: AccountId,
         amount: NearToken,
     ) -> anyhow::Result<ConstructTransaction> {
@@ -242,15 +246,15 @@ impl Delegation {
             .call_function("withdraw", args)?
             .transaction()
             .gas(NearGas::from_tgas(50))
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 
-    pub fn withdraw_all(self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
+    pub fn withdraw_all(&self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("withdraw_all", ())?
             .transaction()
             .gas(NearGas::from_tgas(50))
-            .with_signer_account(self.0))
+            .with_signer_account(self.0.clone()))
     }
 }
 

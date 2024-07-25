@@ -40,9 +40,11 @@ impl Tokens {
         Self { account_id }
     }
 
-    pub fn near_balance(self) -> QueryBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
+    pub fn near_balance(
+        &self,
+    ) -> QueryBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
         let request = near_primitives::views::QueryRequest::ViewAccount {
-            account_id: self.account_id,
+            account_id: self.account_id.clone(),
         };
 
         QueryBuilder::new(
@@ -74,7 +76,7 @@ impl Tokens {
     }
 
     pub fn nft_assets(
-        self,
+        &self,
         nft_contract: AccountId,
     ) -> anyhow::Result<QueryBuilder<CallResultHandler<Vec<Token>>>> {
         Ok(Contract(nft_contract)
@@ -96,7 +98,7 @@ impl Tokens {
     }
 
     pub fn ft_balance(
-        self,
+        &self,
         ft_contract: AccountId,
     ) -> anyhow::Result<
         MultiQueryBuilder<
@@ -126,7 +128,7 @@ impl Tokens {
                     .call_function(
                         "ft_balance_of",
                         json!({
-                            "account_id": self.account_id
+                            "account_id": self.account_id.clone()
                         }),
                     )?
                     .read_only::<()>(),
@@ -135,9 +137,9 @@ impl Tokens {
         Ok(query_builder)
     }
 
-    pub fn send_to(self, receiver_id: AccountId) -> SendTo {
+    pub fn send_to(&self, receiver_id: AccountId) -> SendTo {
         SendTo {
-            from: self.account_id,
+            from: self.account_id.clone(),
             receiver_id,
         }
     }

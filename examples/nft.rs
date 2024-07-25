@@ -10,8 +10,10 @@ async fn main() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
+    let contract = Contract(nft.id().clone());
+
     // Deploying token contract
-    Contract(nft.id().clone())
+    contract
         .deploy(include_bytes!("./resources/nft.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
@@ -26,7 +28,7 @@ async fn main() {
         .unwrap();
 
     // Mint NFT via contract call
-    Contract(nft.id().clone())
+    contract
         .call_function(
             "nft_mint",
             json!({
