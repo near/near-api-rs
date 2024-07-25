@@ -35,7 +35,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Owner has {} tokens", tokens.to_whole());
+    println!("Owner has {}", tokens);
 
     // Paying for storage for the account.
     // This is required to store the tokens on the account
@@ -53,7 +53,8 @@ async fn main() {
         .send_to(account.id().clone())
         .ft(
             token.id().clone(),
-            FTBalance::with_decimals(24).with_whole_amount(100),
+            // Send 1.5 tokens
+            FTBalance::with_decimals(24).with_scaled_amount(150, 2),
         )
         .unwrap()
         .with_signer(Signer::from_workspace(&token))
@@ -68,7 +69,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Account has {} tokens", tokens.to_whole());
+    println!("Account has {}", tokens);
 
     let tokens = Tokens::of(token.id().clone())
         .ft_balance(token.id().clone())
@@ -77,7 +78,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Owner has {} tokens", tokens.to_whole());
+    println!("Owner has {}", tokens);
 
     // We validate decimals at the network level so this should fail with a validation error
     let token = Tokens::of(token.id().clone())

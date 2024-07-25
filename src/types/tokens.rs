@@ -1,13 +1,14 @@
 use near_token::NearToken;
 use serde::{Deserialize, Serialize};
 
-pub const USDT_BALANCE: FTBalance = FTBalance::with_decimals(4);
-pub const W_NEAR_BALANCE: FTBalance = FTBalance::with_decimals(24);
+pub const USDT_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(4, "USDT");
+pub const W_NEAR_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(24, "wNEAR");
 
-#[derive(Debug, Copy, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct FTBalance {
     balance: u128,
     decimals: u8,
+    symbol: &'static str,
 }
 
 impl FTBalance {
@@ -15,6 +16,15 @@ impl FTBalance {
         Self {
             balance: 0,
             decimals,
+            symbol: "FT",
+        }
+    }
+
+    pub const fn with_decimals_and_symbol(decimals: u8, symbol: &'static str) -> Self {
+        Self {
+            balance: 0,
+            decimals,
+            symbol,
         }
     }
 
@@ -22,6 +32,7 @@ impl FTBalance {
         Self {
             balance: amount,
             decimals: self.decimals,
+            symbol: self.symbol,
         }
     }
 
@@ -29,6 +40,7 @@ impl FTBalance {
         Self {
             balance: amount * 10u128.pow(self.decimals as u32),
             decimals: self.decimals,
+            symbol: self.symbol,
         }
     }
 
@@ -41,6 +53,7 @@ impl FTBalance {
         Self {
             balance,
             decimals: self.decimals,
+            symbol: self.symbol,
         }
     }
 
@@ -54,6 +67,26 @@ impl FTBalance {
 
     pub fn decimals(&self) -> u8 {
         self.decimals
+    }
+}
+
+impl std::fmt::Display for FTBalance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let whole_part = self.to_whole();
+        let fractional_part = self.balance % 10u128.pow(self.decimals as u32);
+
+        let fractional_part_str = format!(
+            "{:0width$}",
+            fractional_part,
+            width = self.decimals as usize
+        );
+        let fractional_part_str = fractional_part_str.trim_end_matches('0');
+
+        if fractional_part_str.is_empty() {
+            return write!(f, "{} {}", whole_part, self.symbol);
+        }
+
+        write!(f, "{}.{} {}", whole_part, fractional_part_str, self.symbol)
     }
 }
 
