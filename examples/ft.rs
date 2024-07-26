@@ -13,7 +13,7 @@ async fn main() {
 
     // Deploying token contract
     Contract(token.id().clone())
-        .deploy(include_bytes!("./resources/fungible_token.wasm").to_vec())
+        .deploy(include_bytes!("../resources/fungible_token.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
             json!({
@@ -54,7 +54,7 @@ async fn main() {
         .ft(
             token.id().clone(),
             // Send 1.5 tokens
-            FTBalance::with_decimals(24).with_scaled_amount(150, 2),
+            FTBalance::with_decimals(24).with_whole_amount(100),
         )
         .unwrap()
         .with_signer(Signer::from_workspace(&token))

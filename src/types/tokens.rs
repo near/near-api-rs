@@ -44,17 +44,14 @@ impl FTBalance {
         }
     }
 
-    pub fn with_scaled_amount(&self, amount: u128, scale: u8) -> Self {
-        let balance = if scale > self.decimals {
-            amount / 10u128.pow((scale - self.decimals) as u32)
-        } else {
-            amount * 10u128.pow((self.decimals - scale) as u32)
-        };
-        Self {
-            balance,
-            decimals: self.decimals,
-            symbol: self.symbol,
-        }
+    pub fn with_float_str(&self, float_str: &str) -> anyhow::Result<Self> {
+        Ok(
+            crate::common::utils::parse_decimal_number(
+                &float_str,
+                10u128.pow(self.decimals as u32),
+            )
+            .map(|amount| self.with_amount(amount))?,
+        )
     }
 
     pub fn amount(&self) -> u128 {
@@ -116,29 +113,27 @@ mod tests {
     }
 
     #[test]
-    fn ft_balance_scaled_amount() {
-        // Equal precisition case
+    fn ft_balance_str() {
         assert_eq!(
             FTBalance::with_decimals(5)
-                .with_scaled_amount(55555, 5)
+                .with_float_str("5")
+                .unwrap()
                 .amount(),
-            55555
+            500000
         );
-
-        // Larger precisition case
         assert_eq!(
             FTBalance::with_decimals(5)
-                .with_scaled_amount(100000000, 8)
+                .with_float_str("5.00001")
+                .unwrap()
                 .amount(),
-            100000
+            500001
         );
-
-        // Smaller precisition case
         assert_eq!(
             FTBalance::with_decimals(5)
-                .with_scaled_amount(100, 2)
+                .with_float_str("5.55")
+                .unwrap()
                 .amount(),
-            100000
+            555000
         );
     }
 }

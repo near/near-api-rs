@@ -14,7 +14,7 @@ async fn main() {
 
     // Deploying token contract
     contract
-        .deploy(include_bytes!("./resources/nft.wasm").to_vec())
+        .deploy(include_bytes!("../resources/nft.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
             json!({
