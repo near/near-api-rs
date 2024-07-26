@@ -9,6 +9,7 @@ mod transactions;
 mod common;
 mod fastnear;
 
+pub mod errors;
 pub mod signer;
 pub mod types;
 

@@ -23,7 +23,7 @@ impl CreateAccountBuilder {
         account_id: AccountId,
         signer_account_id: AccountId,
         initial_balance: NearToken,
-    ) -> SecretBuilder<TransactionWithSign<CreateAccountFundMyselfTx>> {
+    ) -> SecretBuilder<TransactionWithSign<CreateAccountFundMyselfTx>, anyhow::Error> {
         SecretBuilder::new(Box::new(move |public_key| {
             let (actions, receiver_id) = if account_id.is_sub_account_of(&signer_account_id) {
                 (
@@ -85,7 +85,7 @@ impl CreateAccountBuilder {
     pub fn sponsor_by_faucet_service(
         self,
         account_id: AccountId,
-    ) -> SecretBuilder<CreateAccountByFaucet> {
+    ) -> SecretBuilder<CreateAccountByFaucet, anyhow::Error> {
         SecretBuilder::new(Box::new(move |public_key| {
             Ok(CreateAccountByFaucet {
                 new_account_id: account_id,
@@ -94,7 +94,7 @@ impl CreateAccountBuilder {
         }))
     }
 
-    pub fn implicit(self) -> SecretBuilder<PublicKey> {
+    pub fn implicit(self) -> SecretBuilder<PublicKey, anyhow::Error> {
         SecretBuilder::new(Box::new(Ok))
     }
 }

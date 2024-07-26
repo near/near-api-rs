@@ -4,7 +4,10 @@ use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{hash::CryptoHash, transaction::Transaction, types::Nonce};
 
 use super::{AccountKeyPair, SignerTrait};
-use crate::types::transactions::PrepopulateTransaction;
+use crate::{
+    errors::{AccessKeyFileError, SignerError},
+    types::transactions::PrepopulateTransaction,
+};
 
 #[derive(Debug, Clone)]
 pub struct AccessKeyFileSigner {
@@ -12,7 +15,7 @@ pub struct AccessKeyFileSigner {
 }
 
 impl AccessKeyFileSigner {
-    pub fn new(path: PathBuf) -> anyhow::Result<Self> {
+    pub fn new(path: PathBuf) -> Result<Self, AccessKeyFileError> {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
 
         Ok(Self { keypair })
@@ -20,13 +23,13 @@ impl AccessKeyFileSigner {
 }
 
 impl SignerTrait for AccessKeyFileSigner {
-    fn unsigned_tx(
+    fn tx_and_secret(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
-    ) -> anyhow::Result<(Transaction, SecretKey)> {
+    ) -> Result<(Transaction, SecretKey), SignerError> {
         Ok((
             near_primitives::transaction::Transaction {
                 public_key,
@@ -40,7 +43,7 @@ impl SignerTrait for AccessKeyFileSigner {
         ))
     }
 
-    fn get_public_key(&self) -> anyhow::Result<PublicKey> {
+    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
         Ok(self.keypair.public_key.clone())
     }
 }

@@ -3,7 +3,6 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::Context;
 use near_crypto::{ED25519SecretKey, PublicKey, SecretKey};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
@@ -14,7 +13,11 @@ use near_primitives::{
 use serde::Deserialize;
 use slipped10::BIP32Path;
 
-use crate::{config::NetworkConfig, types::transactions::PrepopulateTransaction};
+use crate::{
+    config::NetworkConfig,
+    errors::{AccessKeyFileError, KeyStoreError, MetaSignError, SecretError, SignerError},
+    types::transactions::PrepopulateTransaction,
+};
 
 use self::{
     access_keyfile_signer::AccessKeyFileSigner, keystore::KeystoreSigner,
@@ -34,10 +37,9 @@ pub struct AccountKeyPair {
 }
 
 impl AccountKeyPair {
-    fn load_access_key_file(path: &Path) -> anyhow::Result<AccountKeyPair> {
-        let data = std::fs::read_to_string(path).context("Access key file not found!")?;
-        serde_json::from_str(&data)
-            .with_context(|| format!("Error reading data from file: {:?}", &path))
+    fn load_access_key_file(path: &Path) -> Result<AccountKeyPair, AccessKeyFileError> {
+        let data = std::fs::read_to_string(path)?;
+        Ok(serde_json::from_str(&data)?)
     }
 }
 
@@ -49,9 +51,9 @@ pub trait SignerTrait {
         nonce: Nonce,
         block_hash: CryptoHash,
         max_block_height: BlockHeight,
-    ) -> anyhow::Result<SignedDelegateAction> {
+    ) -> Result<SignedDelegateAction, MetaSignError> {
         let (unsigned_transaction, signer_secret_key) =
-            self.unsigned_tx(tr, public_key, nonce, block_hash)?;
+            self.tx_and_secret(tr, public_key, nonce, block_hash)?;
 
         get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
     }
@@ -62,22 +64,22 @@ pub trait SignerTrait {
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
-    ) -> anyhow::Result<SignedTransaction> {
+    ) -> Result<SignedTransaction, SignerError> {
         let (unsigned_transaction, signer_secret_key) =
-            self.unsigned_tx(tr, public_key, nonce, block_hash)?;
+            self.tx_and_secret(tr, public_key, nonce, block_hash)?;
         let signature = signer_secret_key.sign(unsigned_transaction.get_hash_and_size().0.as_ref());
 
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
-    fn unsigned_tx(
+    fn tx_and_secret(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
-    ) -> anyhow::Result<(Transaction, SecretKey)>;
-    fn get_public_key(&self) -> anyhow::Result<PublicKey>;
+    ) -> Result<(Transaction, SecretKey), SignerError>;
+    fn get_public_key(&self) -> Result<PublicKey, SignerError>;
 }
 
 #[derive(Debug, Clone)]
@@ -112,7 +114,7 @@ impl Signer {
         }
     }
 
-    pub fn seed_phrase(seed_phrase: String, password: Option<String>) -> anyhow::Result<Self> {
+    pub fn seed_phrase(seed_phrase: String, password: Option<String>) -> Result<Self, SecretError> {
         Self::seed_phrase_with_hd_path(
             seed_phrase,
             BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
@@ -128,12 +130,12 @@ impl Signer {
         seed_phrase: String,
         hd_path: BIP32Path,
         password: Option<String>,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, SecretError> {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
         Ok(Self::SecretKey(SecretKeySigner::new(secret_key)))
     }
 
-    pub fn access_keyfile(path: PathBuf) -> anyhow::Result<Self> {
+    pub fn access_keyfile(path: PathBuf) -> Result<Self, AccessKeyFileError> {
         Ok(Self::AccessKeyFile(AccessKeyFileSigner::new(path)?))
     }
 
@@ -156,7 +158,7 @@ impl Signer {
     pub async fn keystore_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, KeyStoreError> {
         Ok(Self::Keystore(
             KeystoreSigner::search_for_keys(account_id, network).await?,
         ))
@@ -164,6 +166,7 @@ impl Signer {
 
     #[cfg(feature = "workspaces")]
     pub fn from_workspace(account: &near_workspaces::Account) -> Self {
+        // TODO: remove this unwrap
         Self::secret_key(account.secret_key().to_string().parse().unwrap())
     }
 }
@@ -172,15 +175,15 @@ pub fn get_signed_delegate_action(
     unsigned_transaction: Transaction,
     private_key: SecretKey,
     max_block_height: u64,
-) -> anyhow::Result<SignedDelegateAction> {
+) -> core::result::Result<SignedDelegateAction, MetaSignError> {
     use near_primitives::signable_message::{SignableMessage, SignableMessageType};
 
     let actions = unsigned_transaction
         .actions
         .into_iter()
         .map(near_primitives::action::delegate::NonDelegateAction::try_from)
-        .collect::<Result<_, _>>()
-        .map_err(|_| anyhow::anyhow!("Delegate action can't contain delegate action"))?;
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| MetaSignError::DelegateActionIsNotSupported)?;
     let delegate_action = near_primitives::action::delegate::DelegateAction {
         sender_id: unsigned_transaction.signer_id.clone(),
         receiver_id: unsigned_transaction.receiver_id,
@@ -206,7 +209,7 @@ pub fn get_secret_key_from_seed(
     seed_phrase_hd_path: BIP32Path,
     master_seed_phrase: String,
     password: Option<String>,
-) -> anyhow::Result<SecretKey> {
+) -> Result<SecretKey, SecretError> {
     let master_seed =
         bip39::Mnemonic::parse(master_seed_phrase)?.to_seed(password.unwrap_or_default());
     let derived_private_key = slipped10::derive_key_from_path(
@@ -214,7 +217,7 @@ pub fn get_secret_key_from_seed(
         slipped10::Curve::Ed25519,
         &seed_phrase_hd_path,
     )
-    .map_err(|err| anyhow::anyhow!("Failed to derive a key from the master key: {}", err))?;
+    .map_err(|_| SecretError::DeriveKeyInvalidIndex)?;
 
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived_private_key.key);
     let secret_key = ED25519SecretKey(signing_key.to_keypair_bytes());

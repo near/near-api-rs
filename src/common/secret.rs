@@ -3,28 +3,34 @@ use std::path::PathBuf;
 use near_crypto::{PublicKey, SecretKey};
 use slipped10::BIP32Path;
 
-use crate::signer::{get_secret_key_from_seed, Signer};
+use crate::{
+    errors::{SecretBuilderkError, SecretError},
+    signer::{get_secret_key_from_seed, Signer},
+};
 
 const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
 const DEFAULT_WORD_COUNT: usize = 12;
 
-pub type SecretCallback<T> = dyn FnOnce(PublicKey) -> anyhow::Result<T>;
+pub type SecretCallback<T, E> = dyn FnOnce(PublicKey) -> Result<T, E>;
 
-pub struct SecretBuilder<T> {
-    next_step: Box<SecretCallback<T>>,
+pub struct SecretBuilder<T, E> {
+    next_step: Box<SecretCallback<T, E>>,
 }
 
-impl<T> SecretBuilder<T> {
+impl<T, E> SecretBuilder<T, E>
+where
+    E: std::fmt::Debug + std::fmt::Display,
+{
     pub fn new<Fn>(next_step: Fn) -> Self
     where
-        Fn: FnOnce(PublicKey) -> anyhow::Result<T> + 'static,
+        Fn: FnOnce(PublicKey) -> Result<T, E> + 'static,
     {
         Self {
             next_step: Box::new(next_step),
         }
     }
 
-    pub fn new_keypair(self) -> GenerateKeypairBuilder<T> {
+    pub fn new_keypair(self) -> GenerateKeypairBuilder<T, E> {
         GenerateKeypairBuilder {
             next_step: self.next_step,
             master_seed_phrase: None,
@@ -34,18 +40,21 @@ impl<T> SecretBuilder<T> {
         }
     }
 
-    pub fn use_public_key_from(self, signer: Signer) -> anyhow::Result<T> {
-        let pk: PublicKey = signer.as_signer().get_public_key()?;
-        (self.next_step)(pk)
+    pub fn use_public_key_from(self, signer: Signer) -> Result<T, SecretBuilderkError<E>> {
+        let pk: PublicKey = signer
+            .as_signer()
+            .get_public_key()
+            .map_err(|_| SecretBuilderkError::PublicKeyIsNotAvailable)?;
+        (self.next_step)(pk).map_err(|e| SecretBuilderkError::CallbackError(e))
     }
 
-    pub fn use_public_key(self, pk: PublicKey) -> anyhow::Result<T> {
-        (self.next_step)(pk)
+    pub fn use_public_key(self, pk: PublicKey) -> Result<T, SecretBuilderkError<E>> {
+        (self.next_step)(pk).map_err(|e| SecretBuilderkError::CallbackError(e))
     }
 }
 
-pub struct GenerateKeypairBuilder<T> {
-    next_step: Box<SecretCallback<T>>,
+pub struct GenerateKeypairBuilder<T, E> {
+    next_step: Box<SecretCallback<T, E>>,
 
     pub master_seed_phrase: Option<String>,
     pub word_count: Option<usize>,
@@ -53,7 +62,10 @@ pub struct GenerateKeypairBuilder<T> {
     pub passphrase: Option<String>,
 }
 
-impl<T> GenerateKeypairBuilder<T> {
+impl<T, E> GenerateKeypairBuilder<T, E>
+where
+    E: std::fmt::Debug + std::fmt::Display,
+{
     pub fn master_seed_phrase(mut self, master_seed_phrase: String) -> Self {
         self.master_seed_phrase = Some(master_seed_phrase);
         self
@@ -74,15 +86,16 @@ impl<T> GenerateKeypairBuilder<T> {
         self
     }
 
-    pub fn generate_seed_phrase(self) -> anyhow::Result<(String, T)> {
-        let master_seed_phrase =
-            if let Some(master_seed_phrase) = self.master_seed_phrase.as_deref() {
-                master_seed_phrase.to_owned()
-            } else {
-                let mnemonic =
-                    bip39::Mnemonic::generate(self.word_count.unwrap_or(DEFAULT_WORD_COUNT))?;
-                mnemonic.word_iter().collect::<Vec<&str>>().join(" ")
-            };
+    pub fn generate_seed_phrase(self) -> Result<(String, T), SecretBuilderkError<E>> {
+        let master_seed_phrase = if let Some(master_seed_phrase) =
+            self.master_seed_phrase.as_deref()
+        {
+            master_seed_phrase.to_owned()
+        } else {
+            let mnemonic = bip39::Mnemonic::generate(self.word_count.unwrap_or(DEFAULT_WORD_COUNT))
+                .map_err(SecretError::from)?;
+            mnemonic.word_iter().collect::<Vec<&str>>().join(" ")
+        };
 
         let signer = Signer::seed_phrase_with_hd_path(
             master_seed_phrase.clone(),
@@ -91,12 +104,18 @@ impl<T> GenerateKeypairBuilder<T> {
             self.passphrase,
         )?;
 
-        let pk = signer.as_signer().get_public_key()?;
+        let pk = signer
+            .as_signer()
+            .get_public_key()
+            .map_err(|_| SecretBuilderkError::PublicKeyIsNotAvailable)?;
 
-        Ok((master_seed_phrase, (self.next_step)(pk)?))
+        Ok((
+            master_seed_phrase,
+            (self.next_step)(pk).map_err(|e| SecretBuilderkError::CallbackError(e))?,
+        ))
     }
 
-    pub fn generate_secret_key(self) -> anyhow::Result<(SecretKey, T)> {
+    pub fn generate_secret_key(self) -> Result<(SecretKey, T), SecretBuilderkError<E>> {
         let hd_path = self
             .hd_path
             .clone()
@@ -109,7 +128,7 @@ impl<T> GenerateKeypairBuilder<T> {
         Ok((secret_key, next))
     }
 
-    pub fn save_generated_seed_to_file(self, path: PathBuf) -> anyhow::Result<T> {
+    pub fn save_generated_seed_to_file(self, path: PathBuf) -> Result<T, SecretBuilderkError<E>> {
         let (seed, next) = self.generate_seed_phrase()?;
         std::fs::write(path, seed)?;
         Ok(next)

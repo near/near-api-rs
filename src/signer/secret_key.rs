@@ -1,7 +1,7 @@
 use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{hash::CryptoHash, transaction::Transaction, types::Nonce};
 
-use crate::types::transactions::PrepopulateTransaction;
+use crate::{errors::SignerError, types::transactions::PrepopulateTransaction};
 
 use super::SignerTrait;
 
@@ -12,13 +12,13 @@ pub struct SecretKeySigner {
 }
 
 impl SignerTrait for SecretKeySigner {
-    fn unsigned_tx(
+    fn tx_and_secret(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
-    ) -> anyhow::Result<(Transaction, SecretKey)> {
+    ) -> Result<(Transaction, SecretKey), SignerError> {
         Ok((
             near_primitives::transaction::Transaction {
                 public_key,
@@ -32,7 +32,7 @@ impl SignerTrait for SecretKeySigner {
         ))
     }
 
-    fn get_public_key(&self) -> anyhow::Result<PublicKey> {
+    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
         Ok(self.public_key.clone())
     }
 }

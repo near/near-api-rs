@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use anyhow::{anyhow, bail};
 use futures::future::join_all;
 use near_jsonrpc_client::methods::{
     query::{RpcQueryRequest, RpcQueryResponse},
@@ -16,11 +15,17 @@ use near_primitives::{
 };
 use serde::de::DeserializeOwned;
 
-use crate::{config::NetworkConfig, types::Data};
+use crate::{config::NetworkConfig, errors::QueryError, types::Data};
 
-pub trait ResponseHandler {
+type ResultWithMethod<T, Method> = core::result::Result<T, QueryError<Method>>;
+
+pub trait ResponseHandler
+where
+    <Self::Method as RpcMethod>::Error: std::fmt::Display + std::fmt::Debug,
+{
     type QueryResponse;
     type Response;
+    type Method: RpcMethod;
 
     // TODO: Add error type
 
@@ -28,19 +33,22 @@ pub trait ResponseHandler {
     fn process_response(
         &self,
         responses: Vec<Self::QueryResponse>,
-    ) -> anyhow::Result<Self::Response>;
+    ) -> ResultWithMethod<Self::Response, Self::Method>;
     fn request_amount(&self) -> usize {
         1
     }
 }
 
-pub trait QueryCreator<Method: RpcMethod> {
+pub trait QueryCreator<Method: RpcMethod>
+where
+    Method::Error: std::fmt::Display + std::fmt::Debug,
+{
     type RpcReference;
     fn create_query(
         &self,
         network: &NetworkConfig,
         reference: Self::RpcReference,
-    ) -> anyhow::Result<Method>;
+    ) -> ResultWithMethod<Method, Method>;
 }
 
 #[derive(Clone, Debug)]
@@ -54,7 +62,7 @@ impl QueryCreator<RpcQueryRequest> for SimpleQuery {
         &self,
         _network: &NetworkConfig,
         reference: BlockReference,
-    ) -> anyhow::Result<RpcQueryRequest> {
+    ) -> ResultWithMethod<RpcQueryRequest, RpcQueryRequest> {
         Ok(RpcQueryRequest {
             block_reference: reference,
             request: self.request.clone(),
@@ -71,7 +79,7 @@ impl QueryCreator<RpcValidatorRequest> for SimpleValidatorRpc {
         &self,
         _network: &NetworkConfig,
         reference: EpochReference,
-    ) -> anyhow::Result<RpcValidatorRequest> {
+    ) -> ResultWithMethod<RpcValidatorRequest, RpcValidatorRequest> {
         Ok(RpcValidatorRequest {
             epoch_reference: reference,
         })
@@ -91,7 +99,7 @@ pub struct MultiRpcBuilder<ResponseHandler, Method, Reference> {
 
 impl<Handler, Method: RpcMethod, Reference> MultiRpcBuilder<Handler, Method, Reference>
 where
-    Handler: ResponseHandler<QueryResponse = Method::Response>,
+    Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method>,
     Method: RpcMethod + 'static,
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
     Reference: Clone,
@@ -124,23 +132,26 @@ where
         }
     }
 
-    pub async fn fetch_from_mainnet(self) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
     }
 
-    pub async fn fetch_from_testnet(self) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
     }
 
-    pub async fn fetch_from(self, network: &NetworkConfig) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from(
+        self,
+        network: &NetworkConfig,
+    ) -> ResultWithMethod<Handler::Response, Method> {
         let json_rpc_client = network.json_rpc_client();
 
         let requests: Vec<_> = self
             .requests
             .into_iter()
-            .map(|request| anyhow::Ok(request.create_query(network, self.reference.clone())?))
+            .map(|request| request.create_query(network, self.reference.clone()))
             .collect::<Result<_, _>>()?;
         let requests = requests
             .into_iter()
@@ -151,7 +162,7 @@ where
             .into_iter()
             .collect::<Result<_, _>>()?;
         if requests.is_empty() {
-            bail!("Zero length response that should be possible")
+            return Err(QueryError::InternalErrorNoResponse);
         }
 
         self.handler.process_response(requests)
@@ -166,7 +177,7 @@ pub struct RpcBuilder<Handler, Method, Reference> {
 
 impl<Handler, Method, Reference> RpcBuilder<Handler, Method, Reference>
 where
-    Handler: ResponseHandler<QueryResponse = Method::Response>,
+    Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method>,
     Method: RpcMethod + 'static,
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
 {
@@ -186,17 +197,20 @@ where
         Self { reference, ..self }
     }
 
-    pub async fn fetch_from_mainnet(self) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
     }
 
-    pub async fn fetch_from_testnet(self) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
     }
 
-    pub async fn fetch_from(self, network: &NetworkConfig) -> anyhow::Result<Handler::Response> {
+    pub async fn fetch_from(
+        self,
+        network: &NetworkConfig,
+    ) -> ResultWithMethod<Handler::Response, Method> {
         let json_rpc_client = network.json_rpc_client();
 
         let query_response = json_rpc_client
@@ -212,15 +226,18 @@ pub struct MultiQueryHandler<Handlers> {
     handlers: Handlers,
 }
 
-impl<QR, H1, H2, R1, R2> ResponseHandler for MultiQueryHandler<(H1, H2)>
+impl<QR, Method, H1, H2, R1, R2> ResponseHandler for MultiQueryHandler<(H1, H2)>
 where
-    H1: ResponseHandler<QueryResponse = QR, Response = R1>,
-    H2: ResponseHandler<QueryResponse = QR, Response = R2>,
+    Method: RpcMethod,
+    H1: ResponseHandler<QueryResponse = QR, Response = R1, Method = Method>,
+    H2: ResponseHandler<QueryResponse = QR, Response = R2, Method = Method>,
+    Method::Error: std::fmt::Display + std::fmt::Debug,
 {
     type Response = (R1, R2);
     type QueryResponse = QR;
+    type Method = Method;
 
-    fn process_response(&self, mut responses: Vec<QR>) -> anyhow::Result<Self::Response> {
+    fn process_response(&self, mut responses: Vec<QR>) -> ResultWithMethod<Self::Response, Method> {
         let (h1, h2) = &self.handlers;
 
         let first_response =
@@ -235,16 +252,19 @@ where
     }
 }
 
-impl<QR, H1, H2, H3, R1, R2, R3> ResponseHandler for MultiQueryHandler<(H1, H2, H3)>
+impl<QR, Method, H1, H2, H3, R1, R2, R3> ResponseHandler for MultiQueryHandler<(H1, H2, H3)>
 where
-    H1: ResponseHandler<QueryResponse = QR, Response = R1>,
-    H2: ResponseHandler<QueryResponse = QR, Response = R2>,
-    H3: ResponseHandler<QueryResponse = QR, Response = R3>,
+    Method: RpcMethod,
+    Method::Error: std::fmt::Display + std::fmt::Debug,
+    H1: ResponseHandler<QueryResponse = QR, Response = R1, Method = Method>,
+    H2: ResponseHandler<QueryResponse = QR, Response = R2, Method = Method>,
+    H3: ResponseHandler<QueryResponse = QR, Response = R3, Method = Method>,
 {
     type Response = (R1, R2, R3);
     type QueryResponse = QR;
+    type Method = Method;
 
-    fn process_response(&self, mut responses: Vec<QR>) -> anyhow::Result<Self::Response> {
+    fn process_response(&self, mut responses: Vec<QR>) -> ResultWithMethod<Self::Response, Method> {
         let (h1, h2, h3) = &self.handlers;
 
         let first_response =
@@ -269,12 +289,18 @@ impl<Handlers> MultiQueryHandler<Handlers> {
         Self { handlers }
     }
 }
-pub struct PostprocessHandler<PostProcessed, Handler: ResponseHandler> {
+pub struct PostprocessHandler<PostProcessed, Handler: ResponseHandler>
+where
+    <Handler::Method as RpcMethod>::Error: std::fmt::Display + std::fmt::Debug,
+{
     post_process: Box<dyn Fn(Handler::Response) -> PostProcessed + Send + Sync>,
     handler: Handler,
 }
 
-impl<PostProcessed, Handler: ResponseHandler> PostprocessHandler<PostProcessed, Handler> {
+impl<PostProcessed, Handler: ResponseHandler> PostprocessHandler<PostProcessed, Handler>
+where
+    <Handler::Method as RpcMethod>::Error: std::fmt::Display + std::fmt::Debug,
+{
     pub fn new<F>(handler: Handler, post_process: F) -> Self
     where
         F: Fn(Handler::Response) -> PostProcessed + Send + Sync + 'static,
@@ -289,14 +315,16 @@ impl<PostProcessed, Handler: ResponseHandler> PostprocessHandler<PostProcessed, 
 impl<PostProcessed, Handler> ResponseHandler for PostprocessHandler<PostProcessed, Handler>
 where
     Handler: ResponseHandler,
+    <Handler::Method as RpcMethod>::Error: std::fmt::Display + std::fmt::Debug,
 {
     type Response = PostProcessed;
     type QueryResponse = Handler::QueryResponse;
+    type Method = Handler::Method;
 
     fn process_response(
         &self,
         response: Vec<Self::QueryResponse>,
-    ) -> anyhow::Result<Self::Response> {
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         Handler::process_response(&self.handler, response).map(|data| (self.post_process)(data))
     }
 
@@ -314,12 +342,16 @@ where
 {
     type Response = Data<Response>;
     type QueryResponse = RpcQueryResponse;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the call result handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
 
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::CallResult(result) =
             response.kind
@@ -331,9 +363,10 @@ where
                 block_hash: response.block_hash,
             })
         } else {
-            Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-call-result query call"
-            ))
+            Err(QueryError::UnexpectedResponse {
+                expected: "CallResult",
+                got: response.kind,
+            })
         }
     }
 }
@@ -344,12 +377,16 @@ pub struct AccountViewHandler;
 impl ResponseHandler for AccountViewHandler {
     type QueryResponse = RpcQueryResponse;
     type Response = Data<AccountView>;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the account view handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
 
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewAccount(account) =
             response.kind
@@ -360,9 +397,10 @@ impl ResponseHandler for AccountViewHandler {
                 block_hash: response.block_hash,
             })
         } else {
-            Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-account query call"
-            ))
+            Err(QueryError::UnexpectedResponse {
+                expected: "ViewAccount",
+                got: response.kind,
+            })
         }
     }
 }
@@ -373,20 +411,25 @@ pub struct AccessKeyListHandler;
 impl ResponseHandler for AccessKeyListHandler {
     type Response = AccessKeyList;
     type QueryResponse = RpcQueryResponse;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the access key list handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKeyList(account) =
             response.kind
         {
             Ok(account)
         } else {
-            Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-access-key-list query call"
-            ))
+            Err(QueryError::UnexpectedResponse {
+                expected: "AccessKeyList",
+                got: response.kind,
+            })
         }
     }
 }
@@ -397,12 +440,16 @@ pub struct AccessKeyHandler;
 impl ResponseHandler for AccessKeyHandler {
     type Response = Data<AccessKeyView>;
     type QueryResponse = RpcQueryResponse;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the access key handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKey(key) =
             response.kind
         {
@@ -412,9 +459,10 @@ impl ResponseHandler for AccessKeyHandler {
                 block_hash: response.block_hash,
             })
         } else {
-            Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-access-key query call"
-            ))
+            Err(QueryError::UnexpectedResponse {
+                expected: "AccessKey",
+                got: response.kind,
+            })
         }
     }
 }
@@ -425,12 +473,16 @@ pub struct ViewStateHandler;
 impl ResponseHandler for ViewStateHandler {
     type Response = Data<ViewStateResult>;
     type QueryResponse = RpcQueryResponse;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the view state handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewState(data) =
             response.kind
         {
@@ -440,9 +492,10 @@ impl ResponseHandler for ViewStateHandler {
                 block_hash: response.block_hash,
             })
         } else {
-            Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-state query call"
-            ))
+            Err(QueryError::UnexpectedResponse {
+                expected: "ViewState",
+                got: response.kind,
+            })
         }
     }
 }
@@ -453,12 +506,16 @@ pub struct ViewCodeHandler;
 impl ResponseHandler for ViewCodeHandler {
     type Response = Data<ContractCodeView>;
     type QueryResponse = RpcQueryResponse;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, response: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the view code handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewCode(code) =
             response.kind
         {
@@ -468,9 +525,10 @@ impl ResponseHandler for ViewCodeHandler {
                 block_hash: response.block_hash,
             })
         } else {
-            Err(anyhow::anyhow!(
-                "Received unexpected query kind in response to a view-code query call"
-            ))
+            Err(QueryError::UnexpectedResponse {
+                expected: "ViewCode",
+                got: response.kind,
+            })
         }
     }
 }
@@ -481,15 +539,16 @@ pub struct RpcValidatorHandler;
 impl ResponseHandler for RpcValidatorHandler {
     type Response = EpochValidatorInfo;
     type QueryResponse = EpochValidatorInfo;
+    type Method = RpcValidatorRequest;
 
     fn process_response(
         &self,
         response: Vec<EpochValidatorInfo>,
-    ) -> anyhow::Result<Self::Response> {
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         let response = response
             .into_iter()
             .next()
-            .ok_or_else(|| anyhow!("No response for the view code handler"))?;
+            .ok_or(QueryError::InternalErrorNoResponse)?;
 
         Ok(response)
     }
@@ -498,8 +557,12 @@ impl ResponseHandler for RpcValidatorHandler {
 impl ResponseHandler for () {
     type Response = ();
     type QueryResponse = RpcQueryResponse;
+    type Method = RpcQueryRequest;
 
-    fn process_response(&self, _: Vec<RpcQueryResponse>) -> anyhow::Result<Self::Response> {
+    fn process_response(
+        &self,
+        _response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
         Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use anyhow::Context;
 use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{
     hash::CryptoHash,
@@ -7,7 +6,11 @@ use near_primitives::{
     views::AccessKeyPermissionView,
 };
 
-use crate::{config::NetworkConfig, types::transactions::PrepopulateTransaction};
+use crate::{
+    config::NetworkConfig,
+    errors::{KeyStoreError, SignerError},
+    types::transactions::PrepopulateTransaction,
+};
 
 use super::{AccountKeyPair, SignerTrait};
 
@@ -17,22 +20,22 @@ pub struct KeystoreSigner {
 }
 
 impl SignerTrait for KeystoreSigner {
-    fn unsigned_tx(
+    fn tx_and_secret(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
-    ) -> anyhow::Result<(Transaction, SecretKey)> {
+    ) -> Result<(Transaction, SecretKey), SignerError> {
         self.potential_pubkeys
             .iter()
             .find(|key| *key == &public_key)
-            .context("Public key not found in keystore")?;
+            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
 
         // TODO: fix this. Well the search is a bit suboptimal, but it's not a big deal for now
         let secret = Self::get_secret_key(&tr.signer_id, &public_key, "mainnet")
             .or(Self::get_secret_key(&tr.signer_id, &public_key, "testnet"))
-            .context("Secret key not found in keystore")?;
+            .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
 
         Ok((
             near_primitives::transaction::Transaction {
@@ -47,11 +50,11 @@ impl SignerTrait for KeystoreSigner {
         ))
     }
 
-    fn get_public_key(&self) -> anyhow::Result<PublicKey> {
+    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
         self.potential_pubkeys
             .first()
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("No public keys found in keystore"))
+            .ok_or(SignerError::PublicKeyIsNotAvailable)
     }
 }
 
@@ -65,7 +68,7 @@ impl KeystoreSigner {
     pub async fn search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, KeyStoreError> {
         let account_keys = crate::account::Account(account_id.clone())
             .list_keys()
             .fetch_from(network)
@@ -89,7 +92,7 @@ impl KeystoreSigner {
         account_id: &AccountId,
         public_key: &PublicKey,
         network_name: &str,
-    ) -> anyhow::Result<AccountKeyPair> {
+    ) -> Result<AccountKeyPair, KeyStoreError> {
         let service_name =
             std::borrow::Cow::Owned(format!("near-{}-{}", network_name, account_id.as_str()));
 

@@ -1,6 +1,6 @@
 use anyhow::bail;
 use near_crypto::PublicKey;
-use near_jsonrpc_client::methods::query::RpcQueryResponse;
+use near_jsonrpc_client::methods::query::{RpcQueryRequest, RpcQueryResponse};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
@@ -22,7 +22,7 @@ use super::{
 };
 
 pub trait Transactionable {
-    type Handler: ResponseHandler<QueryResponse = RpcQueryResponse>;
+    type Handler: ResponseHandler<QueryResponse = RpcQueryResponse, Method = RpcQueryRequest>;
 
     fn prepopulated(&self) -> PrepopulateTransaction;
     fn validate_with_network(

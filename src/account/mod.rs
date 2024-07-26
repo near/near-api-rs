@@ -56,7 +56,10 @@ impl Account {
         )
     }
 
-    pub fn add_key(&self, permission: AccessKeyPermission) -> SecretBuilder<ConstructTransaction> {
+    pub fn add_key(
+        &self,
+        permission: AccessKeyPermission,
+    ) -> SecretBuilder<ConstructTransaction, anyhow::Error> {
         let account_id = self.0.clone();
         SecretBuilder::new(move |public_key| {
             Ok(

@@ -12,6 +12,7 @@ use crate::{
         ViewStateHandler,
     },
     contract::Contract,
+    errors::{QueryCreationError, QueryError},
     transactions::ConstructTransaction,
     types::{
         stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
@@ -411,18 +412,14 @@ impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
         &self,
         network: &crate::config::NetworkConfig,
         reference: Self::RpcReference,
-    ) -> anyhow::Result<RpcQueryRequest> {
+    ) -> Result<RpcQueryRequest, QueryError<RpcQueryRequest>> {
         Ok(RpcQueryRequest {
             block_reference: reference,
             request: near_primitives::views::QueryRequest::ViewState {
                 account_id: network
                     .staking_pools_factory_account_id
                     .clone()
-                    .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "Staking pools factory account ID is not set for the network"
-                        )
-                    })?,
+                    .ok_or(QueryCreationError::StakingPoolFactoryNotDefined)?,
                 prefix: near_primitives::types::StoreKey::from(b"se".to_vec()),
                 include_proof: false,
             },
