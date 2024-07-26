@@ -96,3 +96,49 @@ pub struct UserBalance {
     pub locked: NearToken,
     pub storage_usage: u64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::FTBalance;
+
+    #[test]
+    fn ft_balance_default() {
+        assert_eq!(
+            FTBalance::with_decimals(5).with_whole_amount(5).amount(),
+            500000
+        );
+        assert_eq!(FTBalance::with_decimals(5).with_amount(5).amount(), 5);
+
+        assert_eq!(
+            FTBalance::with_decimals(5).with_whole_amount(5).to_whole(),
+            5
+        );
+    }
+
+    #[test]
+    fn ft_balance_scaled_amount() {
+        // Equal precisition case
+        assert_eq!(
+            FTBalance::with_decimals(5)
+                .with_scaled_amount(55555, 5)
+                .amount(),
+            55555
+        );
+
+        // Larger precisition case
+        assert_eq!(
+            FTBalance::with_decimals(5)
+                .with_scaled_amount(100000000, 8)
+                .amount(),
+            100000
+        );
+
+        // Smaller precisition case
+        assert_eq!(
+            FTBalance::with_decimals(5)
+                .with_scaled_amount(100, 2)
+                .amount(),
+            100000
+        );
+    }
+}

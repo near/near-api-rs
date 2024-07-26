@@ -429,20 +429,3 @@ impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Staking;
-
-    #[tokio::test]
-    async fn get_pools() {
-        let pools = Staking::active_staking_pools()
-            .fetch_from_mainnet()
-            .await
-            .unwrap();
-
-        for pool in pools.iter() {
-            println!("{}", pool);
-        }
-    }
-}
