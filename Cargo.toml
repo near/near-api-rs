@@ -3,6 +3,7 @@ name = "near"
 version = "0.1.0"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
+    "frol <frolvlad@gmail.com>",
     "Near Inc <hello@nearprotocol.com>",
 ]
 license = "MIT OR Apache-2.0"
@@ -14,7 +15,6 @@ description = "The near protocol API that helps to interact with NEAR Protocol"
 # TODO: proper errors
 anyhow = "1.0"
 borsh = "1.5"
-async-trait = "0.1"
 
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 futures = "0.3"

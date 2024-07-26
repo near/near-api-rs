@@ -2757,7 +2757,6 @@ name = "near"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "bip39",
  "borsh",
  "ed25519-dalek",
