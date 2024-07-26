@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use anyhow::bail;
 use near_crypto::PublicKey;
 use near_gas::NearGas;
@@ -10,8 +12,10 @@ use url::Url;
 use crate::{
     common::{query::QueryBuilder, secret::SecretBuilder, send::Transactionable},
     config::NetworkConfig,
+    errors::{AccountCreationError, FaucetError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::transactions::PrepopulateTransaction,
+    Contract,
 };
 
 #[derive(Clone, Debug)]
@@ -23,7 +27,7 @@ impl CreateAccountBuilder {
         account_id: AccountId,
         signer_account_id: AccountId,
         initial_balance: NearToken,
-    ) -> SecretBuilder<TransactionWithSign<CreateAccountFundMyselfTx>, anyhow::Error> {
+    ) -> SecretBuilder<TransactionWithSign<CreateAccountFundMyselfTx>, AccountCreationError> {
         SecretBuilder::new(Box::new(move |public_key| {
             let (actions, receiver_id) = if account_id.is_sub_account_of(&signer_account_id) {
                 (
@@ -49,27 +53,26 @@ impl CreateAccountBuilder {
                     ],
                     account_id.clone(),
                 )
-            } else {
-                let args = serde_json::to_vec(&json!({
-                    "new_account_id": account_id.to_string(),
-                    "new_public_key": public_key.to_string(),
-                }))?;
-
-                if let Some(linkdrop_account_id) = account_id.get_parent_account_id() {
-                    (
-                        vec![near_primitives::transaction::Action::FunctionCall(
-                            Box::new(near_primitives::transaction::FunctionCallAction {
-                                method_name: "create_account".to_string(),
-                                args,
-                                gas: NearGas::from_tgas(30).as_gas(),
-                                deposit: initial_balance.as_yoctonear(),
+            } else if let Some(linkdrop_account_id) = account_id.get_parent_account_id() {
+                (
+                    Contract(linkdrop_account_id.to_owned())
+                        .call_function(
+                            "create_account",
+                            json!({
+                                "new_account_id": account_id.to_string(),
+                                "new_public_key": public_key.to_string(),
                             }),
-                        )],
-                        linkdrop_account_id.to_owned(),
-                    )
-                } else {
-                    bail!("Can't create top-level account")
-                }
+                        )?
+                        .transaction()
+                        .gas(NearGas::from_tgas(30))
+                        .deposit(initial_balance)
+                        .with_signer_account(signer_account_id.clone())
+                        .prepopulated()
+                        .actions,
+                    linkdrop_account_id.to_owned(),
+                )
+            } else {
+                return Err(AccountCreationError::TopLevelAccountIsNotAllowed);
             };
 
             let prepopulated = ConstructTransaction::new(signer_account_id.clone(), receiver_id)
@@ -85,7 +88,7 @@ impl CreateAccountBuilder {
     pub fn sponsor_by_faucet_service(
         self,
         account_id: AccountId,
-    ) -> SecretBuilder<CreateAccountByFaucet, anyhow::Error> {
+    ) -> SecretBuilder<CreateAccountByFaucet, Infallible> {
         SecretBuilder::new(Box::new(move |public_key| {
             Ok(CreateAccountByFaucet {
                 new_account_id: account_id,
@@ -94,7 +97,7 @@ impl CreateAccountBuilder {
         }))
     }
 
-    pub fn implicit(self) -> SecretBuilder<PublicKey, anyhow::Error> {
+    pub fn implicit(self) -> SecretBuilder<PublicKey, Infallible> {
         SecretBuilder::new(Box::new(Ok))
     }
 }
@@ -106,24 +109,24 @@ pub struct CreateAccountByFaucet {
 }
 
 impl CreateAccountByFaucet {
-    pub async fn send_to_testnet_faucet(self) -> anyhow::Result<Response> {
+    pub async fn send_to_testnet_faucet(self) -> Result<Response, FaucetError> {
         let testnet = NetworkConfig::testnet();
         self.send_to_config_faucet(&testnet).await
     }
 
-    pub async fn send_to_config_faucet(self, config: &NetworkConfig) -> anyhow::Result<Response> {
+    pub async fn send_to_config_faucet(
+        self,
+        config: &NetworkConfig,
+    ) -> Result<Response, FaucetError> {
         let faucet_service_url = match &config.faucet_url {
             Some(url) => url,
-            None => bail!(
-                "The <{}> network config does not have a defined faucet (helper service) that can sponsor the creation of an account.",
-                &config.network_name
-            )
+            None => return Err(FaucetError::FaucetIsNotDefined(config.network_name.clone())),
         };
 
         self.send_to_faucet(faucet_service_url).await
     }
 
-    pub async fn send_to_faucet(self, url: &Url) -> anyhow::Result<Response> {
+    pub async fn send_to_faucet(self, url: &Url) -> Result<Response, FaucetError> {
         let mut data = std::collections::HashMap::new();
         data.insert("newAccountId", self.new_account_id.to_string());
         data.insert("newAccountPublicKey", self.public_key.to_string());

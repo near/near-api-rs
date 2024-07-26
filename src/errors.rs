@@ -129,3 +129,20 @@ pub enum BuilderError {
     #[error("Incorrect arguments: {0}")]
     IncorrectArguments(#[from] serde_json::Error),
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum AccountCreationError {
+    #[error(transparent)]
+    BuilderError(#[from] BuilderError),
+
+    #[error("Top-level account is not allowed")]
+    TopLevelAccountIsNotAllowed,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum FaucetError {
+    #[error("The <{0}> network config does not have a defined faucet (helper service) that can sponsor the creation of an account.")]
+    FaucetIsNotDefined(String),
+    #[error("Failed to send message: {0}")]
+    SendError(#[from] reqwest::Error),
+}
