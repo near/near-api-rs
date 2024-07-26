@@ -1,6 +1,8 @@
 use near_token::NearToken;
 use serde::{Deserialize, Serialize};
 
+use crate::errors::DecimalNumberParsingError;
+
 pub const USDT_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(4, "USDT");
 pub const W_NEAR_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(24, "wNEAR");
 
@@ -44,14 +46,9 @@ impl FTBalance {
         }
     }
 
-    pub fn with_float_str(&self, float_str: &str) -> anyhow::Result<Self> {
-        Ok(
-            crate::common::utils::parse_decimal_number(
-                &float_str,
-                10u128.pow(self.decimals as u32),
-            )
-            .map(|amount| self.with_amount(amount))?,
-        )
+    pub fn with_float_str(&self, float_str: &str) -> Result<Self, DecimalNumberParsingError> {
+        crate::common::utils::parse_decimal_number(float_str, 10u128.pow(self.decimals as u32))
+            .map(|amount| self.with_amount(amount))
     }
 
     pub fn amount(&self) -> u128 {

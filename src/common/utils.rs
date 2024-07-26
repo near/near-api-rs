@@ -1,5 +1,7 @@
 // https://github.com/near/near-token-rs/blob/3feafec624e7d1028ed00695f2acf87e1d823fa7/src/utils.rs#L1-L49
 
+use crate::errors::DecimalNumberParsingError;
+
 /// Parsing decimal numbers from `&str` type in `u128`.
 /// Function also takes a value of metric prefix in u128 type.
 /// `parse_str` use the `u128` type, and have the same max and min values.
@@ -48,31 +50,6 @@ pub(crate) fn parse_decimal_number(
         )
         .ok_or_else(|| DecimalNumberParsingError::LongWhole(int.to_string()))?;
     Ok(result)
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DecimalNumberParsingError {
-    InvalidNumber(String),
-    LongWhole(String),
-    LongFractional(String),
-}
-
-impl std::error::Error for DecimalNumberParsingError {}
-
-impl std::fmt::Display for DecimalNumberParsingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DecimalNumberParsingError::InvalidNumber(s) => {
-                write!(f, "invalid number: {}", s)
-            }
-            DecimalNumberParsingError::LongWhole(s) => {
-                write!(f, "too long whole part: {}", s)
-            }
-            DecimalNumberParsingError::LongFractional(s) => {
-                write!(f, "too long fractional part: {}", s)
-            }
-        }
-    }
 }
 
 #[cfg(test)]

@@ -3,6 +3,8 @@ use std::collections::BTreeSet;
 use near_primitives::types::AccountId;
 use serde::de::DeserializeOwned;
 
+use crate::errors::FastNearError;
+
 #[derive(Debug, serde::Deserialize)]
 pub struct StakingPool {
     pool_id: near_primitives::types::AccountId,
@@ -41,15 +43,15 @@ impl<T: DeserializeOwned, PostProcessed> FastNearBuilder<T, PostProcessed> {
         }
     }
 
-    pub async fn fetch_from_url(self, url: url::Url) -> anyhow::Result<PostProcessed> {
+    pub async fn fetch_from_url(self, url: url::Url) -> Result<PostProcessed, FastNearError> {
         let request = reqwest::get(url.join(&self.query)?).await?;
         Ok((self.post_process)(request.json().await?))
     }
 
-    pub async fn fetch_from_mainnet(self) -> anyhow::Result<PostProcessed> {
+    pub async fn fetch_from_mainnet(self) -> Result<PostProcessed, FastNearError> {
         match crate::config::NetworkConfig::mainnet().fastnear_url {
             Some(url) => self.fetch_from_url(url).await,
-            None => Err(anyhow::anyhow!("FastNear URL is not set for mainnet")),
+            None => Err(FastNearError::FastNearUrlIsNotDefined),
         }
     }
 }
@@ -61,7 +63,7 @@ impl FastNear {
     pub async fn pools_delegated_by(
         &self,
         account_id: &AccountId,
-    ) -> anyhow::Result<FastNearBuilder<StakingResponse, BTreeSet<AccountId>>> {
+    ) -> Result<FastNearBuilder<StakingResponse, BTreeSet<AccountId>>, FastNearError> {
         let query_builder = FastNearBuilder::with_postprocess(
             format!("v1/account/{}/staking", account_id),
             |response: StakingResponse| {

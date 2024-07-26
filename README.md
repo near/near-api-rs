@@ -16,7 +16,7 @@ The library is already usable and might be used for rapid prototyping, it lacks 
 - [ ] documentation + examples
 - [ ] integration tests for all API calls
 - [ ] CI/CD
-- [ ] anyhow -> thiserror
+- [x] anyhow -> thiserror
 - [ ] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
 - [ ] ft transfers require manual storage deposit management

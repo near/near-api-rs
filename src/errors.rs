@@ -1,6 +1,6 @@
 use near_jsonrpc_client::{
     errors::JsonRpcError,
-    methods::{query::RpcQueryRequest, RpcMethod},
+    methods::{query::RpcQueryRequest, tx::RpcTransactionError, RpcMethod},
 };
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
 
@@ -137,6 +137,12 @@ pub enum AccountCreationError {
 
     #[error("Top-level account is not allowed")]
     TopLevelAccountIsNotAllowed,
+
+    #[error("Linkdrop is not defined in the network config")]
+    LinkdropIsNotDefined,
+
+    #[error("Account should be created as a subaccount of the signer or linkdrop account")]
+    AccountShouldBeSubaccountOfSignerOrLinkdrop,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -145,4 +151,64 @@ pub enum FaucetError {
     FaucetIsNotDefined(String),
     #[error("Failed to send message: {0}")]
     SendError(#[from] reqwest::Error),
+}
+
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
+pub enum DecimalNumberParsingError {
+    #[error("Invalid number: {0}")]
+    InvalidNumber(String),
+    #[error("Too long whole part: {0}")]
+    LongWhole(String),
+    #[error("Too long fractional part: {0}")]
+    LongFractional(String),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ExecuteTransactionError<T: std::fmt::Display + std::fmt::Debug> {
+    #[error("Transaction validation error: {0}")]
+    ValidationError(T),
+    #[error("Transaction signing error: {0}")]
+    SignerError(#[from] SignerError),
+    #[error("Meta-signing error: {0}")]
+    MetaSignError(#[from] MetaSignError),
+    #[error("Pre-query error: {0}")]
+    PreQueryError(#[from] QueryError<RpcQueryRequest>),
+    #[error("Retries exhausted. The last error is: {0}")]
+    RetriesExhausted(JsonRpcError<RpcTransactionError>),
+    #[error("Transaction error: {0}")]
+    CriticalTransactionError(JsonRpcError<RpcTransactionError>),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ExecuteMetaTransactionsError<T: std::fmt::Display + std::fmt::Debug> {
+    #[error("Transaction validation error: {0}")]
+    ValidationError(T),
+    #[error("Meta-signing error: {0}")]
+    SignError(#[from] MetaSignError),
+    #[error("Pre-query error: {0}")]
+    PreQueryError(#[from] QueryError<RpcQueryRequest>),
+
+    #[error("Relayer is not defined in the network config")]
+    RelayerIsNotDefined,
+
+    #[error("Failed to send meta-transaction: {0}")]
+    SendError(#[from] reqwest::Error),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum FTValidatorError {
+    #[error("Metadata is not provided")]
+    NoMetadata,
+    #[error("Decimals mismatch: expected {expected}, got {got}")]
+    DecimalsMismatch { expected: u8, got: u8 },
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum FastNearError {
+    #[error("FastNear URL is not defined in the network config")]
+    FastNearUrlIsNotDefined,
+    #[error("Failed to send request: {0}")]
+    SendError(#[from] reqwest::Error),
+    #[error("Url parsing error: {0}")]
+    UrlParseError(#[from] url::ParseError),
 }

@@ -80,8 +80,9 @@ impl KeystoreSigner {
             // TODO: support functional access keys
             .filter(|key| key.access_key.permission == AccessKeyPermissionView::FullAccess)
             .flat_map(|key| {
-                Self::get_secret_key(&account_id, &key.public_key, &network.network_name)?;
-                anyhow::Ok(key.public_key)
+                Self::get_secret_key(&account_id, &key.public_key, &network.network_name)
+                    .map(|keypair| keypair.public_key)
+                    .ok()
             })
             .collect();
 

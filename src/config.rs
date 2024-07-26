@@ -1,6 +1,3 @@
-use anyhow::Context;
-use std::str::FromStr;
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NetworkConfig {
     pub network_name: String,
@@ -53,22 +50,6 @@ impl NetworkConfig {
                 json_rpc_client.header(near_jsonrpc_client::auth::ApiKey::from(rpc_api_key.clone()))
         };
         json_rpc_client
-    }
-
-    pub fn get_near_social_account_id_from_network(
-        &self,
-    ) -> anyhow::Result<near_primitives::types::AccountId> {
-        if let Some(account_id) = self.near_social_db_contract_account_id.clone() {
-            return Ok(account_id);
-        }
-        match self.network_name.as_str() {
-            "mainnet" => {
-                near_primitives::types::AccountId::from_str("social.near").context("Internal error")
-            }
-            "testnet" => near_primitives::types::AccountId::from_str("v1.social08.testnet")
-                .context("Internal error"),
-            _ => anyhow::bail!("This network does not provide the \"near-social\" contract"),
-        }
     }
 }
 

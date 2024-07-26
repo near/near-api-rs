@@ -22,7 +22,7 @@ use crate::{
         send::Transactionable,
     },
     contract::Contract,
-    errors::BuilderError,
+    errors::{BuilderError, FTValidatorError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::{
         tokens::{FTBalance, UserBalance},
@@ -211,6 +211,7 @@ pub struct FTTransactionable {
 
 impl Transactionable for FTTransactionable {
     type Handler = CallResultHandler<FungibleTokenMetadata>;
+    type Error = FTValidatorError;
 
     fn prepopulated(&self) -> PrepopulateTransaction {
         self.prepopulated.clone()
@@ -220,14 +221,13 @@ impl Transactionable for FTTransactionable {
         &self,
         _network: &crate::NetworkConfig,
         query_response: Option<Data<FungibleTokenMetadata>>,
-    ) -> anyhow::Result<()> {
-        let metadata = query_response.ok_or_else(|| anyhow::anyhow!("No metadata found"))?;
+    ) -> core::result::Result<(), FTValidatorError> {
+        let metadata = query_response.ok_or(FTValidatorError::NoMetadata)?;
         if metadata.data.decimals != self.decimals {
-            return Err(anyhow::anyhow!(
-                "Decimals mismatch: expected {}, got {}",
-                metadata.data.decimals,
-                self.decimals,
-            ));
+            return Err(FTValidatorError::DecimalsMismatch {
+                expected: metadata.data.decimals,
+                got: self.decimals,
+            });
         }
         Ok(())
     }

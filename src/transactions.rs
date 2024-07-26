@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use near_primitives::{action::Action, types::AccountId};
 
 use crate::{
@@ -6,6 +8,7 @@ use crate::{
         send::{ExecuteSignedTransaction, Transactionable},
     },
     config::NetworkConfig,
+    errors::SignerError,
     signer::Signer,
     types::transactions::PrepopulateTransaction,
 };
@@ -54,6 +57,7 @@ impl ConstructTransaction {
 
 impl Transactionable for ConstructTransaction {
     type Handler = ();
+    type Error = Infallible;
 
     fn prepopulated(&self) -> PrepopulateTransaction {
         PrepopulateTransaction {
@@ -67,7 +71,7 @@ impl Transactionable for ConstructTransaction {
         &self,
         _: &NetworkConfig,
         _query_response: Option<()>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), Infallible> {
         Ok(())
     }
 
@@ -87,7 +91,7 @@ impl Transaction {
     pub fn sign_transaction(
         unsigned_tx: near_primitives::transaction::Transaction,
         signer: Signer,
-    ) -> anyhow::Result<ExecuteSignedTransaction<ConstructTransaction>> {
+    ) -> Result<ExecuteSignedTransaction<ConstructTransaction>, SignerError> {
         ConstructTransaction::new(unsigned_tx.signer_id, unsigned_tx.receiver_id)
             .add_actions(unsigned_tx.actions)
             .with_signer(signer)

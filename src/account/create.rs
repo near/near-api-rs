@@ -1,6 +1,5 @@
 use std::convert::Infallible;
 
-use anyhow::bail;
 use near_crypto::PublicKey;
 use near_gas::NearGas;
 use near_primitives::types::AccountId;
@@ -144,6 +143,7 @@ pub struct CreateAccountFundMyselfTx {
 
 impl Transactionable for CreateAccountFundMyselfTx {
     type Handler = ();
+    type Error = AccountCreationError;
 
     fn prepopulated(&self) -> PrepopulateTransaction {
         self.prepopulated.clone()
@@ -153,7 +153,7 @@ impl Transactionable for CreateAccountFundMyselfTx {
         &self,
         network: &NetworkConfig,
         _query_response: Option<()>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), AccountCreationError> {
         if self
             .prepopulated
             .receiver_id
@@ -165,10 +165,10 @@ impl Transactionable for CreateAccountFundMyselfTx {
         match &network.linkdrop_account_id {
             Some(linkdrop) => {
                 if &self.prepopulated.receiver_id != linkdrop {
-                    bail!("Account can be created either under signer account or under linkdrop account. Expected: {:?}, got: {:?}", linkdrop, self.prepopulated.receiver_id.get_parent_account_id().map(ToString::to_string).unwrap_or_default());
+                    return Err(AccountCreationError::AccountShouldBeSubaccountOfSignerOrLinkdrop);
                 }
             }
-            None => bail!("Can't create top-level account"),
+            None => return Err(AccountCreationError::LinkdropIsNotDefined),
         }
 
         Ok(())

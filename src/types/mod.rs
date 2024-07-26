@@ -1,4 +1,5 @@
 use near_primitives::{hash::CryptoHash, types::BlockHeight};
+use reqwest::header::InvalidHeaderValue;
 
 pub mod contract;
 pub mod stake;
@@ -35,7 +36,7 @@ impl std::fmt::Display for ApiKey {
 }
 
 impl std::str::FromStr for ApiKey {
-    type Err = anyhow::Error;
+    type Err = InvalidHeaderValue;
 
     fn from_str(api_key: &str) -> Result<Self, Self::Err> {
         Ok(Self(near_jsonrpc_client::auth::ApiKey::new(api_key)?))
@@ -58,6 +59,6 @@ impl<'de> serde::de::Deserialize<'de> for ApiKey {
     {
         String::deserialize(deserializer)?
             .parse()
-            .map_err(|err: anyhow::Error| serde::de::Error::custom(err.to_string()))
+            .map_err(|err: InvalidHeaderValue| serde::de::Error::custom(err.to_string()))
     }
 }
