@@ -6,6 +6,7 @@ use serde_json::json;
 use crate::{
     common::query::{CallResultHandler, QueryBuilder},
     contract::{Contract, ContractTransactBuilder},
+    errors::BuilderError,
     transactions::ConstructTransaction,
 };
 
@@ -20,7 +21,7 @@ impl StorageDeposit {
     pub fn view_account_storage(
         &self,
         account_id: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<StorageBalance>>> {
+    ) -> Result<QueryBuilder<CallResultHandler<StorageBalance>>, BuilderError> {
         Ok(Contract(self.0.clone())
             .call_function(
                 "storage_balance_of",
@@ -35,7 +36,7 @@ impl StorageDeposit {
         &self,
         receiver_account_id: AccountId,
         amount: NearToken,
-    ) -> anyhow::Result<ContractTransactBuilder> {
+    ) -> Result<ContractTransactBuilder, BuilderError> {
         Ok(Contract(self.0.clone())
             .call_function(
                 "storage_deposit",
@@ -51,7 +52,7 @@ impl StorageDeposit {
         &self,
         account_id: AccountId,
         amount: NearToken,
-    ) -> anyhow::Result<ConstructTransaction> {
+    ) -> Result<ConstructTransaction, BuilderError> {
         Ok(Contract(self.0.clone())
             .call_function(
                 "storage_withdraw",

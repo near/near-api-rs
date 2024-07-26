@@ -123,3 +123,9 @@ pub enum SecretBuilderkError<E: std::fmt::Debug + std::fmt::Display> {
     #[error(transparent)]
     CallbackError(E),
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum BuilderError {
+    #[error("Incorrect arguments: {0}")]
+    IncorrectArguments(#[from] serde_json::Error),
+}

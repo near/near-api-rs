@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use near_crypto::PublicKey;
 use near_primitives::{
     account::{AccessKey, AccessKeyPermission},
@@ -59,7 +61,7 @@ impl Account {
     pub fn add_key(
         &self,
         permission: AccessKeyPermission,
-    ) -> SecretBuilder<ConstructTransaction, anyhow::Error> {
+    ) -> SecretBuilder<ConstructTransaction, Infallible> {
         let account_id = self.0.clone();
         SecretBuilder::new(move |public_key| {
             Ok(

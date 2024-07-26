@@ -12,7 +12,7 @@ use crate::{
         ViewStateHandler,
     },
     contract::Contract,
-    errors::{QueryCreationError, QueryError},
+    errors::{BuilderError, QueryCreationError, QueryError},
     transactions::ConstructTransaction,
     types::{
         stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
@@ -24,6 +24,8 @@ fn near_data_to_near_token(data: Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)
 }
 
+type Result<T> = core::result::Result<T, BuilderError>;
+
 #[derive(Clone, Debug)]
 pub struct Delegation(pub AccountId);
 
@@ -31,7 +33,7 @@ impl Delegation {
     pub fn view_staked_balance(
         &self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0.clone(),
         }))?;
@@ -54,7 +56,7 @@ impl Delegation {
     pub fn view_unstaked_balance(
         &self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0.clone(),
         }))?;
@@ -77,7 +79,7 @@ impl Delegation {
     pub fn view_total_balance(
         &self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0.clone(),
         }))?;
@@ -100,7 +102,7 @@ impl Delegation {
     pub fn view_balance(
         &self,
         pool: AccountId,
-    ) -> anyhow::Result<
+    ) -> Result<
         MultiQueryBuilder<
             PostprocessHandler<
                 UserStakeBalance,
@@ -142,7 +144,7 @@ impl Delegation {
     pub fn is_account_unstaked_balance_available_for_withdrawal(
         &self,
         pool: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<bool>>> {
+    ) -> Result<QueryBuilder<CallResultHandler<bool>>> {
         let args = serde_json::to_vec(&serde_json::json!({
             "account_id": self.0.clone(),
         }))?;
@@ -160,11 +162,7 @@ impl Delegation {
         ))
     }
 
-    pub fn deposit(
-        &self,
-        pool: AccountId,
-        amount: NearToken,
-    ) -> anyhow::Result<ConstructTransaction> {
+    pub fn deposit(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("deposit", ())?
             .transaction()
@@ -177,7 +175,7 @@ impl Delegation {
         &self,
         pool: AccountId,
         amount: NearToken,
-    ) -> anyhow::Result<ConstructTransaction> {
+    ) -> Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("deposit_and_stake", ())?
             .transaction()
@@ -186,11 +184,7 @@ impl Delegation {
             .with_signer_account(self.0.clone()))
     }
 
-    pub fn stake(
-        &self,
-        pool: AccountId,
-        amount: NearToken,
-    ) -> anyhow::Result<ConstructTransaction> {
+    pub fn stake(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         let args = serde_json::json!({
             "amount": amount.as_yoctonear(),
         });
@@ -202,7 +196,7 @@ impl Delegation {
             .with_signer_account(self.0.clone()))
     }
 
-    pub fn stake_all(&self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
+    pub fn stake_all(&self, pool: AccountId) -> Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("stake_all", ())?
             .transaction()
@@ -210,11 +204,7 @@ impl Delegation {
             .with_signer_account(self.0.clone()))
     }
 
-    pub fn unstake(
-        &self,
-        pool: AccountId,
-        amount: NearToken,
-    ) -> anyhow::Result<ConstructTransaction> {
+    pub fn unstake(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         let args = serde_json::json!({
             "amount": amount.as_yoctonear(),
         });
@@ -226,7 +216,7 @@ impl Delegation {
             .with_signer_account(self.0.clone()))
     }
 
-    pub fn unstake_all(&self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
+    pub fn unstake_all(&self, pool: AccountId) -> Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("unstake_all", ())?
             .transaction()
@@ -234,11 +224,7 @@ impl Delegation {
             .with_signer_account(self.0.clone()))
     }
 
-    pub fn withdraw(
-        &self,
-        pool: AccountId,
-        amount: NearToken,
-    ) -> anyhow::Result<ConstructTransaction> {
+    pub fn withdraw(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         let args = serde_json::json!({
             "amount": amount.as_yoctonear(),
         });
@@ -250,7 +236,7 @@ impl Delegation {
             .with_signer_account(self.0.clone()))
     }
 
-    pub fn withdraw_all(&self, pool: AccountId) -> anyhow::Result<ConstructTransaction> {
+    pub fn withdraw_all(&self, pool: AccountId) -> Result<ConstructTransaction> {
         Ok(Contract(pool)
             .call_function("withdraw_all", ())?
             .transaction()
@@ -412,7 +398,7 @@ impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
         &self,
         network: &crate::config::NetworkConfig,
         reference: Self::RpcReference,
-    ) -> Result<RpcQueryRequest, QueryError<RpcQueryRequest>> {
+    ) -> core::result::Result<RpcQueryRequest, QueryError<RpcQueryRequest>> {
         Ok(RpcQueryRequest {
             block_reference: reference,
             request: near_primitives::views::QueryRequest::ViewState {

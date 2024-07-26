@@ -17,6 +17,7 @@ use crate::{
         },
         send::ExecuteSignedTransaction,
     },
+    errors::BuilderError,
     signer::Signer,
     transactions::{ConstructTransaction, Transaction},
     types::{contract::ContractSourceMetadata, Data},
@@ -30,7 +31,7 @@ impl Contract {
         &self,
         method_name: &str,
         args: Args,
-    ) -> anyhow::Result<CallFunctionBuilder>
+    ) -> Result<CallFunctionBuilder, BuilderError>
     where
         Args: serde::Serialize,
     {
@@ -130,7 +131,7 @@ impl DeployContractBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> anyhow::Result<ConstructTransaction> {
+    ) -> Result<ConstructTransaction, BuilderError> {
         let args = serde_json::to_vec(&args)?;
 
         Ok(ContractTransactBuilder::new(

@@ -22,6 +22,7 @@ use crate::{
         send::Transactionable,
     },
     contract::Contract,
+    errors::BuilderError,
     transactions::{ConstructTransaction, TransactionWithSign},
     types::{
         tokens::{FTBalance, UserBalance},
@@ -29,6 +30,8 @@ use crate::{
         Data,
     },
 };
+
+type Result<T> = core::result::Result<T, BuilderError>;
 
 #[derive(Debug, Clone)]
 pub struct Tokens {
@@ -69,7 +72,7 @@ impl Tokens {
 
     pub fn nft_metadata(
         contract_id: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<NFTContractMetadata>>> {
+    ) -> Result<QueryBuilder<CallResultHandler<NFTContractMetadata>>> {
         Ok(Contract(contract_id)
             .call_function("nft_metadata", ())?
             .read_only())
@@ -78,7 +81,7 @@ impl Tokens {
     pub fn nft_assets(
         &self,
         nft_contract: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<Vec<Token>>>> {
+    ) -> Result<QueryBuilder<CallResultHandler<Vec<Token>>>> {
         Ok(Contract(nft_contract)
             .call_function(
                 "nft_tokens_for_owner",
@@ -91,7 +94,7 @@ impl Tokens {
 
     pub fn ft_metadata(
         contract_id: AccountId,
-    ) -> anyhow::Result<QueryBuilder<CallResultHandler<FungibleTokenMetadata>>> {
+    ) -> Result<QueryBuilder<CallResultHandler<FungibleTokenMetadata>>> {
         Ok(Contract(contract_id)
             .call_function("ft_metadata", ())?
             .read_only())
@@ -100,7 +103,7 @@ impl Tokens {
     pub fn ft_balance(
         &self,
         ft_contract: AccountId,
-    ) -> anyhow::Result<
+    ) -> Result<
         MultiQueryBuilder<
             PostprocessHandler<
                 FTBalance,
@@ -164,7 +167,7 @@ impl SendTo {
         self,
         ft_contract: AccountId,
         amount: FTBalance,
-    ) -> anyhow::Result<TransactionWithSign<FTTransactionable>> {
+    ) -> Result<TransactionWithSign<FTTransactionable>> {
         let tr = Contract(ft_contract)
             .call_function(
                 "ft_transfer",
@@ -185,11 +188,7 @@ impl SendTo {
         })
     }
 
-    pub fn nft(
-        self,
-        nft_contract: AccountId,
-        token_id: String,
-    ) -> anyhow::Result<ConstructTransaction> {
+    pub fn nft(self, nft_contract: AccountId, token_id: String) -> Result<ConstructTransaction> {
         Ok(Contract(nft_contract)
             .call_function(
                 "nft_transfer",
