@@ -1,9 +1,8 @@
 use near_crypto::PublicKey;
-use near_jsonrpc_client::methods::query::{RpcQueryRequest, RpcQueryResponse};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
-    transaction::SignedTransaction,
+    transaction::{SignedTransaction},
     types::{BlockHeight, Nonce},
     views::FinalExecutionOutcomeView,
 };
@@ -11,36 +10,30 @@ use reqwest::Response;
 
 use crate::{
     config::NetworkConfig,
-    errors::{ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError},
+    errors::{
+        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
+        ValidationError,
+    },
     signer::SignerTrait,
     types::transactions::PrepopulateTransaction,
 };
 
 use super::{
-    query::{QueryBuilder, ResponseHandler},
-    signed_delegate_action::SignedDelegateActionAsBase64,
-    META_TRANSACTION_VALID_FOR_DEFAULT,
+    signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
 };
 
+#[async_trait::async_trait]
 pub trait Transactionable {
-    type Handler: ResponseHandler<QueryResponse = RpcQueryResponse, Method = RpcQueryRequest>;
-    type Error: std::fmt::Debug + std::fmt::Display;
-
     fn prepopulated(&self) -> PrepopulateTransaction;
-    fn validate_with_network(
-        &self,
-        network: &NetworkConfig,
-        query_response: Option<<Self::Handler as ResponseHandler>::Response>,
-    ) -> Result<(), Self::Error>;
-    fn prequery(&self) -> Option<QueryBuilder<Self::Handler>>;
+    async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError>;
 }
 
-pub enum TransactionableOrSigned<T, Signed> {
-    Transactionable(T),
-    Signed((Signed, T)),
+pub enum TransactionableOrSigned<Signed> {
+    Transactionable(Box<dyn Transactionable>),
+    Signed((Signed, Box<dyn Transactionable>)),
 }
 
-impl<T, Signed> TransactionableOrSigned<T, Signed> {
+impl<Signed> TransactionableOrSigned<Signed> {
     pub fn signed(self) -> Option<Signed> {
         match self {
             TransactionableOrSigned::Signed((signed, _)) => Some(signed),
@@ -49,8 +42,8 @@ impl<T, Signed> TransactionableOrSigned<T, Signed> {
     }
 }
 
-impl<T, S> TransactionableOrSigned<T, S> {
-    pub fn transactionable(self) -> T {
+impl< S> TransactionableOrSigned< S> {
+    pub fn transactionable(self) -> Box<dyn Transactionable> {
         match self {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed((_, tr)) => tr,
@@ -68,25 +61,25 @@ impl From<SignedTransaction> for PrepopulateTransaction {
     }
 }
 
-pub struct ExecuteSignedTransaction<T: Transactionable> {
-    pub tr: TransactionableOrSigned<T, SignedTransaction>,
+pub struct ExecuteSignedTransaction {
+    pub tr: TransactionableOrSigned<SignedTransaction>,
     pub signer: Box<dyn SignerTrait>,
     pub retries: u8,
     pub sleep_duration: std::time::Duration,
 }
 
-impl<T: Transactionable> ExecuteSignedTransaction<T> {
-    pub fn new(tr: T, signer: Box<dyn SignerTrait>) -> Self {
+impl ExecuteSignedTransaction {
+    pub fn new<T: Transactionable + 'static>(tr: T, signer: Box<dyn SignerTrait>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(tr),
+            tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
             signer,
             retries: 5,
             sleep_duration: std::time::Duration::from_secs(1),
         }
     }
 
-    pub fn meta(self) -> ExecuteMetaTransaction<T> {
-        ExecuteMetaTransaction::new(self.tr.transactionable(), self.signer)
+    pub fn meta(self) -> ExecuteMetaTransaction {
+        ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
     }
 
     pub fn with_retries(mut self, retries: u8) -> Self {
@@ -119,7 +112,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
     pub async fn presign_with(
         self,
         network: &NetworkConfig,
-    ) -> Result<Self, ExecuteTransactionError<T::Error>> {
+    ) -> Result<Self, ExecuteTransactionError> {
         let tr = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
@@ -134,12 +127,12 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         Ok(self.presign_offline(signer_key, response.block_hash, response.data.nonce + 1)?)
     }
 
-    pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteTransactionError<T::Error>> {
+    pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteTransactionError> {
         let network = NetworkConfig::mainnet();
         self.presign_with(&network).await
     }
 
-    pub async fn presign_with_testnet(self) -> Result<Self, ExecuteTransactionError<T::Error>> {
+    pub async fn presign_with_testnet(self) -> Result<Self, ExecuteTransactionError> {
         let network = NetworkConfig::testnet();
         self.presign_with(&network).await
     }
@@ -147,7 +140,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
     pub async fn send_to(
         self,
         network: &NetworkConfig,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError<T::Error>> {
+    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
         let sleep_duration = self.sleep_duration;
         let retries = self.retries;
 
@@ -156,14 +149,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
             TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
 
-        match transactionable.prequery() {
-            Some(query_builder) => {
-                let query_response = query_builder.fetch_from(network).await?;
-                transactionable.validate_with_network(network, Some(query_response))
-            }
-            None => transactionable.validate_with_network(network, None),
-        }
-        .map_err(ExecuteTransactionError::ValidationError)?;
+        transactionable.validate_with_network(network).await?;
 
         let signed = match signed {
             Some(s) => s,
@@ -179,14 +165,14 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
 
     pub async fn send_to_mainnet(
         self,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError<T::Error>> {
+    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
 
     pub async fn send_to_testnet(
         self,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError<T::Error>> {
+    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }
@@ -196,7 +182,7 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
         signed_tr: SignedTransaction,
         retries: u8,
         sleep_duration: std::time::Duration,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError<T::Error>> {
+    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
         let mut retries = (1..=retries).rev();
         let transaction_info = loop {
             let transaction_info_result = network
@@ -226,18 +212,24 @@ impl<T: Transactionable> ExecuteSignedTransaction<T> {
     }
 }
 
-pub struct ExecuteMetaTransaction<T> {
-    pub tr: TransactionableOrSigned<T, SignedDelegateAction>,
+pub struct ExecuteMetaTransaction{
+    pub tr: TransactionableOrSigned<SignedDelegateAction>,
     pub signer: Box<dyn SignerTrait>,
     pub tx_live_for: Option<BlockHeight>,
 }
 
-impl<T: Transactionable> ExecuteMetaTransaction<T> {
-    pub fn new(tr: T, signer: Box<dyn SignerTrait>) -> Self {
+impl ExecuteMetaTransaction {
+    pub fn new<T: Transactionable + 'static>(tr: T, signer: Box<dyn SignerTrait>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(tr),
+            tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
             signer,
             tx_live_for: None,
+        }
+    }
+
+    pub fn from_box(tr: Box<dyn Transactionable>, signer: Box<dyn SignerTrait>) -> Self {
+        Self {
+            tr: TransactionableOrSigned::Transactionable(tr), signer, tx_live_for: None
         }
     }
 
@@ -276,7 +268,7 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
     pub async fn presign_with(
         self,
         network: &NetworkConfig,
-    ) -> Result<Self, ExecuteMetaTransactionsError<T::Error>> {
+    ) -> Result<Self, ExecuteMetaTransactionsError> {
         let tr = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
@@ -295,16 +287,12 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
         )?)
     }
 
-    pub async fn presign_with_mainnet(
-        self,
-    ) -> Result<Self, ExecuteMetaTransactionsError<T::Error>> {
+    pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::mainnet();
         self.presign_with(&network).await
     }
 
-    pub async fn presign_with_testnet(
-        self,
-    ) -> Result<Self, ExecuteMetaTransactionsError<T::Error>> {
+    pub async fn presign_with_testnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::testnet();
         self.presign_with(&network).await
     }
@@ -312,20 +300,13 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
     pub async fn send_to(
         self,
         network: &NetworkConfig,
-    ) -> Result<Response, ExecuteMetaTransactionsError<T::Error>> {
+    ) -> Result<Response, ExecuteMetaTransactionsError> {
         let (signed, transactionable) = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => (None, tr),
             TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
 
-        match transactionable.prequery() {
-            Some(query_builder) => {
-                let query_response = query_builder.fetch_from(network).await?;
-                transactionable.validate_with_network(network, Some(query_response))
-            }
-            None => transactionable.validate_with_network(network, None),
-        }
-        .map_err(ExecuteMetaTransactionsError::ValidationError)?;
+        transactionable.validate_with_network(network).await?;
 
         let signed = match signed {
             Some(s) => s,
@@ -340,16 +321,12 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
         Ok(transaction_info)
     }
 
-    pub async fn send_to_mainnet(
-        self,
-    ) -> Result<reqwest::Response, ExecuteMetaTransactionsError<T::Error>> {
+    pub async fn send_to_mainnet(self) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
 
-    pub async fn send_to_testnet(
-        self,
-    ) -> Result<reqwest::Response, ExecuteMetaTransactionsError<T::Error>> {
+    pub async fn send_to_testnet(self) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }
@@ -357,7 +334,7 @@ impl<T: Transactionable> ExecuteMetaTransaction<T> {
     async fn send_impl(
         network: &NetworkConfig,
         tr: SignedDelegateAction,
-    ) -> Result<reqwest::Response, ExecuteMetaTransactionsError<T::Error>> {
+    ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let client = reqwest::Client::new();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(

@@ -216,7 +216,7 @@ impl ContractTransactBuilder {
         self,
         signer_id: AccountId,
         signer: Signer,
-    ) -> ExecuteSignedTransaction<ConstructTransaction> {
+    ) -> ExecuteSignedTransaction {
         self.with_signer_account(signer_id).with_signer(signer)
     }
 

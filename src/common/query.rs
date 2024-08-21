@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use futures::future::join_all;
 use near_jsonrpc_client::methods::{
@@ -41,7 +41,7 @@ where
 
 pub trait QueryCreator<Method: RpcMethod>
 where
-    Method::Error: std::fmt::Display + std::fmt::Debug,
+    Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
 {
     type RpcReference;
     fn create_query(
@@ -93,7 +93,7 @@ pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochRefe
 
 pub struct MultiRpcBuilder<ResponseHandler, Method, Reference> {
     reference: Reference,
-    requests: Vec<Box<dyn QueryCreator<Method, RpcReference = Reference>>>,
+    requests: Vec<Arc<dyn QueryCreator<Method, RpcReference = Reference>>>,
     handler: ResponseHandler,
 }
 
@@ -114,7 +114,7 @@ where
 
     pub fn add_query(
         mut self,
-        request: Box<dyn QueryCreator<Method, RpcReference = Reference>>,
+        request: Arc<dyn QueryCreator<Method, RpcReference = Reference>>,
     ) -> Self {
         self.requests.push(request);
         self
@@ -171,7 +171,7 @@ where
 
 pub struct RpcBuilder<Handler, Method, Reference> {
     reference: Reference,
-    request: Box<dyn QueryCreator<Method, RpcReference = Reference>>,
+    request: Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>,
     handler: Handler,
 }
 
@@ -182,13 +182,13 @@ where
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
 {
     pub fn new(
-        request: impl QueryCreator<Method, RpcReference = Reference> + 'static,
+        request: impl QueryCreator<Method, RpcReference = Reference> + 'static + Send + Sync,
         reference: Reference,
         handler: Handler,
     ) -> Self {
         Self {
             reference,
-            request: Box::new(request),
+            request: Arc::new(request),
             handler,
         }
     }

@@ -164,9 +164,9 @@ pub enum DecimalNumberParsingError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ExecuteTransactionError<T: std::fmt::Display + std::fmt::Debug> {
+pub enum ExecuteTransactionError {
     #[error("Transaction validation error: {0}")]
-    ValidationError(T),
+    ValidationError(#[from] ValidationError),
     #[error("Transaction signing error: {0}")]
     SignerError(#[from] SignerError),
     #[error("Meta-signing error: {0}")]
@@ -180,9 +180,9 @@ pub enum ExecuteTransactionError<T: std::fmt::Display + std::fmt::Debug> {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ExecuteMetaTransactionsError<T: std::fmt::Display + std::fmt::Debug> {
+pub enum ExecuteMetaTransactionsError {
     #[error("Transaction validation error: {0}")]
-    ValidationError(T),
+    ValidationError(#[from] ValidationError),
     #[error("Meta-signing error: {0}")]
     SignError(#[from] MetaSignError),
     #[error("Pre-query error: {0}")]
@@ -211,4 +211,17 @@ pub enum FastNearError {
     SendError(#[from] reqwest::Error),
     #[error("Url parsing error: {0}")]
     UrlParseError(#[from] url::ParseError),
+}
+
+//TODO: it's better to have a separate errors, but for now it would be aggregated here
+#[derive(thiserror::Error, Debug)]
+pub enum ValidationError {
+    #[error("Query creation error: {0}")]
+    QueryBuilderError(#[from] BuilderError),
+
+    #[error("FT Validation Error: {0}")]
+    FTValidatorError(#[from] FTValidatorError),
+
+    #[error("Account creation error: {0}")]
+    AccountCreationError(#[from] AccountCreationError),
 }

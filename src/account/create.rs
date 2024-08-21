@@ -9,9 +9,9 @@ use serde_json::json;
 use url::Url;
 
 use crate::{
-    common::{query::QueryBuilder, secret::SecretBuilder, send::Transactionable},
+    common::{secret::SecretBuilder, send::Transactionable},
     config::NetworkConfig,
-    errors::{AccountCreationError, FaucetError},
+    errors::{AccountCreationError, FaucetError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::transactions::PrepopulateTransaction,
     Contract,
@@ -141,19 +141,13 @@ pub struct CreateAccountFundMyselfTx {
     prepopulated: PrepopulateTransaction,
 }
 
+#[async_trait::async_trait]
 impl Transactionable for CreateAccountFundMyselfTx {
-    type Handler = ();
-    type Error = AccountCreationError;
-
     fn prepopulated(&self) -> PrepopulateTransaction {
         self.prepopulated.clone()
     }
 
-    fn validate_with_network(
-        &self,
-        network: &NetworkConfig,
-        _query_response: Option<()>,
-    ) -> Result<(), AccountCreationError> {
+    async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError> {
         if self
             .prepopulated
             .receiver_id
@@ -165,16 +159,12 @@ impl Transactionable for CreateAccountFundMyselfTx {
         match &network.linkdrop_account_id {
             Some(linkdrop) => {
                 if &self.prepopulated.receiver_id != linkdrop {
-                    return Err(AccountCreationError::AccountShouldBeSubaccountOfSignerOrLinkdrop);
+                    Err(AccountCreationError::AccountShouldBeSubaccountOfSignerOrLinkdrop)?;
                 }
             }
-            None => return Err(AccountCreationError::LinkdropIsNotDefined),
+            None => Err(AccountCreationError::LinkdropIsNotDefined)?,
         }
 
         Ok(())
-    }
-
-    fn prequery(&self) -> Option<QueryBuilder<()>> {
-        None
     }
 }

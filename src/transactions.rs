@@ -1,25 +1,20 @@
-use std::convert::Infallible;
-
 use near_primitives::{action::Action, types::AccountId};
 
 use crate::{
-    common::{
-        query::QueryBuilder,
-        send::{ExecuteSignedTransaction, Transactionable},
-    },
+    common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::SignerError,
+    errors::{SignerError, ValidationError},
     signer::Signer,
     types::transactions::PrepopulateTransaction,
 };
 
 #[derive(Clone, Debug)]
-pub struct TransactionWithSign<T: Transactionable> {
+pub struct TransactionWithSign<T: Transactionable + 'static> {
     pub tx: T,
 }
 
 impl<T: Transactionable> TransactionWithSign<T> {
-    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction<T> {
+    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction {
         ExecuteSignedTransaction::new(self.tx, signer.into())
     }
 }
@@ -50,15 +45,13 @@ impl ConstructTransaction {
         self
     }
 
-    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction<Self> {
+    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction {
         ExecuteSignedTransaction::new(self, signer.into())
     }
 }
 
+#[async_trait::async_trait]
 impl Transactionable for ConstructTransaction {
-    type Handler = ();
-    type Error = Infallible;
-
     fn prepopulated(&self) -> PrepopulateTransaction {
         PrepopulateTransaction {
             signer_id: self.tr.signer_id.clone(),
@@ -67,16 +60,8 @@ impl Transactionable for ConstructTransaction {
         }
     }
 
-    fn validate_with_network(
-        &self,
-        _: &NetworkConfig,
-        _query_response: Option<()>,
-    ) -> Result<(), Infallible> {
+    async fn validate_with_network(&self, _: &NetworkConfig) -> Result<(), ValidationError> {
         Ok(())
-    }
-
-    fn prequery(&self) -> Option<QueryBuilder<()>> {
-        None
     }
 }
 
@@ -91,7 +76,7 @@ impl Transaction {
     pub fn sign_transaction(
         unsigned_tx: near_primitives::transaction::Transaction,
         signer: Signer,
-    ) -> Result<ExecuteSignedTransaction<ConstructTransaction>, SignerError> {
+    ) -> Result<ExecuteSignedTransaction, SignerError> {
         ConstructTransaction::new(unsigned_tx.signer_id, unsigned_tx.receiver_id)
             .add_actions(unsigned_tx.actions)
             .with_signer(signer)
@@ -101,4 +86,25 @@ impl Transaction {
                 unsigned_tx.nonce,
             )
     }
+}
+
+#[derive(Default)]
+pub struct MultiTransactions {
+    transactions: Vec<Box<dyn Transactionable>>,
+}
+
+impl MultiTransactions {
+    pub fn add_transaction<T: Transactionable + 'static>(&mut self, transaction: T) {
+        self.transactions.push(Box::new(transaction));
+    }
+
+    // pub fn with_signer(self, signer: Signer) -> Vec<ExecuteSignedTransaction> {
+    //     self.transactions
+    //         .into_iter()
+    //         .map(|tx| {
+    //             ExecuteSignedTransaction::new(*tx, signer.clone().into())
+    //                 .presign_offline(public_key, block_hash, nonce)
+    //         })
+    //         .collect()
+    // }
 }

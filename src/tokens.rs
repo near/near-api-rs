@@ -22,13 +22,13 @@ use crate::{
         send::Transactionable,
     },
     contract::Contract,
-    errors::{BuilderError, FTValidatorError},
+    errors::{BuilderError, FTValidatorError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::{
         tokens::{FTBalance, UserBalance},
         transactions::PrepopulateTransaction,
         Data,
-    },
+    }, NetworkConfig,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -209,30 +209,25 @@ pub struct FTTransactionable {
     decimals: u8,
 }
 
+#[async_trait::async_trait]
 impl Transactionable for FTTransactionable {
-    type Handler = CallResultHandler<FungibleTokenMetadata>;
-    type Error = FTValidatorError;
-
     fn prepopulated(&self) -> PrepopulateTransaction {
         self.prepopulated.clone()
     }
 
-    fn validate_with_network(
+    async fn validate_with_network(
         &self,
-        _network: &crate::NetworkConfig,
-        query_response: Option<Data<FungibleTokenMetadata>>,
-    ) -> core::result::Result<(), FTValidatorError> {
-        let metadata = query_response.ok_or(FTValidatorError::NoMetadata)?;
+        network: &NetworkConfig,
+    ) -> core::result::Result<(), ValidationError> {
+        let metadata = Tokens::ft_metadata(self.prepopulated.receiver_id.clone())?;
+
+        let metadata = metadata.fetch_from(&network).await.map_err(|_| FTValidatorError::NoMetadata)?;
         if metadata.data.decimals != self.decimals {
-            return Err(FTValidatorError::DecimalsMismatch {
+            Err(FTValidatorError::DecimalsMismatch {
                 expected: metadata.data.decimals,
                 got: self.decimals,
-            });
+            })?;
         }
         Ok(())
-    }
-
-    fn prequery(&self) -> Option<QueryBuilder<Self::Handler>> {
-        Tokens::ft_metadata(self.prepopulated.receiver_id.clone()).ok()
     }
 }
