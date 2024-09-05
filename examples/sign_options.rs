@@ -27,7 +27,7 @@ async fn main() {
     // Let's add ledger to the account with the new seed phrase
     Account(account.id().clone())
         .add_key(AccessKeyPermission::FullAccess)
-        .use_public_key_from(Signer::ledger())
+        .use_public_key_from(&Signer::ledger())
         .unwrap()
         .with_signer(Signer::seed_phrase(new_seed_phrase, Some("smile".to_string())).unwrap())
         .send_to(&network)

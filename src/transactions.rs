@@ -1,11 +1,11 @@
-use near_primitives::{action::Action, types::AccountId};
+use std::sync::Arc;
 
-pub mod multi_txs;
+use near_primitives::{action::Action, types::AccountId};
 
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::{ExecuteTransactionError, ValidationError},
+    errors::{SignerError, ValidationError},
     signer::Signer,
     types::transactions::PrepopulateTransaction,
 };
@@ -16,8 +16,8 @@ pub struct TransactionWithSign<T: Transactionable + 'static> {
 }
 
 impl<T: Transactionable> TransactionWithSign<T> {
-    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction {
-        ExecuteSignedTransaction::new(self.tx, signer.into())
+    pub fn with_signer(self, signer: Arc<Signer>) -> ExecuteSignedTransaction {
+        ExecuteSignedTransaction::new(self.tx, signer)
     }
 }
 
@@ -47,8 +47,8 @@ impl ConstructTransaction {
         self
     }
 
-    pub fn with_signer(self, signer: Signer) -> ExecuteSignedTransaction {
-        ExecuteSignedTransaction::new(self, signer.into())
+    pub fn with_signer(self, signer: Arc<Signer>) -> ExecuteSignedTransaction {
+        ExecuteSignedTransaction::new(self, signer)
     }
 }
 
@@ -77,8 +77,8 @@ impl Transaction {
 
     pub fn sign_transaction(
         unsigned_tx: near_primitives::transaction::Transaction,
-        signer: Signer,
-    ) -> Result<ExecuteSignedTransaction, ExecuteTransactionError> {
+        signer: Arc<Signer>,
+    ) -> Result<ExecuteSignedTransaction, SignerError> {
         let public_key = unsigned_tx.public_key().clone();
         let block_hash = *unsigned_tx.block_hash();
         let nonce = unsigned_tx.nonce();

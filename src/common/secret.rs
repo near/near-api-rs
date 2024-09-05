@@ -40,7 +40,7 @@ where
         }
     }
 
-    pub fn use_public_key_from(self, signer: Signer) -> Result<T, SecretBuilderkError<E>> {
+    pub fn use_public_key_from(self, signer: &Signer) -> Result<T, SecretBuilderkError<E>> {
         let pk: PublicKey = signer
             .as_signer()
             .get_public_key()

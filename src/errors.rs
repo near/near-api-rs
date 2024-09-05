@@ -46,6 +46,8 @@ pub enum SignerError {
     PublicKeyIsNotAvailable,
     #[error("Secret key is not available")]
     SecretKeyIsNotAvailable,
+    #[error("Failed to fetch nonce: {0}")]
+    FetchNonceError(#[from] QueryError<RpcQueryRequest>),
 
     #[error(transparent)]
     LedgerError(#[from] LedgerError),

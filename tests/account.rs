@@ -24,7 +24,6 @@ async fn create_and_delete_account() {
         .send_to(&network)
         .await
         .unwrap()
-        .first()
         .assert_success();
 
     let balance_before_del = near::Tokens::of(new_account.clone())
@@ -41,7 +40,6 @@ async fn create_and_delete_account() {
         .send_to(&network)
         .await
         .unwrap())
-    .first()
     .assert_success();
 
     near::Tokens::of(account.id().clone())
@@ -75,7 +73,6 @@ async fn transfer_funds() {
         .send_to(&network)
         .await
         .unwrap()
-        .first()
         .assert_success();
 
     let alice_balance = near::Tokens::of(alice.id().clone())
@@ -116,7 +113,6 @@ async fn access_key_management() {
         .send_to(&network)
         .await
         .unwrap()
-        .first()
         .assert_success();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
@@ -139,7 +135,6 @@ async fn access_key_management() {
         .send_to(&network)
         .await
         .unwrap()
-        .first()
         .assert_success();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
@@ -163,7 +158,6 @@ async fn access_key_management() {
             .send_to(&network)
             .await
             .unwrap()
-            .first()
             .assert_success();
     }
 
@@ -177,7 +171,6 @@ async fn access_key_management() {
         .send_to(&network)
         .await
         .unwrap()
-        .first()
         .assert_success();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();

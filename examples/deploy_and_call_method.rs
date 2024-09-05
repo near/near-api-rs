@@ -40,7 +40,6 @@ async fn main() {
         .send_to(&network)
         .await
         .unwrap()
-        .first()
         .assert_success();
 
     let current_value: Data<i8> = contract

@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use near_gas::NearGas;
 
@@ -215,7 +215,7 @@ impl ContractTransactBuilder {
     pub fn with_signer(
         self,
         signer_id: AccountId,
-        signer: Signer,
+        signer: Arc<Signer>,
     ) -> ExecuteSignedTransaction {
         self.with_signer_account(signer_id).with_signer(signer)
     }

@@ -16,5 +16,5 @@ pub mod types;
 pub use {
     account::Account, config::NetworkConfig, contract::Contract, fastnear::FastNear,
     stake::Delegation, stake::Staking, storage::StorageDeposit, tokens::Tokens,
-    transactions::multi_txs::MultiTransactions, transactions::Transaction,
+    transactions::Transaction,
 };
