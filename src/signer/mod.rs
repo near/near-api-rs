@@ -178,26 +178,31 @@ pub fn get_signed_delegate_action(
 ) -> core::result::Result<SignedDelegateAction, MetaSignError> {
     use near_primitives::signable_message::{SignableMessage, SignableMessageType};
 
+    let mut delegate_action = near_primitives::action::delegate::DelegateAction {
+        sender_id: unsigned_transaction.signer_id().clone(),
+        receiver_id: unsigned_transaction.receiver_id().clone(),
+        actions: vec![],
+        nonce: unsigned_transaction.nonce(),
+        max_block_height,
+        public_key: unsigned_transaction.public_key().clone(),
+    };
+
     let actions = unsigned_transaction
-        .actions
+        .take_actions()
         .into_iter()
         .map(near_primitives::action::delegate::NonDelegateAction::try_from)
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| MetaSignError::DelegateActionIsNotSupported)?;
-    let delegate_action = near_primitives::action::delegate::DelegateAction {
-        sender_id: unsigned_transaction.signer_id.clone(),
-        receiver_id: unsigned_transaction.receiver_id,
-        actions,
-        nonce: unsigned_transaction.nonce,
-        max_block_height,
-        public_key: unsigned_transaction.public_key,
-    };
+
+    delegate_action.actions = actions;
 
     // create a new signature here signing the delegate action + discriminant
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
-    let signer =
-        near_crypto::InMemorySigner::from_secret_key(unsigned_transaction.signer_id, private_key);
-    let signature = signable.sign(&signer);
+    let signer = near_crypto::InMemorySigner::from_secret_key(
+        delegate_action.sender_id.clone(),
+        private_key,
+    );
+    let signature = signable.sign(&near_crypto::Signer::InMemory(signer));
 
     Ok(near_primitives::action::delegate::SignedDelegateAction {
         delegate_action,

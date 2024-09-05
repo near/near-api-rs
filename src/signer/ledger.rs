@@ -33,17 +33,17 @@ impl SignerTrait for LedgerSigner {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<near_primitives::transaction::SignedTransaction, SignerError> {
-        let unsigned_tx = near_primitives::transaction::Transaction {
+        let mut unsigned_tx = Transaction::new_v0(
+            tr.signer_id.clone(),
             public_key,
-            block_hash,
+            tr.receiver_id,
             nonce,
-            signer_id: tr.signer_id.clone(),
-            receiver_id: tr.receiver_id.clone(),
-            actions: tr.actions.clone(),
-        };
+            block_hash,
+        );
+        *unsigned_tx.actions_mut() = tr.actions;
 
         let signature = near_ledger::sign_transaction(
-            borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?,
+            &borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?,
             self.hd_path.clone(),
         )
         .map_err(LedgerError::from)?;
@@ -82,7 +82,9 @@ impl SignerTrait for LedgerSigner {
         };
 
         let signature = near_ledger::sign_message_nep366_delegate_action(
-            &delegate_action,
+            &borsh::to_vec(&delegate_action)
+                .map_err(LedgerError::from)
+                .map_err(SignerError::from)?,
             self.hd_path.clone(),
         )
         .map_err(LedgerError::from)

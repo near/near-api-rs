@@ -19,17 +19,15 @@ impl SignerTrait for SecretKeySigner {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<(Transaction, SecretKey), SignerError> {
-        Ok((
-            near_primitives::transaction::Transaction {
-                public_key,
-                block_hash,
-                nonce,
-                signer_id: tr.signer_id.clone(),
-                receiver_id: tr.receiver_id.clone(),
-                actions: tr.actions.clone(),
-            },
-            self.secret_key.clone(),
-        ))
+        let mut transaction = Transaction::new_v0(
+            tr.signer_id.clone(),
+            public_key,
+            tr.receiver_id,
+            nonce,
+            block_hash,
+        );
+        *transaction.actions_mut() = tr.actions;
+        Ok((transaction, self.secret_key.clone()))
     }
 
     fn get_public_key(&self) -> Result<PublicKey, SignerError> {

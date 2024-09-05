@@ -1,8 +1,9 @@
+use futures::future::join_all;
 use near_crypto::PublicKey;
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     hash::CryptoHash,
-    transaction::{SignedTransaction},
+    transaction::SignedTransaction,
     types::{BlockHeight, Nonce},
     views::FinalExecutionOutcomeView,
 };
@@ -11,11 +12,10 @@ use reqwest::Response;
 use crate::{
     config::NetworkConfig,
     errors::{
-        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
-        ValidationError,
+        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, ValidationError,
     },
     signer::SignerTrait,
-    types::transactions::PrepopulateTransaction,
+    types::{non_empty_vector::NonEmptyVec, transactions::PrepopulateTransaction},
 };
 
 use super::{
@@ -29,12 +29,17 @@ pub trait Transactionable {
 }
 
 pub enum TransactionableOrSigned<Signed> {
-    Transactionable(Box<dyn Transactionable>),
-    Signed((Signed, Box<dyn Transactionable>)),
+    Transactionable(NonEmptyVec<Box<dyn Transactionable + 'static>>),
+    Signed(
+        (
+            NonEmptyVec<Signed>,
+            NonEmptyVec<Box<dyn Transactionable + 'static>>,
+        ),
+    ),
 }
 
 impl<Signed> TransactionableOrSigned<Signed> {
-    pub fn signed(self) -> Option<Signed> {
+    pub fn signed(self) -> Option<NonEmptyVec<Signed>> {
         match self {
             TransactionableOrSigned::Signed((signed, _)) => Some(signed),
             TransactionableOrSigned::Transactionable(_) => None,
@@ -42,8 +47,8 @@ impl<Signed> TransactionableOrSigned<Signed> {
     }
 }
 
-impl< S> TransactionableOrSigned< S> {
-    pub fn transactionable(self) -> Box<dyn Transactionable> {
+impl<S> TransactionableOrSigned<S> {
+    pub fn transactionable(self) -> NonEmptyVec<Box<dyn Transactionable>> {
         match self {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed((_, tr)) => tr,
@@ -54,9 +59,9 @@ impl< S> TransactionableOrSigned< S> {
 impl From<SignedTransaction> for PrepopulateTransaction {
     fn from(tr: SignedTransaction) -> Self {
         PrepopulateTransaction {
-            signer_id: tr.transaction.signer_id,
-            receiver_id: tr.transaction.receiver_id,
-            actions: tr.transaction.actions,
+            signer_id: tr.transaction.signer_id().clone(),
+            receiver_id: tr.transaction.receiver_id().clone(),
+            actions: tr.transaction.take_actions(),
         }
     }
 }
@@ -66,20 +71,44 @@ pub struct ExecuteSignedTransaction {
     pub signer: Box<dyn SignerTrait>,
     pub retries: u8,
     pub sleep_duration: std::time::Duration,
+    pub send_concurrent: bool,
 }
 
 impl ExecuteSignedTransaction {
     pub fn new<T: Transactionable + 'static>(tr: T, signer: Box<dyn SignerTrait>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
+            tr: TransactionableOrSigned::Transactionable(
+                NonEmptyVec::new(vec![Box::new(tr) as Box<dyn Transactionable + 'static>])
+                    .expect("Expected non-empty vector"),
+            ),
             signer,
             retries: 5,
             sleep_duration: std::time::Duration::from_secs(1),
+            send_concurrent: false,
         }
     }
 
+    pub(crate) fn new_multi(
+        tr: NonEmptyVec<Box<dyn Transactionable + 'static>>,
+        signer: Box<dyn SignerTrait>,
+    ) -> Self {
+        Self {
+            tr: TransactionableOrSigned::Transactionable(tr),
+            signer,
+            retries: 5,
+            sleep_duration: std::time::Duration::from_secs(1),
+            send_concurrent: false,
+        }
+    }
+
+    pub fn send_concurrent(mut self, send_concurrent: bool) -> Self {
+        self.send_concurrent = send_concurrent;
+        self
+    }
+
     pub fn meta(self) -> ExecuteMetaTransaction {
-        ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
+        ExecuteMetaTransaction::from_vec_box(self.tr.transactionable(), self.signer)
+            .send_concurrent(self.send_concurrent)
     }
 
     pub fn with_retries(mut self, retries: u8) -> Self {
@@ -97,14 +126,28 @@ impl ExecuteSignedTransaction {
         public_key: PublicKey,
         block_hash: CryptoHash,
         nonce: Nonce,
-    ) -> Result<Self, SignerError> {
+    ) -> Result<Self, ExecuteTransactionError> {
         let tr = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
-        let signed_tr = self
-            .signer
-            .sign(tr.prepopulated(), public_key, nonce, block_hash)?;
+
+        let signed_tr = tr
+            .inner()
+            .iter()
+            .enumerate()
+            .map(|(i, tr)| {
+                self.signer.sign(
+                    tr.prepopulated(),
+                    public_key.clone(),
+                    nonce + 1 + i as u64,
+                    block_hash,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let signed_tr = NonEmptyVec::new(signed_tr)?;
+
         self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
         Ok(self)
     }
@@ -119,12 +162,12 @@ impl ExecuteSignedTransaction {
         };
 
         let signer_key = self.signer.get_public_key()?;
-        let tr = tr.prepopulated();
+        let tr = tr.first().prepopulated();
         let response = crate::account::Account(tr.signer_id.clone())
             .access_key(signer_key.clone())
             .fetch_from(network)
             .await?;
-        Ok(self.presign_offline(signer_key, response.block_hash, response.data.nonce + 1)?)
+        self.presign_offline(signer_key, response.block_hash, response.data.nonce + 1)
     }
 
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteTransactionError> {
@@ -140,16 +183,19 @@ impl ExecuteSignedTransaction {
     pub async fn send_to(
         self,
         network: &NetworkConfig,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
+    ) -> Result<NonEmptyVec<FinalExecutionOutcomeView>, ExecuteTransactionError> {
         let sleep_duration = self.sleep_duration;
         let retries = self.retries;
+        let send_concurrent = self.send_concurrent;
 
         let (signed, transactionable) = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => (None, tr),
             TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
 
-        transactionable.validate_with_network(network).await?;
+        for tr in transactionable.inner().iter() {
+            tr.validate_with_network(network).await?;
+        }
 
         let signed = match signed {
             Some(s) => s,
@@ -160,19 +206,39 @@ impl ExecuteSignedTransaction {
                 .signed()
                 .expect("Expect to have it signed"),
         };
-        Self::send_impl(network, signed, retries, sleep_duration).await
+
+        let result = if send_concurrent {
+            join_all(
+                signed
+                    .into_inner()
+                    .into_iter()
+                    .map(|signed_tr| Self::send_impl(network, signed_tr, retries, sleep_duration)),
+            )
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?
+        } else {
+            let mut results = Vec::with_capacity(signed.inner().len());
+            for signed_tr in signed.into_inner().into_iter() {
+                let transaction_info =
+                    Self::send_impl(network, signed_tr, retries, sleep_duration).await?;
+                results.push(transaction_info);
+            }
+            results
+        };
+        Ok(NonEmptyVec::new(result)?)
     }
 
     pub async fn send_to_mainnet(
         self,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
+    ) -> Result<NonEmptyVec<FinalExecutionOutcomeView>, ExecuteTransactionError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
 
     pub async fn send_to_testnet(
         self,
-    ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
+    ) -> Result<NonEmptyVec<FinalExecutionOutcomeView>, ExecuteTransactionError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }
@@ -212,25 +278,41 @@ impl ExecuteSignedTransaction {
     }
 }
 
-pub struct ExecuteMetaTransaction{
+pub struct ExecuteMetaTransaction {
     pub tr: TransactionableOrSigned<SignedDelegateAction>,
     pub signer: Box<dyn SignerTrait>,
     pub tx_live_for: Option<BlockHeight>,
+    pub send_concurrent: bool,
 }
 
 impl ExecuteMetaTransaction {
     pub fn new<T: Transactionable + 'static>(tr: T, signer: Box<dyn SignerTrait>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
+            tr: TransactionableOrSigned::Transactionable(
+                NonEmptyVec::new(vec![Box::new(tr) as Box<dyn Transactionable + 'static>])
+                    .expect("Constructed non-empty vector"),
+            ),
             signer,
             tx_live_for: None,
+            send_concurrent: false,
         }
     }
 
-    pub fn from_box(tr: Box<dyn Transactionable>, signer: Box<dyn SignerTrait>) -> Self {
+    pub fn from_vec_box(
+        tr: NonEmptyVec<Box<dyn Transactionable + 'static>>,
+        signer: Box<dyn SignerTrait>,
+    ) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(tr), signer, tx_live_for: None
+            tr: TransactionableOrSigned::Transactionable(tr),
+            signer,
+            tx_live_for: None,
+            send_concurrent: false,
         }
+    }
+
+    pub fn send_concurrent(mut self, send_concurrent: bool) -> Self {
+        self.send_concurrent = send_concurrent;
+        self
     }
 
     pub fn tx_live_for(mut self, tx_live_for: BlockHeight) -> Self {
@@ -244,7 +326,7 @@ impl ExecuteMetaTransaction {
         block_hash: CryptoHash,
         nonce: Nonce,
         block_height: BlockHeight,
-    ) -> Result<Self, MetaSignError> {
+    ) -> Result<Self, ExecuteMetaTransactionsError> {
         let tr = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
@@ -254,13 +336,24 @@ impl ExecuteMetaTransaction {
             + self
                 .tx_live_for
                 .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT);
-        let signed_tr = self.signer.sign_meta(
-            tr.prepopulated(),
-            public_key,
-            nonce,
-            block_hash,
-            max_block_height,
-        )?;
+
+        let signed_tr = tr
+            .inner()
+            .iter()
+            .enumerate()
+            .map(|(i, tr)| {
+                self.signer.sign_meta(
+                    tr.prepopulated(),
+                    public_key.clone(),
+                    nonce + 1 + i as u64,
+                    block_hash,
+                    max_block_height,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let signed_tr = NonEmptyVec::new(signed_tr)?;
+
         self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
         Ok(self)
     }
@@ -275,16 +368,16 @@ impl ExecuteMetaTransaction {
         };
 
         let signer_key = self.signer.get_public_key().map_err(MetaSignError::from)?;
-        let response = crate::account::Account(tr.prepopulated().signer_id.clone())
+        let response = crate::account::Account(tr.first().prepopulated().signer_id.clone())
             .access_key(signer_key.clone())
             .fetch_from(network)
             .await?;
-        Ok(self.presign_offline(
+        self.presign_offline(
             signer_key,
             response.block_hash,
             response.data.nonce + 1,
             response.block_height,
-        )?)
+        )
     }
 
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
@@ -300,13 +393,16 @@ impl ExecuteMetaTransaction {
     pub async fn send_to(
         self,
         network: &NetworkConfig,
-    ) -> Result<Response, ExecuteMetaTransactionsError> {
+    ) -> Result<NonEmptyVec<Response>, ExecuteMetaTransactionsError> {
+        let send_concurrent = self.send_concurrent;
         let (signed, transactionable) = match &self.tr {
             TransactionableOrSigned::Transactionable(tr) => (None, tr),
             TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
 
-        transactionable.validate_with_network(network).await?;
+        for tr in transactionable.inner().iter() {
+            tr.validate_with_network(network).await?;
+        }
 
         let signed = match signed {
             Some(s) => s,
@@ -317,16 +413,38 @@ impl ExecuteMetaTransaction {
                 .signed()
                 .expect("Expect to have it signed"),
         };
-        let transaction_info = Self::send_impl(network, signed).await?;
-        Ok(transaction_info)
+
+        let result = if send_concurrent {
+            join_all(
+                signed
+                    .into_inner()
+                    .into_iter()
+                    .map(|signed_tr| Self::send_impl(network, signed_tr)),
+            )
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?
+        } else {
+            let mut results = Vec::with_capacity(signed.inner().len());
+            for signed_tr in signed.into_inner().into_iter() {
+                let transaction_info = Self::send_impl(network, signed_tr).await?;
+                results.push(transaction_info);
+            }
+            results
+        };
+        Ok(NonEmptyVec::new(result)?)
     }
 
-    pub async fn send_to_mainnet(self) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
+    pub async fn send_to_mainnet(
+        self,
+    ) -> Result<NonEmptyVec<reqwest::Response>, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
 
-    pub async fn send_to_testnet(self) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
+    pub async fn send_to_testnet(
+        self,
+    ) -> Result<NonEmptyVec<reqwest::Response>, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }

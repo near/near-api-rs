@@ -177,6 +177,8 @@ pub enum ExecuteTransactionError {
     RetriesExhausted(JsonRpcError<RpcTransactionError>),
     #[error("Transaction error: {0}")]
     CriticalTransactionError(JsonRpcError<RpcTransactionError>),
+    #[error(transparent)]
+    NonEmptyVecError(#[from] NonEmptyVecError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -193,6 +195,9 @@ pub enum ExecuteMetaTransactionsError {
 
     #[error("Failed to send meta-transaction: {0}")]
     SendError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    NonEmptyVecError(#[from] NonEmptyVecError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -224,4 +229,27 @@ pub enum ValidationError {
 
     #[error("Account creation error: {0}")]
     AccountCreationError(#[from] AccountCreationError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum MultiTransactionError {
+    #[error(transparent)]
+    NonEmptyVecError(#[from] NonEmptyVecError),
+
+    #[error(transparent)]
+    SignerError(#[from] SignerError),
+    #[error("Duplicate signer")]
+    DuplicateSigner,
+
+    #[error(transparent)]
+    SignedTransactionError(#[from] ExecuteTransactionError),
+
+    #[error("Failed to send meta-transaction: {0}")]
+    MetaTransactionError(#[from] ExecuteMetaTransactionsError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum NonEmptyVecError {
+    #[error("Vector is empty")]
+    EmptyVector,
 }

@@ -1,9 +1,11 @@
 use near_primitives::{action::Action, types::AccountId};
 
+pub mod multi_txs;
+
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::{SignerError, ValidationError},
+    errors::{ExecuteTransactionError, ValidationError},
     signer::Signer,
     types::transactions::PrepopulateTransaction,
 };
@@ -76,35 +78,17 @@ impl Transaction {
     pub fn sign_transaction(
         unsigned_tx: near_primitives::transaction::Transaction,
         signer: Signer,
-    ) -> Result<ExecuteSignedTransaction, SignerError> {
-        ConstructTransaction::new(unsigned_tx.signer_id, unsigned_tx.receiver_id)
-            .add_actions(unsigned_tx.actions)
-            .with_signer(signer)
-            .presign_offline(
-                unsigned_tx.public_key,
-                unsigned_tx.block_hash,
-                unsigned_tx.nonce,
-            )
+    ) -> Result<ExecuteSignedTransaction, ExecuteTransactionError> {
+        let public_key = unsigned_tx.public_key().clone();
+        let block_hash = *unsigned_tx.block_hash();
+        let nonce = unsigned_tx.nonce();
+
+        ConstructTransaction::new(
+            unsigned_tx.signer_id().clone(),
+            unsigned_tx.receiver_id().clone(),
+        )
+        .add_actions(unsigned_tx.take_actions())
+        .with_signer(signer)
+        .presign_offline(public_key, block_hash, nonce)
     }
-}
-
-#[derive(Default)]
-pub struct MultiTransactions {
-    transactions: Vec<Box<dyn Transactionable>>,
-}
-
-impl MultiTransactions {
-    pub fn add_transaction<T: Transactionable + 'static>(&mut self, transaction: T) {
-        self.transactions.push(Box::new(transaction));
-    }
-
-    // pub fn with_signer(self, signer: Signer) -> Vec<ExecuteSignedTransaction> {
-    //     self.transactions
-    //         .into_iter()
-    //         .map(|tx| {
-    //             ExecuteSignedTransaction::new(*tx, signer.clone().into())
-    //                 .presign_offline(public_key, block_hash, nonce)
-    //         })
-    //         .collect()
-    // }
 }

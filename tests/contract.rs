@@ -16,6 +16,7 @@ async fn contract_without_init_call() {
         .send_to(&network)
         .await
         .unwrap()
+        .first()
         .assert_success();
 
     assert!(!contract
@@ -53,6 +54,7 @@ async fn contract_without_init_call() {
         .send_to(&network)
         .await
         .unwrap()
+        .first()
         .assert_success();
 
     let current_value: Data<i8> = contract
@@ -88,6 +90,7 @@ async fn contract_with_init_call() {
         .send_to(&network)
         .await
         .unwrap()
+        .first()
         .assert_success();
 
     assert!(!contract

@@ -37,17 +37,16 @@ impl SignerTrait for KeystoreSigner {
             .or(Self::get_secret_key(&tr.signer_id, &public_key, "testnet"))
             .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
 
-        Ok((
-            near_primitives::transaction::Transaction {
-                public_key,
-                block_hash,
-                nonce,
-                signer_id: tr.signer_id.clone(),
-                receiver_id: tr.receiver_id.clone(),
-                actions: tr.actions.clone(),
-            },
-            secret.private_key,
-        ))
+        let mut transaction = Transaction::new_v0(
+            tr.signer_id.clone(),
+            public_key,
+            tr.receiver_id,
+            nonce,
+            block_hash,
+        );
+        *transaction.actions_mut() = tr.actions;
+
+        Ok((transaction, secret.private_key))
     }
 
     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
