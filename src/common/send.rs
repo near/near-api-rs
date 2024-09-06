@@ -16,7 +16,7 @@ use crate::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
         ValidationError,
     },
-    signer::Signer,
+    signer::{Signer, SignerTrait},
     types::transactions::PrepopulateTransaction,
 };
 
@@ -105,12 +105,9 @@ impl ExecuteSignedTransaction {
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
-        let signed_tr = self.signer.as_signer().sign(
-            tr.prepopulated(),
-            public_key.clone(),
-            nonce,
-            block_hash,
-        )?;
+        let signed_tr =
+            self.signer
+                .sign(tr.prepopulated(), public_key.clone(), nonce, block_hash)?;
 
         self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
         Ok(self)
@@ -125,7 +122,7 @@ impl ExecuteSignedTransaction {
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
-        let signer_key = self.signer.as_signer().get_public_key()?;
+        let signer_key = self.signer.get_public_key()?;
         let tr = tr.prepopulated();
         let (nonce, hash, _) = self
             .signer
@@ -265,12 +262,9 @@ impl ExecuteMetaTransaction {
                 .tx_live_for
                 .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT);
 
-        let signed_tr = self.signer.as_signer().sign_meta(
+        let signed_tr = self.signer.sign_meta(
             tr.prepopulated(),
-            self.signer
-                .as_signer()
-                .get_public_key()
-                .map_err(MetaSignError::from)?,
+            self.signer.get_public_key().map_err(MetaSignError::from)?,
             nonce,
             block_hash,
             max_block_height,

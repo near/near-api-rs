@@ -5,7 +5,7 @@ use slipped10::BIP32Path;
 
 use crate::{
     errors::{SecretBuilderkError, SecretError},
-    signer::{get_secret_key_from_seed, Signer},
+    signer::{get_secret_key_from_seed, Signer, SignerTrait},
 };
 
 const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
@@ -42,7 +42,6 @@ where
 
     pub fn use_public_key_from(self, signer: &Signer) -> Result<T, SecretBuilderkError<E>> {
         let pk: PublicKey = signer
-            .as_signer()
             .get_public_key()
             .map_err(|_| SecretBuilderkError::PublicKeyIsNotAvailable)?;
         (self.next_step)(pk).map_err(|e| SecretBuilderkError::CallbackError(e))
@@ -105,7 +104,6 @@ where
         )?;
 
         let pk = signer
-            .as_signer()
             .get_public_key()
             .map_err(|_| SecretBuilderkError::PublicKeyIsNotAvailable)?;
 

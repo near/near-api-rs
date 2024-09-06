@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use futures::future::join_all;
-use near::{signer::Signer, Account, NetworkConfig, Tokens};
+use near::{
+    signer::{Signer, SignerTrait},
+    Account, NetworkConfig, Tokens,
+};
 use near_sdk::NearToken;
 
 #[tokio::test]
@@ -13,12 +16,7 @@ async fn multiple_tx_at_same_time_from_same_user() {
     let network = NetworkConfig::from(network);
 
     let start_nonce = Account(account.id().clone())
-        .access_key(
-            Signer::from_workspace(&account)
-                .as_signer()
-                .get_public_key()
-                .unwrap(),
-        )
+        .access_key(Signer::from_workspace(&account).get_public_key().unwrap())
         .fetch_from(&network)
         .await
         .unwrap()
@@ -41,12 +39,7 @@ async fn multiple_tx_at_same_time_from_same_user() {
     txs.iter().for_each(|a| a.assert_success());
 
     let end_nonce = Account(account.id().clone())
-        .access_key(
-            Signer::from_workspace(&account)
-                .as_signer()
-                .get_public_key()
-                .unwrap(),
-        )
+        .access_key(Signer::from_workspace(&account).get_public_key().unwrap())
         .fetch_from(&network)
         .await
         .unwrap()

@@ -28,7 +28,8 @@ use crate::{
         tokens::{FTBalance, UserBalance},
         transactions::PrepopulateTransaction,
         Data,
-    }, NetworkConfig,
+    },
+    NetworkConfig,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -221,7 +222,10 @@ impl Transactionable for FTTransactionable {
     ) -> core::result::Result<(), ValidationError> {
         let metadata = Tokens::ft_metadata(self.prepopulated.receiver_id.clone())?;
 
-        let metadata = metadata.fetch_from(&network).await.map_err(|_| FTValidatorError::NoMetadata)?;
+        let metadata = metadata
+            .fetch_from(network)
+            .await
+            .map_err(|_| FTValidatorError::NoMetadata)?;
         if metadata.data.decimals != self.decimals {
             Err(FTValidatorError::DecimalsMismatch {
                 expected: metadata.data.decimals,

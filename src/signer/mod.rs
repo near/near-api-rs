@@ -88,23 +88,14 @@ pub trait SignerTrait {
 }
 
 pub struct Signer {
-    signer_type: SignerType,
+    signer: Box<dyn SignerTrait + Send + Sync + 'static>,
     nonce_cache: tokio::sync::RwLock<HashMap<AccountId, AtomicU64>>,
 }
 
-pub enum SignerType {
-    SecretKey(SecretKeySigner),
-    AccessKeyFile(AccessKeyFileSigner),
-    #[cfg(feature = "ledger")]
-    Ledger(ledger::LedgerSigner),
-    Keystore(KeystoreSigner),
-    Custom(Box<dyn SignerTrait>),
-}
-
 impl Signer {
-    fn from_signer_type(signer_type: SignerType) -> Arc<Self> {
+    pub fn custom<T: SignerTrait + Send + Sync + 'static>(signer: T) -> Arc<Self> {
         Arc::new(Self {
-            signer_type,
+            signer: Box::new(signer),
             nonce_cache: tokio::sync::RwLock::new(HashMap::new()),
         })
     }
@@ -127,7 +118,7 @@ impl Signer {
 
             // Fetch latest block_hash since the previous one is now invalid for new transactions:
             let nonce_data = crate::account::Account(account_id.clone())
-                .access_key(self.as_signer().get_public_key()?)
+                .access_key(self.get_public_key()?)
                 .fetch_from(network)
                 .await?;
 
@@ -135,12 +126,12 @@ impl Signer {
         } else {
             drop(nonces);
             // It's initialization, so it's better to take write lock, so other will wait
-            // for the nonce to be initialized.
+
             let mut write_nonce = self.nonce_cache.write().await;
 
             // Fetch latest block_hash since the previous one is now invalid for new transactions:
             let nonce_data = crate::account::Account(account_id.clone())
-                .access_key(self.as_signer().get_public_key()?)
+                .access_key(self.get_public_key()?)
                 .fetch_from(network)
                 .await?;
 
@@ -156,17 +147,6 @@ impl Signer {
         }
     }
 
-    pub fn as_signer(&self) -> &dyn SignerTrait {
-        match &self.signer_type {
-            SignerType::SecretKey(secret_key) => secret_key,
-            SignerType::AccessKeyFile(access_keyfile_signer) => access_keyfile_signer,
-            #[cfg(feature = "ledger")]
-            SignerType::Ledger(ledger_signer) => ledger_signer,
-            SignerType::Keystore(keystore_signer) => keystore_signer,
-            SignerType::Custom(custom_signer) => custom_signer.as_ref(),
-        }
-    }
-
     pub fn seed_phrase(
         seed_phrase: String,
         password: Option<String>,
@@ -179,7 +159,7 @@ impl Signer {
     }
 
     pub fn secret_key(secret_key: SecretKey) -> Arc<Self> {
-        Self::from_signer_type(SignerType::SecretKey(SecretKeySigner::new(secret_key)))
+        Self::custom(SecretKeySigner::new(secret_key))
     }
 
     pub fn seed_phrase_with_hd_path(
@@ -188,53 +168,43 @@ impl Signer {
         password: Option<String>,
     ) -> Result<Arc<Self>, SecretError> {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
-        Ok(Self::from_signer_type(SignerType::SecretKey(
-            SecretKeySigner::new(secret_key),
-        )))
+        Ok(Self::custom(SecretKeySigner::new(secret_key)))
     }
 
     pub fn access_keyfile(path: PathBuf) -> Result<Arc<Self>, AccessKeyFileError> {
-        Ok(Self::from_signer_type(SignerType::AccessKeyFile(
-            AccessKeyFileSigner::new(path)?,
-        )))
+        Ok(Self::custom(AccessKeyFileSigner::new(path)?))
     }
 
     #[cfg(feature = "ledger")]
     pub fn ledger() -> Arc<Self> {
-        Self::from_signer_type(SignerType::Ledger(ledger::LedgerSigner::new(
+        Self::custom(ledger::LedgerSigner::new(
             BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"),
-        )))
+        ))
     }
 
     #[cfg(feature = "ledger")]
     pub fn ledger_with_hd_path(hd_path: BIP32Path) -> Arc<Self> {
-        Self::from_signer_type(SignerType::Ledger(ledger::LedgerSigner::new(hd_path)))
+        Self::custom(ledger::LedgerSigner::new(hd_path))
     }
 
     pub fn keystore(pub_key: PublicKey) -> Arc<Self> {
-        Self::from_signer_type(SignerType::Keystore(KeystoreSigner::new_with_pubkey(
-            pub_key,
-        )))
+        Self::custom(KeystoreSigner::new_with_pubkey(pub_key))
     }
 
     pub async fn keystore_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
     ) -> Result<Arc<Self>, KeyStoreError> {
-        Ok(Self::from_signer_type(SignerType::Keystore(
+        Ok(Self::custom(
             KeystoreSigner::search_for_keys(account_id, network).await?,
-        )))
+        ))
     }
 
     #[cfg(feature = "workspaces")]
     pub fn from_workspace(account: &near_workspaces::Account) -> Arc<Self> {
-        Self::from_signer_type(SignerType::SecretKey(SecretKeySigner::new(
+        Self::custom(SecretKeySigner::new(
             account.secret_key().to_string().parse().unwrap(),
-        )))
-    }
-
-    pub fn custom(signer: Box<dyn SignerTrait>) -> Arc<Self> {
-        Self::from_signer_type(SignerType::Custom(signer))
+        ))
     }
 }
 
@@ -275,6 +245,44 @@ pub fn get_signed_delegate_action(
         delegate_action,
         signature,
     })
+}
+
+impl SignerTrait for Signer {
+    fn tx_and_secret(
+        &self,
+        tr: PrepopulateTransaction,
+        public_key: PublicKey,
+        nonce: Nonce,
+        block_hash: CryptoHash,
+    ) -> Result<(Transaction, SecretKey), SignerError> {
+        self.signer.tx_and_secret(tr, public_key, nonce, block_hash)
+    }
+
+    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+        self.signer.get_public_key()
+    }
+
+    fn sign_meta(
+        &self,
+        tr: PrepopulateTransaction,
+        public_key: PublicKey,
+        nonce: Nonce,
+        block_hash: CryptoHash,
+        max_block_height: BlockHeight,
+    ) -> Result<SignedDelegateAction, MetaSignError> {
+        self.signer
+            .sign_meta(tr, public_key, nonce, block_hash, max_block_height)
+    }
+
+    fn sign(
+        &self,
+        tr: PrepopulateTransaction,
+        public_key: PublicKey,
+        nonce: Nonce,
+        block_hash: CryptoHash,
+    ) -> Result<SignedTransaction, SignerError> {
+        self.signer.sign(tr, public_key, nonce, block_hash)
+    }
 }
 
 pub fn get_secret_key_from_seed(
