@@ -95,6 +95,8 @@ The status is tracked in `About` section."
     LedgerError(near_ledger::NEARLedgerError),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
+    #[error("Task execution error: {0}")]
+    TaskExecutionError(#[from] tokio::task::JoinError),
     #[error("Signature is not expected to fail on deserialization: {0}")]
     SignatureDeserializationError(#[from] near_crypto::ParseSignatureError),
 }

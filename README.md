@@ -18,7 +18,7 @@ The library is already usable and might be used for rapid prototyping, it lacks 
 - [ ] integration tests for all API calls
 - [ ] CI/CD
 - [x] anyhow -> thiserror
-- [ ] ledger is blocking and it's not good in the async runtime
+- [x] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
 - [x] storage deposit manager for FT calls 
 - [ ] logging [tracing](https://github.com/tokio-rs/tracing)

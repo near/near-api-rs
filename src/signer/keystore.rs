@@ -19,6 +19,7 @@ pub struct KeystoreSigner {
     potential_pubkeys: Vec<PublicKey>,
 }
 
+#[async_trait::async_trait]
 impl SignerTrait for KeystoreSigner {
     fn tx_and_secret(
         &self,

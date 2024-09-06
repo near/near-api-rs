@@ -12,8 +12,6 @@ use crate::{
 
 use super::SignerTrait;
 
-// TODO: currently the ledger is blocking the thread as it's implemented synchronously.
-
 #[derive(Debug, Clone)]
 pub struct LedgerSigner {
     hd_path: BIP32Path,
@@ -25,8 +23,9 @@ impl LedgerSigner {
     }
 }
 
+#[async_trait::async_trait]
 impl SignerTrait for LedgerSigner {
-    fn sign(
+    async fn sign(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
@@ -41,12 +40,21 @@ impl SignerTrait for LedgerSigner {
             block_hash,
         );
         *unsigned_tx.actions_mut() = tr.actions;
+        let unsigned_tx_bytes = borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?;
+        let hd_path = self.hd_path.clone();
 
-        let signature = near_ledger::sign_transaction(
-            &borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?,
-            self.hd_path.clone(),
-        )
+        let signature = tokio::task::spawn_blocking(move || {
+            let unsigned_tx_bytes = unsigned_tx_bytes;
+            let signature = near_ledger::sign_transaction(&unsigned_tx_bytes, hd_path)
+                .map_err(LedgerError::from)?;
+
+            Ok::<_, LedgerError>(signature)
+        })
+        .await
+        // JoinError
         .map_err(LedgerError::from)?;
+
+        let signature = signature?;
 
         let signature =
             near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)
@@ -58,7 +66,7 @@ impl SignerTrait for LedgerSigner {
         ))
     }
 
-    fn sign_meta(
+    async fn sign_meta(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
@@ -81,14 +89,24 @@ impl SignerTrait for LedgerSigner {
             public_key,
         };
 
-        let signature = near_ledger::sign_message_nep366_delegate_action(
-            &borsh::to_vec(&delegate_action)
-                .map_err(LedgerError::from)
-                .map_err(SignerError::from)?,
-            self.hd_path.clone(),
-        )
+        let delegate_action_bytes = borsh::to_vec(&delegate_action)
+            .map_err(LedgerError::from)
+            .map_err(SignerError::from)?;
+        let hd_path = self.hd_path.clone();
+
+        let signature = tokio::task::spawn_blocking(move || {
+            let delegate_action_bytes = delegate_action_bytes;
+            let signature =
+                near_ledger::sign_message_nep366_delegate_action(&delegate_action_bytes, hd_path)
+                    .map_err(LedgerError::from)?;
+
+            Ok::<_, LedgerError>(signature)
+        })
+        .await
         .map_err(LedgerError::from)
         .map_err(SignerError::from)?;
+
+        let signature = signature.map_err(SignerError::from)?;
 
         let signature =
             near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)

@@ -48,8 +48,9 @@ impl AccountKeyPair {
     }
 }
 
+#[async_trait::async_trait]
 pub trait SignerTrait {
-    fn sign_meta(
+    async fn sign_meta(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
@@ -63,7 +64,7 @@ pub trait SignerTrait {
         get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
     }
 
-    fn sign(
+    async fn sign(
         &self,
         tr: PrepopulateTransaction,
         public_key: PublicKey,
@@ -236,7 +237,9 @@ impl Signer {
             .get(&public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?;
 
-        signer.sign_meta(tr, public_key, nonce, block_hash, max_block_height)
+        signer
+            .sign_meta(tr, public_key, nonce, block_hash, max_block_height)
+            .await
     }
 
     pub async fn sign(
@@ -252,7 +255,7 @@ impl Signer {
             .get(&public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?;
 
-        signer.sign(tr, public_key, nonce, block_hash)
+        signer.sign(tr, public_key, nonce, block_hash).await
     }
 }
 

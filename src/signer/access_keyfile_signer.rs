@@ -22,6 +22,7 @@ impl AccessKeyFileSigner {
     }
 }
 
+#[async_trait::async_trait]
 impl SignerTrait for AccessKeyFileSigner {
     fn tx_and_secret(
         &self,
