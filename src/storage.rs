@@ -21,7 +21,7 @@ impl StorageDeposit {
     pub fn view_account_storage(
         &self,
         account_id: AccountId,
-    ) -> Result<QueryBuilder<CallResultHandler<StorageBalance>>, BuilderError> {
+    ) -> Result<QueryBuilder<CallResultHandler<Option<StorageBalance>>>, BuilderError> {
         Ok(Contract(self.0.clone())
             .call_function(
                 "storage_balance_of",

@@ -29,7 +29,7 @@ use crate::{
         transactions::PrepopulateTransaction,
         Data,
     },
-    NetworkConfig,
+    NetworkConfig, StorageDeposit,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -173,7 +173,7 @@ impl SendTo {
             .call_function(
                 "ft_transfer",
                 json!({
-                    "receiver_id": self.receiver_id,
+                    "receiver_id": self.receiver_id.clone(),
                     "amount": U128(amount.amount()),
                 }),
             )?
@@ -183,6 +183,7 @@ impl SendTo {
 
         Ok(TransactionWithSign {
             tx: FTTransactionable {
+                receiver: self.receiver_id,
                 prepopulated: tr.tr,
                 decimals: amount.decimals(),
             },
@@ -207,16 +208,12 @@ impl SendTo {
 #[derive(Clone, Debug)]
 pub struct FTTransactionable {
     prepopulated: PrepopulateTransaction,
+    receiver: AccountId,
     decimals: u8,
 }
 
-#[async_trait::async_trait]
-impl Transactionable for FTTransactionable {
-    fn prepopulated(&self) -> PrepopulateTransaction {
-        self.prepopulated.clone()
-    }
-
-    async fn validate_with_network(
+impl FTTransactionable {
+    pub async fn check_decimals(
         &self,
         network: &NetworkConfig,
     ) -> core::result::Result<(), ValidationError> {
@@ -231,6 +228,54 @@ impl Transactionable for FTTransactionable {
                 expected: metadata.data.decimals,
                 got: self.decimals,
             })?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl Transactionable for FTTransactionable {
+    fn prepopulated(&self) -> PrepopulateTransaction {
+        self.prepopulated.clone()
+    }
+
+    async fn validate_with_network(
+        &self,
+        network: &NetworkConfig,
+    ) -> core::result::Result<(), ValidationError> {
+        self.check_decimals(network).await?;
+
+        let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
+            .view_account_storage(self.receiver.clone())?
+            .fetch_from(&network)
+            .await?;
+
+        if storage_balance.data.is_none() {
+            Err(FTValidatorError::StorageDepositNeeded)?;
+        }
+
+        Ok(())
+    }
+
+    async fn edit_with_network(
+        &mut self,
+        network: &NetworkConfig,
+    ) -> core::result::Result<(), ValidationError> {
+        self.check_decimals(network).await?;
+
+        let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
+            .view_account_storage(self.receiver.clone())?
+            .fetch_from(&network)
+            .await?;
+
+        if storage_balance.data.is_none() {
+            let mut action = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
+                .deposit(self.receiver.clone(), NearToken::from_millinear(100))?
+                .with_signer_account(self.prepopulated.signer_id.clone())
+                .tr
+                .actions;
+            action.append(&mut self.prepopulated.actions);
+            self.prepopulated.actions = action;
         }
         Ok(())
     }

@@ -25,9 +25,18 @@ use super::{
 };
 
 #[async_trait::async_trait]
-pub trait Transactionable {
+pub trait Transactionable: Send + Sync {
     fn prepopulated(&self) -> PrepopulateTransaction;
+    /// Validate the transaction before sending it to the network
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError>;
+
+    /// Edit the transaction before sending it to the network.
+    /// This is useful for example to add storage deposit to the transaction
+    /// if it's needed.
+    /// Though, it won't be called if the user has presigned the transaction.
+    async fn edit_with_network(&mut self, _network: &NetworkConfig) -> Result<(), ValidationError> {
+        Ok(())
+    }
 }
 
 pub enum TransactionableOrSigned<Signed> {
@@ -143,18 +152,22 @@ impl ExecuteSignedTransaction {
     }
 
     pub async fn send_to(
-        self,
+        mut self,
         network: &NetworkConfig,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
         let sleep_duration = self.sleep_duration;
         let retries = self.retries;
 
-        let (signed, transactionable) = match &self.tr {
+        let (signed, transactionable) = match &mut self.tr {
             TransactionableOrSigned::Transactionable(tr) => (None, tr),
             TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
 
-        transactionable.validate_with_network(network).await?;
+        if signed.is_none() {
+            transactionable.edit_with_network(network).await?;
+        } else {
+            transactionable.validate_with_network(network).await?;
+        }
 
         let signed = match signed {
             Some(s) => s,
@@ -302,15 +315,19 @@ impl ExecuteMetaTransaction {
     }
 
     pub async fn send_to(
-        self,
+        mut self,
         network: &NetworkConfig,
     ) -> Result<Response, ExecuteMetaTransactionsError> {
-        let (signed, transactionable) = match &self.tr {
+        let (signed, transactionable) = match &mut self.tr {
             TransactionableOrSigned::Transactionable(tr) => (None, tr),
             TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
         };
 
-        transactionable.validate_with_network(network).await?;
+        if signed.is_none() {
+            transactionable.edit_with_network(network).await?;
+        } else {
+            transactionable.validate_with_network(network).await?;
+        }
 
         let signed = match signed {
             Some(s) => s,

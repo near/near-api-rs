@@ -1,7 +1,4 @@
-use near::{
-    signer::Signer, types::tokens::FTBalance, Contract, NetworkConfig, StorageDeposit, Tokens,
-};
-use near_sdk::NearToken;
+use near::{signer::Signer, types::tokens::FTBalance, Contract, NetworkConfig, Tokens};
 use serde_json::json;
 
 #[tokio::main]
@@ -37,18 +34,8 @@ async fn main() {
 
     println!("Owner has {}", tokens);
 
-    // Paying for storage for the account.
-    // This is required to store the tokens on the account
-    // TODO: This should be done automatically by the SDK
-    StorageDeposit::on_contract(token.id().clone())
-        .deposit(account.id().clone(), NearToken::from_millinear(100))
-        .unwrap()
-        .with_signer(token.id().clone(), Signer::from_workspace(&token))
-        .send_to(&network)
-        .await
-        .unwrap();
-
     // Transfer 100 tokens to the account
+    // We handle internally the storage deposit for the receiver account
     Tokens::of(token.id().clone())
         .send_to(account.id().clone())
         .ft(
@@ -60,7 +47,8 @@ async fn main() {
         .with_signer(Signer::from_workspace(&token))
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let tokens = Tokens::of(account.id().clone())
         .ft_balance(token.id().clone())

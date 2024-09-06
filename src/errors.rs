@@ -208,6 +208,8 @@ pub enum FTValidatorError {
     NoMetadata,
     #[error("Decimals mismatch: expected {expected}, got {got}")]
     DecimalsMismatch { expected: u8, got: u8 },
+    #[error("Storage deposit is needed")]
+    StorageDepositNeeded,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -223,6 +225,9 @@ pub enum FastNearError {
 //TODO: it's better to have a separate errors, but for now it would be aggregated here
 #[derive(thiserror::Error, Debug)]
 pub enum ValidationError {
+    #[error("Query error: {0}")]
+    QueryError(#[from] QueryError<RpcQueryRequest>),
+
     #[error("Query creation error: {0}")]
     QueryBuilderError(#[from] BuilderError),
 
