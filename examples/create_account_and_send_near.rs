@@ -17,6 +17,7 @@ async fn main() {
     println!("Balance: {}", balance.liquid);
 
     let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
+    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
     near::Account::create_account()
         .fund_myself(
@@ -27,7 +28,7 @@ async fn main() {
         .new_keypair()
         .save_generated_seed_to_file("./new_account_seed".into())
         .unwrap()
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap();
@@ -35,7 +36,7 @@ async fn main() {
     near::Tokens::of(account.id().clone())
         .send_to(new_account.clone())
         .near(NearToken::from_near(1))
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(signer)
         .send_to(&network)
         .await
         .unwrap();

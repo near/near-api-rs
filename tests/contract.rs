@@ -12,7 +12,7 @@ async fn contract_without_init_call() {
     contract
         .deploy(include_bytes!("../resources/counter.wasm").to_vec())
         .without_init_call()
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -49,7 +49,10 @@ async fn contract_without_init_call() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(account.id().clone(), Signer::from_workspace(&account))
+        .with_signer(
+            account.id().clone(),
+            Signer::new(Signer::from_workspace(&account)).unwrap(),
+        )
         .send_to(&network)
         .await
         .unwrap()
@@ -84,7 +87,7 @@ async fn contract_with_init_call() {
             }),
         )
         .unwrap()
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
         .await
         .unwrap()

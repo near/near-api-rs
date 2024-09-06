@@ -16,7 +16,7 @@ use crate::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
         ValidationError,
     },
-    signer::{Signer, SignerTrait},
+    signer::Signer,
     types::transactions::PrepopulateTransaction,
 };
 
@@ -103,7 +103,7 @@ impl ExecuteSignedTransaction {
         self
     }
 
-    pub fn presign_offline(
+    pub async fn presign_offline(
         mut self,
         public_key: PublicKey,
         block_hash: CryptoHash,
@@ -114,9 +114,10 @@ impl ExecuteSignedTransaction {
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
-        let signed_tr =
-            self.signer
-                .sign(tr.prepopulated(), public_key.clone(), nonce, block_hash)?;
+        let signed_tr = self
+            .signer
+            .sign(tr.prepopulated(), public_key.clone(), nonce, block_hash)
+            .await?;
 
         self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
         Ok(self)
@@ -131,14 +132,15 @@ impl ExecuteSignedTransaction {
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
-        let signer_key = self.signer.get_public_key()?;
+        let signer_key = self.signer.get_public_key().await?;
         let tr = tr.prepopulated();
         let (nonce, hash, _) = self
             .signer
-            .fetch_tx_nonce(tr.signer_id.clone(), network)
+            .fetch_tx_nonce(tr.signer_id.clone(), signer_key.clone(), network)
             .await
             .map_err(MetaSignError::from)?;
-        Ok(self.presign_offline(signer_key, hash, nonce)?)
+        println!("nonce: {}", nonce);
+        Ok(self.presign_offline(signer_key, hash, nonce).await?)
     }
 
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteTransactionError> {
@@ -259,8 +261,9 @@ impl ExecuteMetaTransaction {
         self
     }
 
-    pub fn presign_offline(
+    pub async fn presign_offline(
         mut self,
+        signer_key: PublicKey,
         block_hash: CryptoHash,
         nonce: Nonce,
         block_height: BlockHeight,
@@ -275,13 +278,17 @@ impl ExecuteMetaTransaction {
                 .tx_live_for
                 .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT);
 
-        let signed_tr = self.signer.sign_meta(
-            tr.prepopulated(),
-            self.signer.get_public_key().map_err(MetaSignError::from)?,
-            nonce,
-            block_hash,
-            max_block_height,
-        )?;
+        let signed_tr = self
+            .signer
+            .sign_meta(
+                tr.prepopulated(),
+                signer_key,
+                nonce,
+                block_hash,
+                max_block_height,
+            )
+            .await
+            .map_err(MetaSignError::from)?;
 
         self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
         Ok(self)
@@ -296,12 +303,22 @@ impl ExecuteMetaTransaction {
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
-        let (nonce, block_hash, block_height) = self
+        let signer_key = self
             .signer
-            .fetch_tx_nonce(tr.prepopulated().signer_id.clone(), network)
+            .get_public_key()
             .await
             .map_err(MetaSignError::from)?;
-        self.presign_offline(block_hash, nonce, block_height)
+        let (nonce, block_hash, block_height) = self
+            .signer
+            .fetch_tx_nonce(
+                tr.prepopulated().signer_id.clone(),
+                signer_key.clone(),
+                network,
+            )
+            .await
+            .map_err(MetaSignError::from)?;
+        self.presign_offline(signer_key, block_hash, nonce, block_height)
+            .await
     }
 
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteMetaTransactionsError> {

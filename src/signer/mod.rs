@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -88,16 +88,33 @@ pub trait SignerTrait {
 }
 
 pub struct Signer {
-    signer: Box<dyn SignerTrait + Send + Sync + 'static>,
-    nonce_cache: tokio::sync::RwLock<HashMap<AccountId, AtomicU64>>,
+    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, PublicKey), AtomicU64>>,
+    current_public_key: AtomicUsize,
 }
 
 impl Signer {
-    pub fn custom<T: SignerTrait + Send + Sync + 'static>(signer: T) -> Arc<Self> {
-        Arc::new(Self {
-            signer: Box::new(signer),
+    pub fn new<T: SignerTrait + Send + Sync + 'static>(
+        signer: T,
+    ) -> Result<Arc<Self>, SignerError> {
+        let public_key = signer.get_public_key()?;
+        Ok(Arc::new(Self {
+            pool: tokio::sync::RwLock::new(HashMap::from([(
+                public_key,
+                Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
+            )])),
             nonce_cache: tokio::sync::RwLock::new(HashMap::new()),
-        })
+            current_public_key: AtomicUsize::new(0),
+        }))
+    }
+
+    pub async fn add_signer_to_pool<T: SignerTrait + Send + Sync + 'static>(
+        &self,
+        signer: T,
+    ) -> Result<(), SignerError> {
+        let public_key = signer.get_public_key()?;
+        self.pool.write().await.insert(public_key, Box::new(signer));
+        Ok(())
     }
 
     /// Fetches the transaction nonce and block hash associated to the access key. Internally
@@ -106,51 +123,45 @@ impl Signer {
     pub async fn fetch_tx_nonce(
         &self,
         account_id: AccountId,
+        public_key: PublicKey,
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
-        let nonces = self.nonce_cache.read().await;
-        println!("nonces: {:?}", nonces);
+        // Fetch latest block_hash since the previous one is now invalid for new transactions:
+        let nonce_data = crate::account::Account(account_id.clone())
+            .access_key(public_key.clone())
+            .fetch_from(network)
+            .await?;
 
-        if let Some(nonce) = nonces.get(&account_id) {
+        if let Some(nonce) = self
+            .nonce_cache
+            .read()
+            .await
+            .get(&(account_id.clone(), public_key.clone()))
+        {
             let nonce = nonce.fetch_add(1, Ordering::SeqCst);
-            drop(nonces);
-            println!("nonce: {}", nonce);
-
-            // Fetch latest block_hash since the previous one is now invalid for new transactions:
-            let nonce_data = crate::account::Account(account_id.clone())
-                .access_key(self.get_public_key()?)
-                .fetch_from(network)
-                .await?;
-
-            Ok((nonce + 1, nonce_data.block_hash, nonce_data.block_height))
-        } else {
-            drop(nonces);
-            // It's initialization, so it's better to take write lock, so other will wait
-
-            let mut write_nonce = self.nonce_cache.write().await;
-
-            // Fetch latest block_hash since the previous one is now invalid for new transactions:
-            let nonce_data = crate::account::Account(account_id.clone())
-                .access_key(self.get_public_key()?)
-                .fetch_from(network)
-                .await?;
-
-            // case where multiple writers end up at the same lock acquisition point and tries
-            // to overwrite the cached value that a previous writer already wrote.
-            let nonce = write_nonce
-                .entry(account_id.clone())
-                .or_insert_with(|| AtomicU64::new(nonce_data.data.nonce + 1))
-                .fetch_max(nonce_data.data.nonce + 1, Ordering::SeqCst)
-                .max(nonce_data.data.nonce + 1);
-
-            Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
+            return Ok((nonce + 1, nonce_data.block_hash, nonce_data.block_height));
         }
+
+        // It's initialization, so it's better to take write lock, so other will wait
+
+        // case where multiple writers end up at the same lock acquisition point and tries
+        // to overwrite the cached value that a previous writer already wrote.
+        let nonce = self
+            .nonce_cache
+            .write()
+            .await
+            .entry((account_id.clone(), public_key.clone()))
+            .or_insert_with(|| AtomicU64::new(nonce_data.data.nonce + 1))
+            .fetch_max(nonce_data.data.nonce + 1, Ordering::SeqCst)
+            .max(nonce_data.data.nonce + 1);
+
+        Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
     pub fn seed_phrase(
         seed_phrase: String,
         password: Option<String>,
-    ) -> Result<Arc<Self>, SecretError> {
+    ) -> Result<SecretKeySigner, SecretError> {
         Self::seed_phrase_with_hd_path(
             seed_phrase,
             BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
@@ -158,53 +169,90 @@ impl Signer {
         )
     }
 
-    pub fn secret_key(secret_key: SecretKey) -> Arc<Self> {
-        Self::custom(SecretKeySigner::new(secret_key))
+    pub fn secret_key(secret_key: SecretKey) -> SecretKeySigner {
+        SecretKeySigner::new(secret_key)
     }
 
     pub fn seed_phrase_with_hd_path(
         seed_phrase: String,
         hd_path: BIP32Path,
         password: Option<String>,
-    ) -> Result<Arc<Self>, SecretError> {
+    ) -> Result<SecretKeySigner, SecretError> {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
-        Ok(Self::custom(SecretKeySigner::new(secret_key)))
+        Ok(SecretKeySigner::new(secret_key))
     }
 
-    pub fn access_keyfile(path: PathBuf) -> Result<Arc<Self>, AccessKeyFileError> {
-        Ok(Self::custom(AccessKeyFileSigner::new(path)?))
-    }
-
-    #[cfg(feature = "ledger")]
-    pub fn ledger() -> Arc<Self> {
-        Self::custom(ledger::LedgerSigner::new(
-            BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"),
-        ))
+    pub fn access_keyfile(path: PathBuf) -> Result<AccessKeyFileSigner, AccessKeyFileError> {
+        AccessKeyFileSigner::new(path)
     }
 
     #[cfg(feature = "ledger")]
-    pub fn ledger_with_hd_path(hd_path: BIP32Path) -> Arc<Self> {
-        Self::custom(ledger::LedgerSigner::new(hd_path))
+    pub fn ledger() -> ledger::LedgerSigner {
+        ledger::LedgerSigner::new(BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"))
     }
 
-    pub fn keystore(pub_key: PublicKey) -> Arc<Self> {
-        Self::custom(KeystoreSigner::new_with_pubkey(pub_key))
+    #[cfg(feature = "ledger")]
+    pub fn ledger_with_hd_path(hd_path: BIP32Path) -> ledger::LedgerSigner {
+        ledger::LedgerSigner::new(hd_path)
+    }
+
+    pub fn keystore(pub_key: PublicKey) -> KeystoreSigner {
+        KeystoreSigner::new_with_pubkey(pub_key)
     }
 
     pub async fn keystore_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
-    ) -> Result<Arc<Self>, KeyStoreError> {
-        Ok(Self::custom(
-            KeystoreSigner::search_for_keys(account_id, network).await?,
-        ))
+    ) -> Result<KeystoreSigner, KeyStoreError> {
+        KeystoreSigner::search_for_keys(account_id, network).await
     }
 
     #[cfg(feature = "workspaces")]
-    pub fn from_workspace(account: &near_workspaces::Account) -> Arc<Self> {
-        Self::custom(SecretKeySigner::new(
-            account.secret_key().to_string().parse().unwrap(),
-        ))
+    pub fn from_workspace(account: &near_workspaces::Account) -> SecretKeySigner {
+        SecretKeySigner::new(account.secret_key().to_string().parse().unwrap())
+    }
+
+    pub async fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+        let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
+        let pool = self.pool.read().await;
+        let public_key = pool
+            .keys()
+            .nth(index % pool.len())
+            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
+        Ok(public_key.clone())
+    }
+
+    pub async fn sign_meta(
+        &self,
+        tr: PrepopulateTransaction,
+        public_key: PublicKey,
+        nonce: Nonce,
+        block_hash: CryptoHash,
+        max_block_height: BlockHeight,
+    ) -> Result<SignedDelegateAction, MetaSignError> {
+        let signer = self.pool.read().await;
+
+        let signer = signer
+            .get(&public_key)
+            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
+
+        signer.sign_meta(tr, public_key, nonce, block_hash, max_block_height)
+    }
+
+    pub async fn sign(
+        &self,
+        tr: PrepopulateTransaction,
+        public_key: PublicKey,
+        nonce: Nonce,
+        block_hash: CryptoHash,
+    ) -> Result<SignedTransaction, SignerError> {
+        let pool = self.pool.read().await;
+
+        let signer = pool
+            .get(&public_key)
+            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
+
+        signer.sign(tr, public_key, nonce, block_hash)
     }
 }
 
@@ -245,44 +293,6 @@ pub fn get_signed_delegate_action(
         delegate_action,
         signature,
     })
-}
-
-impl SignerTrait for Signer {
-    fn tx_and_secret(
-        &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> Result<(Transaction, SecretKey), SignerError> {
-        self.signer.tx_and_secret(tr, public_key, nonce, block_hash)
-    }
-
-    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
-        self.signer.get_public_key()
-    }
-
-    fn sign_meta(
-        &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-        max_block_height: BlockHeight,
-    ) -> Result<SignedDelegateAction, MetaSignError> {
-        self.signer
-            .sign_meta(tr, public_key, nonce, block_hash, max_block_height)
-    }
-
-    fn sign(
-        &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> Result<SignedTransaction, SignerError> {
-        self.signer.sign(tr, public_key, nonce, block_hash)
-    }
 }
 
 pub fn get_secret_key_from_seed(

@@ -19,7 +19,7 @@ async fn main() {
         .passphrase("smile".to_string())
         .generate_seed_phrase()
         .unwrap();
-    tx.with_signer(Signer::secret_key(current_secret_key.clone()))
+    tx.with_signer(Signer::new(Signer::secret_key(current_secret_key.clone())).unwrap())
         .send_to(&network)
         .await
         .unwrap();
@@ -29,7 +29,10 @@ async fn main() {
         .add_key(AccessKeyPermission::FullAccess)
         .use_public_key_from(&Signer::ledger())
         .unwrap()
-        .with_signer(Signer::seed_phrase(new_seed_phrase, Some("smile".to_string())).unwrap())
+        .with_signer(
+            Signer::new(Signer::seed_phrase(new_seed_phrase, Some("smile".to_string())).unwrap())
+                .unwrap(),
+        )
         .send_to(&network)
         .await
         .unwrap();
@@ -38,7 +41,7 @@ async fn main() {
     // Let's sign some tx with the ledger key
     Account(account.id().clone())
         .delete_key(current_secret_key.public_key())
-        .with_signer(Signer::ledger())
+        .with_signer(Signer::new(Signer::ledger()).unwrap())
         .send_to(&network)
         .await
         .unwrap();

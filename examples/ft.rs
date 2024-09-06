@@ -7,6 +7,7 @@ async fn main() {
     let token = network.dev_create_account().await.unwrap();
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
+    let token_signer = Signer::new(Signer::from_workspace(&token)).unwrap();
 
     // Deploying token contract
     Contract(token.id().clone())
@@ -19,7 +20,7 @@ async fn main() {
             }),
         )
         .unwrap()
-        .with_signer(Signer::from_workspace(&token))
+        .with_signer(token_signer.clone())
         .send_to(&network)
         .await
         .unwrap();
@@ -44,7 +45,7 @@ async fn main() {
             FTBalance::with_decimals(24).with_whole_amount(100),
         )
         .unwrap()
-        .with_signer(Signer::from_workspace(&token))
+        .with_signer(token_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -76,7 +77,7 @@ async fn main() {
             FTBalance::with_decimals(8).with_whole_amount(100),
         )
         .unwrap()
-        .with_signer(Signer::from_workspace(&token))
+        .with_signer(token_signer)
         .send_to(&network)
         .await;
 

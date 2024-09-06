@@ -40,7 +40,10 @@ where
         }
     }
 
-    pub fn use_public_key_from(self, signer: &Signer) -> Result<T, SecretBuilderkError<E>> {
+    pub fn use_public_key_from(
+        self,
+        signer: &dyn SignerTrait,
+    ) -> Result<T, SecretBuilderkError<E>> {
         let pk: PublicKey = signer
             .get_public_key()
             .map_err(|_| SecretBuilderkError::PublicKeyIsNotAvailable)?;

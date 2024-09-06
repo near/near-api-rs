@@ -9,6 +9,7 @@ Currently, the library provides:
 * Stake management
 * Ability to create custom transactions
 * Several ways to sign transactions (SecretKey, Seedphrase, File, Ledger, Secure keychain).
+* Account key pool support to sign transaction with different user keys to avoid nonce issues.
 
 ## Current issues
 

@@ -20,7 +20,7 @@ async fn create_and_delete_account() {
         .generate_secret_key()
         .unwrap()
         .1
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -36,7 +36,7 @@ async fn create_and_delete_account() {
 
     dbg!(near::Account(account.id().clone())
         .delete_account_with_beneficiary(new_account.clone())
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
         .await
         .unwrap())
@@ -69,7 +69,7 @@ async fn transfer_funds() {
     near::Tokens::of(alice.id().clone())
         .send_to(bob.id().clone())
         .near(NearToken::from_near(50))
-        .with_signer(Signer::from_workspace(&alice))
+        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -109,7 +109,7 @@ async fn access_key_management() {
         .generate_secret_key()
         .unwrap();
 
-    tx.with_signer(Signer::from_workspace(&alice))
+    tx.with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -131,7 +131,7 @@ async fn access_key_management() {
 
     alice_acc
         .delete_key(secret.public_key())
-        .with_signer(Signer::from_workspace(&alice))
+        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -154,7 +154,7 @@ async fn access_key_management() {
             .generate_secret_key()
             .unwrap()
             .1
-            .with_signer(Signer::from_workspace(&alice))
+            .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
             .send_to(&network)
             .await
             .unwrap()
@@ -167,7 +167,7 @@ async fn access_key_management() {
 
     alice_acc
         .delete_keys(keys.keys.into_iter().map(|k| k.public_key).collect())
-        .with_signer(Signer::from_workspace(&alice))
+        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
         .send_to(&network)
         .await
         .unwrap()

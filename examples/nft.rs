@@ -11,6 +11,7 @@ async fn main() {
     let network = NetworkConfig::from(network);
 
     let contract = Contract(nft.id().clone());
+    let nft_signer = Signer::new(Signer::from_workspace(&nft)).unwrap();
 
     // Deploying token contract
     contract
@@ -22,7 +23,7 @@ async fn main() {
             }),
         )
         .unwrap()
-        .with_signer(Signer::from_workspace(&nft))
+        .with_signer(nft_signer.clone())
         .send_to(&network)
         .await
         .unwrap();
@@ -44,7 +45,7 @@ async fn main() {
         .unwrap()
         .transaction()
         .deposit(NearToken::from_millinear(100))
-        .with_signer(nft.id().clone(), Signer::from_workspace(&nft))
+        .with_signer(nft.id().clone(), nft_signer.clone())
         .send_to(&network)
         .await
         .unwrap();
@@ -64,7 +65,7 @@ async fn main() {
         .send_to(nft.id().clone())
         .nft(nft.id().clone(), "1".to_string())
         .unwrap()
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(nft_signer.clone())
         .send_to(&network)
         .await
         .unwrap();

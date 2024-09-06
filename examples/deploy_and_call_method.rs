@@ -7,13 +7,14 @@ async fn main() {
     let network = NetworkConfig::from(network);
 
     let contract = Contract(account.id().clone());
+    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
     contract
         .deploy(include_bytes!("../resources/counter.wasm").to_vec())
         // You can add init call as well using `with_init_call`
         .without_init_call()
-        .with_signer(Signer::from_workspace(&account))
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap();
@@ -36,7 +37,7 @@ async fn main() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(account.id().clone(), Signer::from_workspace(&account))
+        .with_signer(account.id().clone(), signer.clone())
         .send_to(&network)
         .await
         .unwrap()

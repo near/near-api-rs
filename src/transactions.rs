@@ -75,7 +75,7 @@ impl Transaction {
         ConstructTransaction::new(signer_id, receiver_id)
     }
 
-    pub fn sign_transaction(
+    pub async fn sign_transaction(
         unsigned_tx: near_primitives::transaction::Transaction,
         signer: Arc<Signer>,
     ) -> Result<ExecuteSignedTransaction, SignerError> {
@@ -90,5 +90,6 @@ impl Transaction {
         .add_actions(unsigned_tx.take_actions())
         .with_signer(signer)
         .presign_offline(public_key, block_hash, nonce)
+        .await
     }
 }
