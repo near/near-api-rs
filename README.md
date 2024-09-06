@@ -19,7 +19,7 @@ The library is already usable and might be used for rapid prototyping, it lacks 
 - [x] anyhow -> thiserror
 - [ ] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
-- [ ] ft transfers require manual storage deposit management
+- [x] partial storage deposit for FT calls if receiver doesn't have storage balance
 
 ## Examples
 The crate provides [examples](./examples/) that contain detailed information on using the library.
