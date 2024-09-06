@@ -20,8 +20,8 @@ The library is already usable and might be used for rapid prototyping, it lacks 
 - [x] anyhow -> thiserror
 - [ ] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
-- [x] partial storage deposit for FT calls if receiver doesn't have storage balance
-- [ ] logging
+- [x] storage deposit manager for FT calls 
+- [ ] logging [tracing](https://github.com/tokio-rs/tracing)
 
 ## Examples
 The crate provides [examples](./examples/) that contain detailed information on using the library.
