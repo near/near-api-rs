@@ -139,7 +139,6 @@ impl ExecuteSignedTransaction {
             .fetch_tx_nonce(tr.signer_id.clone(), signer_key.clone(), network)
             .await
             .map_err(MetaSignError::from)?;
-        println!("nonce: {}", nonce);
         Ok(self.presign_offline(signer_key, hash, nonce).await?)
     }
 

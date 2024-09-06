@@ -21,6 +21,7 @@ The library is already usable and might be used for rapid prototyping, it lacks 
 - [ ] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
 - [x] partial storage deposit for FT calls if receiver doesn't have storage balance
+- [ ] logging
 
 ## Examples
 The crate provides [examples](./examples/) that contain detailed information on using the library.
