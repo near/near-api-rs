@@ -11,10 +11,7 @@ use crate::errors::DecimalNumberParsingError;
 /// If the string slice has invalid chars, it will return the error `DecimalNumberParsingError::InvalidNumber`.
 ///
 /// If the whole part of the number has a value more than the `u64` maximum value, it will return the error `DecimalNumberParsingError::LongWhole`.
-pub fn parse_decimal_number(
-    s: &str,
-    pref_const: u128,
-) -> Result<u128, DecimalNumberParsingError> {
+pub fn parse_decimal_number(s: &str, pref_const: u128) -> Result<u128, DecimalNumberParsingError> {
     let (int, fract) = if let Some((whole, fractional)) = s.trim().split_once('.') {
         let int: u128 = whole
             .parse()
@@ -65,7 +62,11 @@ mod tests {
         ),
         (129_380_000_001_u128, "0.129380000001", 10u128.pow(12)),
         (129_380_000_001_000_u128, "129.380000001000", 10u128.pow(12)),
-        (9_488_129_380_000_001_u128, "9488.129380000001", 10u128.pow(12)),
+        (
+            9_488_129_380_000_001_u128,
+            "9488.129380000001",
+            10u128.pow(12),
+        ),
         (129_380_000_001_u128, "00.129380000001", 10u128.pow(12)),
     ];
 
