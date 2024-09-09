@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-fn near_data_to_near_token(data: Data<u128>) -> NearToken {
+const fn near_data_to_near_token(data: Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)
 }
 
@@ -99,6 +99,7 @@ impl Delegation {
         ))
     }
 
+    #[allow(clippy::complexity)]
     pub fn view_balance(
         &self,
         pool: AccountId,
@@ -345,6 +346,7 @@ impl Staking {
         )
     }
 
+    #[allow(clippy::complexity)]
     pub fn staking_pool_info(
         pool: AccountId,
     ) -> MultiQueryBuilder<
@@ -383,7 +385,7 @@ impl Staking {
             .add_query_builder(Self::staking_pool_total_stake(pool))
     }
 
-    pub fn delegation(account_id: AccountId) -> Delegation {
+    pub const fn delegation(account_id: AccountId) -> Delegation {
         Delegation(account_id)
     }
 }

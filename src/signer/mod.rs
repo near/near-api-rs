@@ -42,7 +42,7 @@ pub struct AccountKeyPair {
 }
 
 impl AccountKeyPair {
-    fn load_access_key_file(path: &Path) -> Result<AccountKeyPair, AccessKeyFileError> {
+    fn load_access_key_file(path: &Path) -> Result<Self, AccessKeyFileError> {
         let data = std::fs::read_to_string(path)?;
         Ok(serde_json::from_str(&data)?)
     }
@@ -193,7 +193,7 @@ impl Signer {
     }
 
     #[cfg(feature = "ledger")]
-    pub fn ledger_with_hd_path(hd_path: BIP32Path) -> ledger::LedgerSigner {
+    pub const fn ledger_with_hd_path(hd_path: BIP32Path) -> ledger::LedgerSigner {
         ledger::LedgerSigner::new(hd_path)
     }
 
@@ -215,12 +215,14 @@ impl Signer {
 
     pub async fn get_public_key(&self) -> Result<PublicKey, SignerError> {
         let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
-        let pool = self.pool.read().await;
-        let public_key = pool
-            .keys()
-            .nth(index % pool.len())
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
-        Ok(public_key.clone())
+        let public_key = {
+            let pool = self.pool.read().await;
+            pool.keys()
+                .nth(index % pool.len())
+                .ok_or(SignerError::PublicKeyIsNotAvailable)?
+                .clone()
+        };
+        Ok(public_key)
     }
 
     pub async fn sign_meta(
@@ -233,11 +235,9 @@ impl Signer {
     ) -> Result<SignedDelegateAction, MetaSignError> {
         let signer = self.pool.read().await;
 
-        let signer = signer
-            .get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
-
         signer
+            .get(&public_key)
+            .ok_or(SignerError::PublicKeyIsNotAvailable)?
             .sign_meta(tr, public_key, nonce, block_hash, max_block_height)
             .await
     }
@@ -251,11 +251,10 @@ impl Signer {
     ) -> Result<SignedTransaction, SignerError> {
         let pool = self.pool.read().await;
 
-        let signer = pool
-            .get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
-
-        signer.sign(tr, public_key, nonce, block_hash).await
+        pool.get(&public_key)
+            .ok_or(SignerError::PublicKeyIsNotAvailable)?
+            .sign(tr, public_key, nonce, block_hash)
+            .await
     }
 }
 

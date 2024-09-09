@@ -35,7 +35,7 @@ impl SignerTrait for KeystoreSigner {
 
         // TODO: fix this. Well the search is a bit suboptimal, but it's not a big deal for now
         let secret = Self::get_secret_key(&tr.signer_id, &public_key, "mainnet")
-            .or(Self::get_secret_key(&tr.signer_id, &public_key, "testnet"))
+            .or_else(|_| Self::get_secret_key(&tr.signer_id, &public_key, "testnet"))
             .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
 
         let mut transaction = Transaction::new_v0(

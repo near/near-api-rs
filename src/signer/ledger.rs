@@ -18,7 +18,7 @@ pub struct LedgerSigner {
 }
 
 impl LedgerSigner {
-    pub fn new(hd_path: BIP32Path) -> Self {
+    pub const fn new(hd_path: BIP32Path) -> Self {
         Self { hd_path }
     }
 }

@@ -53,7 +53,7 @@ impl serde::ser::Serialize for ApiKey {
 }
 
 impl<'de> serde::de::Deserialize<'de> for ApiKey {
-    fn deserialize<D>(deserializer: D) -> Result<ApiKey, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {

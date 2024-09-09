@@ -91,18 +91,23 @@ pub type MultiQueryBuilder<T> = MultiRpcBuilder<T, RpcQueryRequest, BlockReferen
 
 pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochReference>;
 
-pub struct MultiRpcBuilder<ResponseHandler, Method, Reference> {
+pub struct MultiRpcBuilder<ResponseHandler, Method, Reference>
+where
+    Reference: Send + Sync,
+    ResponseHandler: Send + Sync,
+{
     reference: Reference,
-    requests: Vec<Arc<dyn QueryCreator<Method, RpcReference = Reference>>>,
+    requests: Vec<Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>>,
     handler: ResponseHandler,
 }
 
-impl<Handler, Method: RpcMethod, Reference> MultiRpcBuilder<Handler, Method, Reference>
+impl<Handler, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
 where
-    Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method>,
-    Method: RpcMethod + 'static,
+    Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method> + Send + Sync,
+    Method: RpcMethod + Send + Sync + 'static,
+    Method::Response: Send + Sync,
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
-    Reference: Clone,
+    Reference: Clone + Send + Sync,
 {
     pub fn new(handler: Handler, reference: Reference) -> Self {
         Self {
@@ -114,7 +119,7 @@ where
 
     pub fn add_query(
         mut self,
-        request: Arc<dyn QueryCreator<Method, RpcReference = Reference>>,
+        request: Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>,
     ) -> Self {
         self.requests.push(request);
         self
@@ -177,9 +182,12 @@ pub struct RpcBuilder<Handler, Method, Reference> {
 
 impl<Handler, Method, Reference> RpcBuilder<Handler, Method, Reference>
 where
-    Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method>,
+    Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method> + Send + Sync,
+    Method: RpcMethod + Send + Sync + 'static,
+    Method::Response: Send + Sync,
     Method: RpcMethod + 'static,
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
+    Reference: Send + Sync,
 {
     pub fn new(
         request: impl QueryCreator<Method, RpcReference = Reference> + 'static + Send + Sync,
@@ -285,7 +293,7 @@ where
 }
 
 impl<Handlers> MultiQueryHandler<Handlers> {
-    pub fn new(handlers: Handlers) -> Self {
+    pub const fn new(handlers: Handlers) -> Self {
         Self { handlers }
     }
 }
@@ -334,11 +342,11 @@ where
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct CallResultHandler<Response>(pub PhantomData<Response>);
+pub struct CallResultHandler<Response: Send + Sync>(pub PhantomData<Response>);
 
 impl<Response> ResponseHandler for CallResultHandler<Response>
 where
-    Response: DeserializeOwned,
+    Response: DeserializeOwned + Send + Sync,
 {
     type Response = Data<Response>;
     type QueryResponse = RpcQueryResponse;

@@ -40,7 +40,7 @@ pub struct Tokens {
 }
 
 impl Tokens {
-    pub fn of(account_id: AccountId) -> Self {
+    pub const fn of(account_id: AccountId) -> Self {
         Self { account_id }
     }
 
@@ -101,6 +101,7 @@ impl Tokens {
             .read_only())
     }
 
+    #[allow(clippy::complexity)]
     pub fn ft_balance(
         &self,
         ft_contract: AccountId,
@@ -173,7 +174,7 @@ impl SendTo {
             .call_function(
                 "ft_transfer",
                 json!({
-                    "receiver_id": self.receiver_id.clone(),
+                    "receiver_id": self.receiver_id,
                     "amount": U128(amount.amount()),
                 }),
             )?
@@ -247,7 +248,7 @@ impl Transactionable for FTTransactionable {
 
         let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
             .view_account_storage(self.receiver.clone())?
-            .fetch_from(&network)
+            .fetch_from(network)
             .await?;
 
         if storage_balance.data.is_none() {
@@ -265,7 +266,7 @@ impl Transactionable for FTTransactionable {
 
         let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
             .view_account_storage(self.receiver.clone())?
-            .fetch_from(&network)
+            .fetch_from(network)
             .await?;
 
         if storage_balance.data.is_none() {

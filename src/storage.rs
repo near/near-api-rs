@@ -14,7 +14,7 @@ use crate::{
 pub struct StorageDeposit(AccountId);
 
 impl StorageDeposit {
-    pub fn on_contract(contract_id: AccountId) -> Self {
+    pub const fn on_contract(contract_id: AccountId) -> Self {
         Self(contract_id)
     }
 

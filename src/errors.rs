@@ -117,7 +117,7 @@ impl From<near_ledger::NEARLedgerError> for LedgerError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SecretBuilderkError<E: std::fmt::Debug + std::fmt::Display> {
+pub enum SecretBuilderkError<E: std::fmt::Debug> {
     #[error("Public key is not available")]
     PublicKeyIsNotAvailable,
     #[error(transparent)]

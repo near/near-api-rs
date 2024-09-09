@@ -110,7 +110,7 @@ impl Account {
         )
     }
 
-    pub fn create_account() -> CreateAccountBuilder {
+    pub const fn create_account() -> CreateAccountBuilder {
         CreateAccountBuilder
     }
 }

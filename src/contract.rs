@@ -110,7 +110,7 @@ impl Contract {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct DeployContractBuilder {
     contract: AccountId,
     code: Vec<u8>,
@@ -154,7 +154,7 @@ pub struct CallFunctionBuilder {
 }
 
 impl CallFunctionBuilder {
-    pub fn read_only<Response: DeserializeOwned>(
+    pub fn read_only<Response: Send + Sync + DeserializeOwned>(
         self,
     ) -> QueryBuilder<CallResultHandler<Response>> {
         let request = near_primitives::views::QueryRequest::CallFunction {
@@ -202,12 +202,12 @@ impl ContractTransactBuilder {
         }
     }
 
-    pub fn gas(mut self, gas: NearGas) -> Self {
+    pub const fn gas(mut self, gas: NearGas) -> Self {
         self.gas = Some(gas);
         self
     }
 
-    pub fn deposit(mut self, deposit: NearToken) -> Self {
+    pub const fn deposit(mut self, deposit: NearToken) -> Self {
         self.deposit = Some(deposit);
         self
     }
@@ -228,7 +228,7 @@ impl ContractTransactBuilder {
         let tx: ConstructTransaction = if let Some(preaction) = self.pre_action {
             Transaction::construct(signer_id, self.contract).add_action(preaction)
         } else {
-            Transaction::construct(signer_id.clone(), self.contract)
+            Transaction::construct(signer_id, self.contract)
         };
 
         tx.add_action(Action::FunctionCall(Box::new(FunctionCallAction {

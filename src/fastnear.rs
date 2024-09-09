@@ -15,13 +15,13 @@ pub struct StakingResponse {
     pools: Vec<StakingPool>,
 }
 
-pub struct FastNearBuilder<T: DeserializeOwned, PostProcessed> {
+pub struct FastNearBuilder<T: DeserializeOwned + Send + Sync, PostProcessed> {
     query: String,
     post_process: Box<dyn Fn(T) -> PostProcessed + Send + Sync>,
     _response: std::marker::PhantomData<T>,
 }
 
-impl<T: DeserializeOwned> FastNearBuilder<T, T> {
+impl<T: DeserializeOwned + Send + Sync> FastNearBuilder<T, T> {
     pub fn new(query: String) -> Self {
         Self {
             query,
@@ -31,7 +31,10 @@ impl<T: DeserializeOwned> FastNearBuilder<T, T> {
     }
 }
 
-impl<T: DeserializeOwned, PostProcessed> FastNearBuilder<T, PostProcessed> {
+impl<T, PostProcessed> FastNearBuilder<T, PostProcessed>
+where
+    T: DeserializeOwned + Send + Sync,
+{
     pub fn with_postprocess<F>(query: String, func: F) -> Self
     where
         F: Fn(T) -> PostProcessed + Send + Sync + 'static,

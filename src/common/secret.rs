@@ -73,7 +73,7 @@ where
         self
     }
 
-    pub fn word_count(mut self, word_count: usize) -> Self {
+    pub const fn word_count(mut self, word_count: usize) -> Self {
         self.word_count = Some(word_count);
         self
     }
@@ -102,7 +102,7 @@ where
         let signer = Signer::seed_phrase_with_hd_path(
             master_seed_phrase.clone(),
             self.hd_path
-                .unwrap_or(DEFAULT_HD_PATH.parse().expect("Valid HD path")),
+                .unwrap_or_else(|| DEFAULT_HD_PATH.parse().expect("Valid HD path")),
             self.passphrase,
         )?;
 
@@ -120,7 +120,7 @@ where
         let hd_path = self
             .hd_path
             .clone()
-            .unwrap_or(DEFAULT_HD_PATH.parse().expect("Valid HD path"));
+            .unwrap_or_else(|| DEFAULT_HD_PATH.parse().expect("Valid HD path"));
         let passphrase = self.passphrase.clone();
         let (seed_phrase, next) = self.generate_seed_phrase()?;
 

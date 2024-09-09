@@ -29,7 +29,7 @@ impl NetworkConfig {
     }
 
     pub fn testnet() -> Self {
-        NetworkConfig {
+        Self {
             network_name: "testnet".to_string(),
             rpc_url: "https://archival-rpc.testnet.near.org".parse().unwrap(),
             rpc_api_key: None,

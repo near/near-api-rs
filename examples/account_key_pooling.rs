@@ -5,7 +5,7 @@ use std::sync::Arc;
 ///
 /// This is an example of how to use account key pooling to send multiple transactions
 /// using different keys.
-use near::{signer::Signer, Account, Contract, NetworkConfig, Tokens};
+use near::{signer::Signer, Account, NetworkConfig, Tokens};
 use near_sdk::NearToken;
 
 #[tokio::main]

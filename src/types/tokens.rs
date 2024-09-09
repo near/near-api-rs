@@ -30,7 +30,7 @@ impl FTBalance {
         }
     }
 
-    pub fn with_amount(&self, amount: u128) -> Self {
+    pub const fn with_amount(&self, amount: u128) -> Self {
         Self {
             balance: amount,
             decimals: self.decimals,
@@ -38,7 +38,7 @@ impl FTBalance {
         }
     }
 
-    pub fn with_whole_amount(&self, amount: u128) -> Self {
+    pub const fn with_whole_amount(&self, amount: u128) -> Self {
         Self {
             balance: amount * 10u128.pow(self.decimals as u32),
             decimals: self.decimals,
@@ -51,15 +51,15 @@ impl FTBalance {
             .map(|amount| self.with_amount(amount))
     }
 
-    pub fn amount(&self) -> u128 {
+    pub const fn amount(&self) -> u128 {
         self.balance
     }
 
-    pub fn to_whole(&self) -> u128 {
+    pub const fn to_whole(&self) -> u128 {
         self.balance / 10u128.pow(self.decimals as u32)
     }
 
-    pub fn decimals(&self) -> u8 {
+    pub const fn decimals(&self) -> u8 {
         self.decimals
     }
 }

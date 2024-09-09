@@ -47,8 +47,8 @@ pub enum TransactionableOrSigned<Signed> {
 impl<Signed> TransactionableOrSigned<Signed> {
     pub fn signed(self) -> Option<Signed> {
         match self {
-            TransactionableOrSigned::Signed((signed, _)) => Some(signed),
-            TransactionableOrSigned::Transactionable(_) => None,
+            Self::Signed((signed, _)) => Some(signed),
+            Self::Transactionable(_) => None,
         }
     }
 }
@@ -56,15 +56,15 @@ impl<Signed> TransactionableOrSigned<Signed> {
 impl<S> TransactionableOrSigned<S> {
     pub fn transactionable(self) -> Box<dyn Transactionable> {
         match self {
-            TransactionableOrSigned::Transactionable(tr) => tr,
-            TransactionableOrSigned::Signed((_, tr)) => tr,
+            Self::Transactionable(tr) => tr,
+            Self::Signed((_, tr)) => tr,
         }
     }
 }
 
 impl From<SignedTransaction> for PrepopulateTransaction {
     fn from(tr: SignedTransaction) -> Self {
-        PrepopulateTransaction {
+        Self {
             signer_id: tr.transaction.signer_id().clone(),
             receiver_id: tr.transaction.receiver_id().clone(),
             actions: tr.transaction.take_actions(),
@@ -93,12 +93,12 @@ impl ExecuteSignedTransaction {
         ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
     }
 
-    pub fn with_retries(mut self, retries: u8) -> Self {
+    pub const fn with_retries(mut self, retries: u8) -> Self {
         self.retries = retries;
         self
     }
 
-    pub fn with_sleep_duration(mut self, sleep_duration: std::time::Duration) -> Self {
+    pub const fn with_sleep_duration(mut self, sleep_duration: std::time::Duration) -> Self {
         self.sleep_duration = sleep_duration;
         self
     }
@@ -255,7 +255,7 @@ impl ExecuteMetaTransaction {
         }
     }
 
-    pub fn tx_live_for(mut self, tx_live_for: BlockHeight) -> Self {
+    pub const fn tx_live_for(mut self, tx_live_for: BlockHeight) -> Self {
         self.tx_live_for = Some(tx_live_for);
         self
     }
@@ -392,7 +392,7 @@ impl ExecuteMetaTransaction {
     }
 }
 
-pub fn is_critical_error(
+pub const fn is_critical_error(
     err: &near_jsonrpc_client::errors::JsonRpcError<
         near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError,
     >,

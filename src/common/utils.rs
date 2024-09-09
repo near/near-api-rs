@@ -11,7 +11,7 @@ use crate::errors::DecimalNumberParsingError;
 /// If the string slice has invalid chars, it will return the error `DecimalNumberParsingError::InvalidNumber`.
 ///
 /// If the whole part of the number has a value more than the `u64` maximum value, it will return the error `DecimalNumberParsingError::LongWhole`.
-pub(crate) fn parse_decimal_number(
+pub fn parse_decimal_number(
     s: &str,
     pref_const: u128,
 ) -> Result<u128, DecimalNumberParsingError> {
@@ -56,17 +56,17 @@ pub(crate) fn parse_decimal_number(
 mod tests {
     use super::*;
 
-    const TEST: [(u128, &'static str, u128); 6] = [
-        (129380_000_001u128, "129.380000001", 10u128.pow(9)),
+    const TEST: [(u128, &str, u128); 6] = [
+        (129_380_000_001_u128, "129.380000001", 10u128.pow(9)),
         (
-            12938_000_000_100_000_000u128,
+            12_938_000_000_100_000_000_u128,
             "12938000000.1",
             10u128.pow(9),
         ),
-        (129380_000_001u128, "0.129380000001", 10u128.pow(12)),
-        (129380_000_001_000u128, "129.380000001000", 10u128.pow(12)),
-        (9488129380_000_001u128, "9488.129380000001", 10u128.pow(12)),
-        (129380_000_001u128, "00.129380000001", 10u128.pow(12)),
+        (129_380_000_001_u128, "0.129380000001", 10u128.pow(12)),
+        (129_380_000_001_000_u128, "129.380000001000", 10u128.pow(12)),
+        (9_488_129_380_000_001_u128, "9488.129380000001", 10u128.pow(12)),
+        (129_380_000_001_u128, "00.129380000001", 10u128.pow(12)),
     ];
 
     #[test]
