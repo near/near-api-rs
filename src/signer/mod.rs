@@ -132,15 +132,14 @@ impl Signer {
             .access_key(public_key.clone())
             .fetch_from(network)
             .await?;
+        let nonce_cache = self.nonce_cache.read().await;
 
-        if let Some(nonce) = self
-            .nonce_cache
-            .read()
-            .await
-            .get(&(account_id.clone(), public_key.clone()))
-        {
+        if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key.clone())) {
             let nonce = nonce.fetch_add(1, Ordering::SeqCst);
+            drop(nonce_cache);
             return Ok((nonce + 1, nonce_data.block_hash, nonce_data.block_height));
+        } else {
+            drop(nonce_cache);
         }
 
         // It's initialization, so it's better to take write lock, so other will wait

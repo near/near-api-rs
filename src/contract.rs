@@ -117,7 +117,7 @@ pub struct DeployContractBuilder {
 }
 
 impl DeployContractBuilder {
-    pub fn new(contract: AccountId, code: Vec<u8>) -> Self {
+    pub const fn new(contract: AccountId, code: Vec<u8>) -> Self {
         Self { contract, code }
     }
 
@@ -186,7 +186,7 @@ pub struct ContractTransactBuilder {
 }
 
 impl ContractTransactBuilder {
-    fn new(
+    const fn new(
         contract: AccountId,
         method_name: String,
         args: Vec<u8>,

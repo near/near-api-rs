@@ -27,7 +27,7 @@ pub struct ConstructTransaction {
 }
 
 impl ConstructTransaction {
-    pub fn new(signer_id: AccountId, receiver_id: AccountId) -> Self {
+    pub const fn new(signer_id: AccountId, receiver_id: AccountId) -> Self {
         Self {
             tr: PrepopulateTransaction {
                 signer_id,
@@ -71,7 +71,7 @@ impl Transactionable for ConstructTransaction {
 pub struct Transaction;
 
 impl Transaction {
-    pub fn construct(signer_id: AccountId, receiver_id: AccountId) -> ConstructTransaction {
+    pub const fn construct(signer_id: AccountId, receiver_id: AccountId) -> ConstructTransaction {
         ConstructTransaction::new(signer_id, receiver_id)
     }
 
