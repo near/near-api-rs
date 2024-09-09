@@ -39,16 +39,8 @@ near-jsonrpc-primitives = "0.25"
 near-contract-standards = "5.4"
 near-sdk = "5.4"
 
-near-gas = { version = "0.3", features = [
-    "serde",
-    "borsh",
-    "interactive-clap",
-] }
-near-token = { version = "0.3", features = [
-    "serde",
-    "borsh",
-    "interactive-clap",
-] }
+near-gas = { version = "0.3", features = ["serde", "borsh"] }
+near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-socialdb-client = "0.6"
 
 near-abi = "0.4.2"
