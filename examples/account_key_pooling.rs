@@ -1,12 +1,12 @@
-use std::sync::Arc;
-
 /// You can use account key pooling to use different keys for consecutive transactions
 /// to avoid nonce-related issues.
 ///
 /// This is an example of how to use account key pooling to send multiple transactions
 /// using different keys.
 use near::{signer::Signer, Account, NetworkConfig, Tokens};
-use near_sdk::NearToken;
+use near_token::NearToken;
+
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {

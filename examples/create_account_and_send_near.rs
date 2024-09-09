@@ -1,6 +1,6 @@
 use near::{signer::Signer, NetworkConfig};
+use near_account_id::AccountId;
 use near_token::NearToken;
-use near_workspaces::AccountId;
 
 #[tokio::main]
 async fn main() {

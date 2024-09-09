@@ -1,6 +1,7 @@
 use near::{signer::Signer, NetworkConfig};
+use near_account_id::AccountId;
 use near_primitives::{account::AccessKeyPermission, views::AccessKeyPermissionView};
-use near_sdk::{AccountId, NearToken};
+use near_token::NearToken;
 
 #[tokio::test]
 async fn create_and_delete_account() {

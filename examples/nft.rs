@@ -1,6 +1,6 @@
 use near::{signer::Signer, Contract, NetworkConfig, Tokens};
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
-use near_sdk::NearToken;
+use near_token::NearToken;
 use serde_json::json;
 
 #[tokio::main]

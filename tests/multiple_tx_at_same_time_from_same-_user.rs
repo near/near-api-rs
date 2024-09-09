@@ -7,7 +7,7 @@ use near::{
 };
 use near_crypto::PublicKey;
 use near_primitives::account::AccessKeyPermission;
-use near_sdk::NearToken;
+use near_token::NearToken;
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_same_key() {
