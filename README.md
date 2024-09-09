@@ -16,7 +16,7 @@ Currently, the library provides:
 The library is already usable and might be used for rapid prototyping, it lacks some points to make it production-ready:
 - [ ] documentation + examples
 - [ ] integration tests for all API calls
-- [ ] CI/CD
+- [x] CI
 - [x] anyhow -> thiserror
 - [x] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
