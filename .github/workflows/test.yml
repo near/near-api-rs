@@ -17,6 +17,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install libudev (Linux only)
+      if: runner.os == 'Linux'
+      run: sudo apt-get -y install libudev-dev libsystemd-dev
     - name: Run clippy
       run: cargo clippy --all-targets -- -D clippy::all -D clippy::nursery
 
@@ -28,14 +31,14 @@ jobs:
     - name: Run cargo fmt
       run: cargo fmt --check
 
-  # there're sometimes warnings, which signal, that the generated doc
-  # won't look as expected, when rendered, and sometimes errors, which will prevent doc from being
-  # generated at release time altogether.
   cargo-doc:
     runs-on: ubuntu-20.04
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install libudev (Linux only)
+      if: runner.os == 'Linux'
+      run: sudo apt-get -y install libudev-dev libsystemd-dev
     - name: run cargo doc
       run: RUSTDOCFLAGS="-D warnings" cargo doc
 
@@ -56,6 +59,9 @@ jobs:
         toolchain: ${{ matrix.toolchain }}
         default: true
     - uses: Swatinem/rust-cache@v1
+    - name: Install libudev (Linux only)
+      if: runner.os == 'Linux'
+      run: sudo apt-get -y install libudev-dev libsystemd-dev
     - name: Check with stable features
       run: cargo check --verbose
     - name: Run tests with unstable features
