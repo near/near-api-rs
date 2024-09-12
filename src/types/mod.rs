@@ -3,6 +3,7 @@ use reqwest::header::InvalidHeaderValue;
 
 pub mod contract;
 pub mod stake;
+pub mod storage;
 pub mod tokens;
 pub mod transactions;
 
