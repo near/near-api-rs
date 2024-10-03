@@ -14,8 +14,11 @@ use near_primitives::{
     },
 };
 use serde::de::DeserializeOwned;
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::{config::NetworkConfig, errors::QueryError, types::Data};
+
+const QUERY_EXECUTOR_TARGET: &str = "near::query::executor";
 
 type ResultWithMethod<T, Method> = core::result::Result<T, QueryError<Method>>;
 
@@ -137,27 +140,21 @@ where
         }
     }
 
-    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
-        let network = NetworkConfig::mainnet();
-        self.fetch_from(&network).await
-    }
-
-    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
-        let network = NetworkConfig::testnet();
-        self.fetch_from(&network).await
-    }
-
+    #[instrument(skip(self, network), fields(request_count = self.requests.len()))]
     pub async fn fetch_from(
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Method> {
         let json_rpc_client = network.json_rpc_client();
 
+        debug!(target: QUERY_EXECUTOR_TARGET, "Preparing queries");
         let requests: Vec<_> = self
             .requests
             .into_iter()
             .map(|request| request.create_query(network, self.reference.clone()))
             .collect::<Result<_, _>>()?;
+
+        info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", requests.len());
         let requests = requests
             .into_iter()
             .map(|request| json_rpc_client.call(request));
@@ -167,10 +164,22 @@ where
             .into_iter()
             .collect::<Result<_, _>>()?;
         if requests.is_empty() {
+            error!(target: QUERY_EXECUTOR_TARGET, "No responses received");
             return Err(QueryError::InternalErrorNoResponse);
         }
 
+        debug!(target: QUERY_EXECUTOR_TARGET, "Processing {} responses", requests.len());
         self.handler.process_response(requests)
+    }
+
+    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
+        let network = NetworkConfig::mainnet();
+        self.fetch_from(&network).await
+    }
+
+    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
+        let network = NetworkConfig::testnet();
+        self.fetch_from(&network).await
     }
 }
 
@@ -205,6 +214,23 @@ where
         Self { reference, ..self }
     }
 
+    #[instrument(skip(self, network))]
+    pub async fn fetch_from(
+        self,
+        network: &NetworkConfig,
+    ) -> ResultWithMethod<Handler::Response, Method> {
+        let json_rpc_client = network.json_rpc_client();
+
+        debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
+        let query = self.request.create_query(network, self.reference)?;
+
+        info!(target: QUERY_EXECUTOR_TARGET, "Sending query");
+        let query_response = json_rpc_client.call(query).await?;
+
+        debug!(target: QUERY_EXECUTOR_TARGET, "Processing query response");
+        self.handler.process_response(vec![query_response])
+    }
+
     pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
@@ -213,19 +239,6 @@ where
     pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
-    }
-
-    pub async fn fetch_from(
-        self,
-        network: &NetworkConfig,
-    ) -> ResultWithMethod<Handler::Response, Method> {
-        let json_rpc_client = network.json_rpc_client();
-
-        let query_response = json_rpc_client
-            .call(self.request.create_query(network, self.reference)?)
-            .await?;
-
-        self.handler.process_response(vec![query_response])
     }
 }
 
@@ -333,7 +346,11 @@ where
         &self,
         response: Vec<Self::QueryResponse>,
     ) -> ResultWithMethod<Self::Response, Self::Method> {
-        Handler::process_response(&self.handler, response).map(|data| (self.post_process)(data))
+        trace!(target: QUERY_EXECUTOR_TARGET, "Processing response with postprocessing, response count: {}", response.len());
+        Handler::process_response(&self.handler, response).map(|data| {
+            trace!(target: QUERY_EXECUTOR_TARGET, "Applying postprocessing");
+            (self.post_process)(data)
+        })
     }
 
     fn request_amount(&self) -> usize {
@@ -364,6 +381,7 @@ where
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::CallResult(result) =
             response.kind
         {
+            trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult, result size: {} bytes", result.result.len());
             let data: Response = serde_json::from_slice(&result.result)?;
             Ok(Data {
                 data,
@@ -371,6 +389,7 @@ where
                 block_hash: response.block_hash,
             })
         } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "CallResult",
                 got: response.kind,
@@ -399,12 +418,18 @@ impl ResponseHandler for AccountViewHandler {
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewAccount(account) =
             response.kind
         {
+            info!(
+                target: QUERY_EXECUTOR_TARGET,
+                "Processed ViewAccount response: balance: {}, locked: {}",
+                 account.amount, account.locked
+            );
             Ok(Data {
                 data: account,
                 block_height: response.block_height,
                 block_hash: response.block_hash,
             })
         } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "ViewAccount",
                 got: response.kind,
@@ -429,11 +454,18 @@ impl ResponseHandler for AccessKeyListHandler {
             .into_iter()
             .next()
             .ok_or(QueryError::InternalErrorNoResponse)?;
-        if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKeyList(account) =
-            response.kind
+        if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKeyList(
+            access_key_list,
+        ) = response.kind
         {
-            Ok(account)
+            info!(
+                target: QUERY_EXECUTOR_TARGET,
+                "Processed AccessKeyList response, keys count: {}",
+                access_key_list.keys.len()
+            );
+            Ok(access_key_list)
         } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "AccessKeyList",
                 got: response.kind,
@@ -461,12 +493,19 @@ impl ResponseHandler for AccessKeyHandler {
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::AccessKey(key) =
             response.kind
         {
+            info!(
+                target: QUERY_EXECUTOR_TARGET,
+                "Processed AccessKey response, nonce: {}, permission: {:?}",
+                key.nonce,
+                key.permission
+            );
             Ok(Data {
                 data: key,
                 block_height: response.block_height,
                 block_hash: response.block_hash,
             })
         } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "AccessKey",
                 got: response.kind,
@@ -494,12 +533,19 @@ impl ResponseHandler for ViewStateHandler {
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewState(data) =
             response.kind
         {
+            info!(
+                target: QUERY_EXECUTOR_TARGET,
+                "Processed ViewState response, values count: {}, proof nodes: {}",
+                data.values.len(),
+                data.proof.len()
+            );
             Ok(Data {
                 data,
                 block_height: response.block_height,
                 block_hash: response.block_hash,
             })
         } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "ViewState",
                 got: response.kind,
@@ -527,12 +573,19 @@ impl ResponseHandler for ViewCodeHandler {
         if let near_jsonrpc_primitives::types::query::QueryResponseKind::ViewCode(code) =
             response.kind
         {
+            info!(
+                target: QUERY_EXECUTOR_TARGET,
+                "Processed ViewCode response, code size: {} bytes, hash: {:?}",
+                code.code.len(),
+                code.hash
+            );
             Ok(Data {
                 data: code,
                 block_height: response.block_height,
                 block_hash: response.block_hash,
             })
         } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "ViewCode",
                 got: response.kind,
@@ -558,6 +611,12 @@ impl ResponseHandler for RpcValidatorHandler {
             .next()
             .ok_or(QueryError::InternalErrorNoResponse)?;
 
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed EpochValidatorInfo response, epoch height: {}, validators count: {}",
+            response.epoch_height,
+            response.current_validators.len()
+        );
         Ok(response)
     }
 }
@@ -571,6 +630,7 @@ impl ResponseHandler for () {
         &self,
         _response: Vec<RpcQueryResponse>,
     ) -> ResultWithMethod<Self::Response, Self::Method> {
+        trace!(target: QUERY_EXECUTOR_TARGET, "Processed empty response handler");
         Ok(())
     }
 }

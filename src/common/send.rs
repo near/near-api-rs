@@ -9,6 +9,7 @@ use near_primitives::{
     views::FinalExecutionOutcomeView,
 };
 use reqwest::Response;
+use tracing::{debug, error, info, warn};
 
 use crate::{
     config::NetworkConfig,
@@ -23,6 +24,9 @@ use crate::{
 use super::{
     signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
 };
+
+const TX_EXECUTOR_TARGET: &str = "near::tx::executor";
+const META_EXECUTOR_TARGET: &str = "near::meta::executor";
 
 #[async_trait::async_trait]
 pub trait Transactionable: Send + Sync {
@@ -160,25 +164,44 @@ impl ExecuteSignedTransaction {
         let retries = self.retries;
 
         let (signed, transactionable) = match &mut self.tr {
-            TransactionableOrSigned::Transactionable(tr) => (None, tr),
-            TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
+            TransactionableOrSigned::Transactionable(tr) => {
+                debug!(target: TX_EXECUTOR_TARGET, "Preparing unsigned transaction");
+                (None, tr)
+            }
+            TransactionableOrSigned::Signed((s, tr)) => {
+                debug!(target: TX_EXECUTOR_TARGET, "Using pre-signed transaction");
+                (Some(s.clone()), tr)
+            }
         };
 
         if signed.is_none() {
+            debug!(target: TX_EXECUTOR_TARGET, "Editing transaction with network config");
             transactionable.edit_with_network(network).await?;
         } else {
+            debug!(target: TX_EXECUTOR_TARGET, "Validating pre-signed transaction with network config");
             transactionable.validate_with_network(network).await?;
         }
 
         let signed = match signed {
             Some(s) => s,
-            None => self
-                .presign_with(network)
-                .await?
-                .tr
-                .signed()
-                .expect("Expect to have it signed"),
+            None => {
+                debug!(target: TX_EXECUTOR_TARGET, "Signing transaction");
+                self.presign_with(network)
+                    .await?
+                    .tr
+                    .signed()
+                    .expect("Expect to have it signed")
+            }
         };
+
+        info!(
+            target: TX_EXECUTOR_TARGET,
+            "Broadcasting signed transaction. Hash: {:?}, Signer: {:?}, Receiver: {:?}, Nonce: {}",
+            signed.get_hash(),
+            signed.transaction.signer_id(),
+            signed.transaction.receiver_id(),
+            signed.transaction.nonce(),
+        );
 
         Self::send_impl(network, signed, retries, sleep_duration).await
     }
@@ -205,6 +228,11 @@ impl ExecuteSignedTransaction {
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
         let mut retries = (1..=retries).rev();
         let transaction_info = loop {
+            debug!(
+                target: TX_EXECUTOR_TARGET,
+                "Attempting to broadcast transaction. Retries left: {}",
+                retries.len()
+            );
             let transaction_info_result = network
                 .json_rpc_client()
                 .call(
@@ -215,14 +243,35 @@ impl ExecuteSignedTransaction {
                 .await;
             match transaction_info_result {
                 Ok(response) => {
+                    info!(
+                        target: TX_EXECUTOR_TARGET,
+                        "Transaction successfully broadcasted. Transaction hash: {:?}",
+                        response.transaction.hash
+                    );
                     break response;
                 }
                 Err(err) => {
                     if is_critical_error(&err) {
+                        error!(
+                            target: TX_EXECUTOR_TARGET,
+                            "Critical error encountered while broadcasting transaction: {:?}",
+                            err
+                        );
                         return Err(ExecuteTransactionError::CriticalTransactionError(err));
                     } else if retries.next().is_some() {
+                        warn!(
+                            target: TX_EXECUTOR_TARGET,
+                            "Error encountered while broadcasting transaction. Retrying in {:?}. Error: {:?}",
+                            sleep_duration,
+                            err
+                        );
                         tokio::time::sleep(sleep_duration).await;
                     } else {
+                        error!(
+                            target: TX_EXECUTOR_TARGET,
+                            "All retries exhausted. Failed to broadcast transaction: {:?}",
+                            err
+                        );
                         return Err(ExecuteTransactionError::RetriesExhausted(err));
                     }
                 }
@@ -335,25 +384,44 @@ impl ExecuteMetaTransaction {
         network: &NetworkConfig,
     ) -> Result<Response, ExecuteMetaTransactionsError> {
         let (signed, transactionable) = match &mut self.tr {
-            TransactionableOrSigned::Transactionable(tr) => (None, tr),
-            TransactionableOrSigned::Signed((s, tr)) => (Some(s.clone()), tr),
+            TransactionableOrSigned::Transactionable(tr) => {
+                debug!(target: META_EXECUTOR_TARGET, "Preparing unsigned meta transaction");
+                (None, tr)
+            }
+            TransactionableOrSigned::Signed((s, tr)) => {
+                debug!(target: META_EXECUTOR_TARGET, "Using pre-signed meta transaction");
+                (Some(s.clone()), tr)
+            }
         };
 
         if signed.is_none() {
+            debug!(target: META_EXECUTOR_TARGET, "Editing meta transaction with network config");
             transactionable.edit_with_network(network).await?;
         } else {
+            debug!(target: META_EXECUTOR_TARGET, "Validating pre-signed meta transaction with network config");
             transactionable.validate_with_network(network).await?;
         }
 
         let signed = match signed {
             Some(s) => s,
-            None => self
-                .presign_with(network)
-                .await?
-                .tr
-                .signed()
-                .expect("Expect to have it signed"),
+            None => {
+                debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
+                self.presign_with(network)
+                    .await?
+                    .tr
+                    .signed()
+                    .expect("Expect to have it signed")
+            }
         };
+
+        info!(
+            target: META_EXECUTOR_TARGET,
+            "Broadcasting signed meta transaction. Signer: {:?}, Receiver: {:?}, Nonce: {}, Valid until: {}",
+            signed.delegate_action.sender_id,
+            signed.delegate_action.receiver_id,
+            signed.delegate_action.nonce,
+            signed.delegate_action.max_block_height
+        );
 
         Self::send_impl(network, signed).await
     }
@@ -375,9 +443,14 @@ impl ExecuteMetaTransaction {
         let client = reqwest::Client::new();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
-                tr
+                tr.clone()
             ).to_string(),
         });
+        debug!(
+            target: META_EXECUTOR_TARGET,
+            "Sending meta transaction to relayer. Payload: {:?}",
+            json_payload
+        );
         let resp = client
             .post(
                 network
@@ -388,6 +461,14 @@ impl ExecuteMetaTransaction {
             .json(&json_payload)
             .send()
             .await?;
+
+        info!(
+            target: META_EXECUTOR_TARGET,
+            "Meta transaction sent to relayer. Status: {}, Signer: {:?}, Receiver: {:?}",
+            resp.status(),
+            tr.delegate_action.sender_id,
+            tr.delegate_action.receiver_id
+        );
         Ok(resp)
     }
 }

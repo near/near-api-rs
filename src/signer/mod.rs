@@ -17,6 +17,7 @@ use near_primitives::{
 };
 use serde::Deserialize;
 use slipped10::BIP32Path;
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
@@ -34,6 +35,8 @@ pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
+
+const SIGNER_TARGET: &str = "near::signer";
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AccountKeyPair {
@@ -95,6 +98,7 @@ pub struct Signer {
 }
 
 impl Signer {
+    #[instrument(skip(signer))]
     pub fn new<T: SignerTrait + Send + Sync + 'static>(
         signer: T,
     ) -> Result<Arc<Self>, SignerError> {
@@ -109,11 +113,13 @@ impl Signer {
         }))
     }
 
+    #[instrument(skip(self, signer))]
     pub async fn add_signer_to_pool<T: SignerTrait + Send + Sync + 'static>(
         &self,
         signer: T,
     ) -> Result<(), SignerError> {
         let public_key = signer.get_public_key()?;
+        debug!(target: SIGNER_TARGET, "Adding signer to pool");
         self.pool.write().await.insert(public_key, Box::new(signer));
         Ok(())
     }
@@ -121,13 +127,14 @@ impl Signer {
     /// Fetches the transaction nonce and block hash associated to the access key. Internally
     /// caches the nonce as to not need to query for it every time, and ending up having to run
     /// into contention with others.
+    #[instrument(skip(self, network), fields(account_id = %account_id))]
     pub async fn fetch_tx_nonce(
         &self,
         account_id: AccountId,
         public_key: PublicKey,
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
-        // Fetch latest block_hash since the previous one is now invalid for new transactions:
+        debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
         let nonce_data = crate::account::Account(account_id.clone())
             .access_key(public_key.clone())
             .fetch_from(network)
@@ -137,6 +144,7 @@ impl Signer {
         if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key.clone())) {
             let nonce = nonce.fetch_add(1, Ordering::SeqCst);
             drop(nonce_cache);
+            trace!(target: SIGNER_TARGET, "Nonce fetched from cache");
             return Ok((nonce + 1, nonce_data.block_hash, nonce_data.block_height));
         } else {
             drop(nonce_cache);
@@ -155,6 +163,7 @@ impl Signer {
             .fetch_max(nonce_data.data.nonce + 1, Ordering::SeqCst)
             .max(nonce_data.data.nonce + 1);
 
+        info!(target: SIGNER_TARGET, "Nonce fetched and cached");
         Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
@@ -212,6 +221,7 @@ impl Signer {
         SecretKeySigner::new(account.secret_key().to_string().parse().unwrap())
     }
 
+    #[instrument(skip(self))]
     pub async fn get_public_key(&self) -> Result<PublicKey, SignerError> {
         let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
         let public_key = {
@@ -221,9 +231,11 @@ impl Signer {
                 .ok_or(SignerError::PublicKeyIsNotAvailable)?
                 .clone()
         };
+        debug!(target: SIGNER_TARGET, "Public key retrieved");
         Ok(public_key)
     }
 
+    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
     pub async fn sign_meta(
         &self,
         tr: PrepopulateTransaction,
@@ -241,6 +253,7 @@ impl Signer {
             .await
     }
 
+    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
     pub async fn sign(
         &self,
         tr: PrepopulateTransaction,
@@ -257,6 +270,7 @@ impl Signer {
     }
 }
 
+#[instrument(skip(unsigned_transaction, private_key))]
 pub fn get_signed_delegate_action(
     unsigned_transaction: Transaction,
     private_key: SecretKey,
@@ -296,6 +310,7 @@ pub fn get_signed_delegate_action(
     })
 }
 
+#[instrument(skip(seed_phrase_hd_path, master_seed_phrase, password))]
 pub fn get_secret_key_from_seed(
     seed_phrase_hd_path: BIP32Path,
     master_seed_phrase: String,

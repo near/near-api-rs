@@ -21,7 +21,7 @@ The library is already usable and might be used for rapid prototyping, it lacks 
 - [x] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
 - [x] storage deposit manager for FT calls 
-- [ ] logging [tracing](https://github.com/tokio-rs/tracing)
+- [x] basic logging with tracing for querying/signing/sending transactions
 
 ## Examples
 The crate provides [examples](./examples/) that contain detailed information on using the library.

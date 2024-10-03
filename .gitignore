@@ -2,3 +2,5 @@
 seed_phrase
 contract_rs.wasm
 shell.nix
+.envrc
+.direnv

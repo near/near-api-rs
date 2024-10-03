@@ -27,6 +27,7 @@ serde_json = "1.0.57"
 slipped10 = { version = "0.4.6" }
 url = { version = "2", features = ["serde"] }
 tokio = { version = "1.0", default-features = false, features = ["time"] }
+tracing = "0.1"
 
 thiserror = "1"
 
@@ -51,14 +52,15 @@ keyring = { version = "3.2", features = [
     "windows-native",
     "sync-secret-service",
     "vendored",
-] }
+], optional = true }
 
 near-workspaces = { version = "0.14.0", optional = true }
 
 
 [features]
-default = ["ledger"]
+default = ["ledger", "keystore"]
 ledger = ["near-ledger"]
+keystore = ["dep:keyring"]
 workspaces = ["dep:near-workspaces"]
 
 [dev-dependencies]
