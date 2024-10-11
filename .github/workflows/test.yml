@@ -51,6 +51,14 @@ jobs:
     - name: Run cargo check
       run: cargo check --release
 
+  no_features_check:
+    needs: cargo-fmt
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run cargo check
+      run: cargo check --no-default-features
+
   test:
     needs: cargo-fmt
     strategy:
@@ -60,7 +68,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: "${{ matrix.toolchain }}"
       uses: actions-rs/toolchain@v1
       with:
