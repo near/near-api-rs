@@ -106,7 +106,6 @@ The status is tracked in `About` section."
 }
 
 #[cfg(feature = "ledger")]
-
 impl From<near_ledger::NEARLedgerError> for LedgerError {
     fn from(err: near_ledger::NEARLedgerError) -> Self {
         const SW_BUFFER_OVERFLOW: &str = "0x6990";
