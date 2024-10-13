@@ -25,10 +25,7 @@ use crate::{
     types::transactions::PrepopulateTransaction,
 };
 
-use self::{
-    access_keyfile_signer::AccessKeyFileSigner, 
-    secret_key::SecretKeySigner,
-};
+use self::{access_keyfile_signer::AccessKeyFileSigner, secret_key::SecretKeySigner};
 
 pub mod access_keyfile_signer;
 #[cfg(feature = "keystore")]
