@@ -21,16 +21,14 @@ use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
-    errors::{AccessKeyFileError, KeyStoreError, MetaSignError, SecretError, SignerError},
+    errors::{AccessKeyFileError, MetaSignError, SecretError, SignerError},
     types::transactions::PrepopulateTransaction,
 };
 
-use self::{
-    access_keyfile_signer::AccessKeyFileSigner, keystore::KeystoreSigner,
-    secret_key::SecretKeySigner,
-};
+use self::{access_keyfile_signer::AccessKeyFileSigner, secret_key::SecretKeySigner};
 
 pub mod access_keyfile_signer;
+#[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
@@ -205,15 +203,17 @@ impl Signer {
         ledger::LedgerSigner::new(hd_path)
     }
 
-    pub fn keystore(pub_key: PublicKey) -> KeystoreSigner {
-        KeystoreSigner::new_with_pubkey(pub_key)
+    #[cfg(feature = "keystore")]
+    pub fn keystore(pub_key: PublicKey) -> keystore::KeystoreSigner {
+        keystore::KeystoreSigner::new_with_pubkey(pub_key)
     }
 
+    #[cfg(feature = "keystore")]
     pub async fn keystore_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
-    ) -> Result<KeystoreSigner, KeyStoreError> {
-        KeystoreSigner::search_for_keys(account_id, network).await
+    ) -> Result<keystore::KeystoreSigner, crate::errors::KeyStoreError> {
+        keystore::KeystoreSigner::search_for_keys(account_id, network).await
     }
 
     #[cfg(feature = "workspaces")]

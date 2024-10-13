@@ -49,6 +49,7 @@ pub enum SignerError {
     #[error("Failed to fetch nonce: {0}")]
     FetchNonceError(#[from] QueryError<RpcQueryRequest>),
 
+    #[cfg(feature = "ledger")]
     #[error(transparent)]
     LedgerError(#[from] LedgerError),
 }
@@ -70,6 +71,8 @@ pub enum AccessKeyFileError {
     #[error(transparent)]
     SecretError(#[from] SecretError),
 }
+
+#[cfg(feature = "keystore")]
 #[derive(thiserror::Error, Debug)]
 pub enum KeyStoreError {
     #[error(transparent)]
@@ -82,6 +85,7 @@ pub enum KeyStoreError {
     SecretError(#[from] SecretError),
 }
 
+#[cfg(feature = "ledger")]
 #[derive(thiserror::Error, Debug)]
 pub enum LedgerError {
     #[error(
@@ -101,6 +105,7 @@ The status is tracked in `About` section."
     SignatureDeserializationError(#[from] near_crypto::ParseSignatureError),
 }
 
+#[cfg(feature = "ledger")]
 impl From<near_ledger::NEARLedgerError> for LedgerError {
     fn from(err: near_ledger::NEARLedgerError) -> Self {
         const SW_BUFFER_OVERFLOW: &str = "0x6990";
