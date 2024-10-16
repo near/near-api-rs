@@ -1,6 +1,6 @@
 [package]
 name = "near-api"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
     "frol <frolvlad@gmail.com>",
@@ -8,8 +8,8 @@ authors = [
 ]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-repository = "https://github.com/akorchyn/near-api-rs"
-description = "The near protocol API that helps to interact with NEAR Protocol"
+repository = "https://github.com/near/near-api-rs"
+description = "Rust library to interact with NEAR Protocol via RPC API"
 
 [dependencies]
 borsh = "1.5"
