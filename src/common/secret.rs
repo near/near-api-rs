@@ -96,7 +96,7 @@ where
         } else {
             let mnemonic = bip39::Mnemonic::generate(self.word_count.unwrap_or(DEFAULT_WORD_COUNT))
                 .map_err(SecretError::from)?;
-            mnemonic.word_iter().collect::<Vec<&str>>().join(" ")
+            mnemonic.words().collect::<Vec<&str>>().join(" ")
         };
 
         let signer = Signer::seed_phrase_with_hd_path(

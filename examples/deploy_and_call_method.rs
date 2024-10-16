@@ -1,4 +1,4 @@
-use near::{signer::Signer, types::Data, Contract, NetworkConfig};
+use near_api::{signer::Signer, types::Data, Contract, NetworkConfig};
 
 #[tokio::main]
 async fn main() {

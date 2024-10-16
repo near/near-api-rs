@@ -1,5 +1,5 @@
 [package]
-name = "near"
+name = "near-api"
 version = "0.1.0"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
@@ -65,4 +65,4 @@ workspaces = ["dep:near-workspaces"]
 
 [dev-dependencies]
 tokio = { version = "1.0", default-features = false, features = ["full"] }
-near = { path = ".", features = ["workspaces"] }
+near-api = { path = ".", features = ["workspaces"] }

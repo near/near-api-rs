@@ -34,7 +34,7 @@ pub mod keystore;
 pub mod ledger;
 pub mod secret_key;
 
-const SIGNER_TARGET: &str = "near::signer";
+const SIGNER_TARGET: &str = "near_api::signer";
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AccountKeyPair {

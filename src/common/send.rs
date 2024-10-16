@@ -25,8 +25,8 @@ use super::{
     signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
 };
 
-const TX_EXECUTOR_TARGET: &str = "near::tx::executor";
-const META_EXECUTOR_TARGET: &str = "near::meta::executor";
+const TX_EXECUTOR_TARGET: &str = "near_api::tx::executor";
+const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
 
 #[async_trait::async_trait]
 pub trait Transactionable: Send + Sync {

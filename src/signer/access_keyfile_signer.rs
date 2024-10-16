@@ -10,7 +10,7 @@ use crate::{
     types::transactions::PrepopulateTransaction,
 };
 
-const ACCESS_KEYFILE_SIGNER_TARGET: &str = "near::signer::access_keyfile";
+const ACCESS_KEYFILE_SIGNER_TARGET: &str = "near_api::signer::access_keyfile";
 
 #[derive(Debug, Clone)]
 pub struct AccessKeyFileSigner {

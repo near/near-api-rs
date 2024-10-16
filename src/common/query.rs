@@ -18,7 +18,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::{config::NetworkConfig, errors::QueryError, types::Data};
 
-const QUERY_EXECUTOR_TARGET: &str = "near::query::executor";
+const QUERY_EXECUTOR_TARGET: &str = "near_api::query::executor";
 
 type ResultWithMethod<T, Method> = core::result::Result<T, QueryError<Method>>;
 

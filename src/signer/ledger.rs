@@ -13,7 +13,7 @@ use crate::{
 
 use super::SignerTrait;
 
-const LEDGER_SIGNER_TARGET: &str = "near::signer::ledger";
+const LEDGER_SIGNER_TARGET: &str = "near_api::signer::ledger";
 
 #[derive(Debug, Clone)]
 pub struct LedgerSigner {

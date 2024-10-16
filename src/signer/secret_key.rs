@@ -6,7 +6,7 @@ use crate::{errors::SignerError, types::transactions::PrepopulateTransaction};
 
 use super::SignerTrait;
 
-const SECRET_KEY_SIGNER_TARGET: &str = "near::signer::secret_key";
+const SECRET_KEY_SIGNER_TARGET: &str = "near_api::signer::secret_key";
 
 #[derive(Debug, Clone)]
 pub struct SecretKeySigner {

@@ -15,7 +15,7 @@ use crate::{
 
 use super::{AccountKeyPair, SignerTrait};
 
-const KEYSTORE_SIGNER_TARGET: &str = "near::signer::keystore";
+const KEYSTORE_SIGNER_TARGET: &str = "near_api::signer::keystore";
 
 #[derive(Debug, Clone)]
 pub struct KeystoreSigner {

@@ -1,4 +1,4 @@
-use near::{signer::Signer, types::tokens::FTBalance, Contract, NetworkConfig, Tokens};
+use near_api::{signer::Signer, types::tokens::FTBalance, Contract, NetworkConfig, Tokens};
 use serde_json::json;
 
 #[tokio::main]
