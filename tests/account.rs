@@ -1,5 +1,5 @@
-use near_api::{signer::Signer, NetworkConfig};
 use near_account_id::AccountId;
+use near_api::{signer::Signer, NetworkConfig};
 use near_primitives::{account::AccessKeyPermission, views::AccessKeyPermissionView};
 use near_token::NearToken;
 
