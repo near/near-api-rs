@@ -1,5 +1,5 @@
-use near::{signer::Signer, NetworkConfig};
 use near_account_id::AccountId;
+use near_api::{signer::Signer, NetworkConfig};
 use near_primitives::{account::AccessKeyPermission, views::AccessKeyPermissionView};
 use near_token::NearToken;
 
@@ -7,11 +7,11 @@ use near_token::NearToken;
 async fn create_and_delete_account() {
     let network = near_workspaces::sandbox().await.unwrap();
     let account = network.dev_create_account().await.unwrap();
-    let network: near::NetworkConfig = NetworkConfig::from(network);
+    let network: near_api::NetworkConfig = NetworkConfig::from(network);
 
     let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
 
-    near::Account::create_account()
+    near_api::Account::create_account()
         .fund_myself(
             new_account.clone(),
             account.id().clone(),
@@ -27,7 +27,7 @@ async fn create_and_delete_account() {
         .unwrap()
         .assert_success();
 
-    let balance_before_del = near::Tokens::of(new_account.clone())
+    let balance_before_del = near_api::Tokens::of(new_account.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -35,7 +35,7 @@ async fn create_and_delete_account() {
 
     assert_eq!(balance_before_del.liquid.as_near(), 1);
 
-    dbg!(near::Account(account.id().clone())
+    dbg!(near_api::Account(account.id().clone())
         .delete_account_with_beneficiary(new_account.clone())
         .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
@@ -43,7 +43,7 @@ async fn create_and_delete_account() {
         .unwrap())
     .assert_success();
 
-    near::Tokens::of(account.id().clone())
+    near_api::Tokens::of(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -52,7 +52,7 @@ async fn create_and_delete_account() {
     // TODO: why do we need a sleep to wait for beneficiary transfer?
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let balance_after_del = near::Tokens::of(new_account.clone())
+    let balance_after_del = near_api::Tokens::of(new_account.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -65,9 +65,9 @@ async fn transfer_funds() {
     let network = near_workspaces::sandbox().await.unwrap();
     let alice = network.dev_create_account().await.unwrap();
     let bob = network.dev_create_account().await.unwrap();
-    let network: near::NetworkConfig = NetworkConfig::from(network);
+    let network: near_api::NetworkConfig = NetworkConfig::from(network);
 
-    near::Tokens::of(alice.id().clone())
+    near_api::Tokens::of(alice.id().clone())
         .send_to(bob.id().clone())
         .near(NearToken::from_near(50))
         .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
@@ -76,13 +76,13 @@ async fn transfer_funds() {
         .unwrap()
         .assert_success();
 
-    let alice_balance = near::Tokens::of(alice.id().clone())
+    let alice_balance = near_api::Tokens::of(alice.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
         .unwrap();
 
-    let bob_balance = near::Tokens::of(bob.id().clone())
+    let bob_balance = near_api::Tokens::of(bob.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -97,9 +97,9 @@ async fn transfer_funds() {
 async fn access_key_management() {
     let network = near_workspaces::sandbox().await.unwrap();
     let alice = network.dev_create_account().await.unwrap();
-    let network: near::NetworkConfig = NetworkConfig::from(network);
+    let network: near_api::NetworkConfig = NetworkConfig::from(network);
 
-    let alice_acc = near::Account(alice.id().clone());
+    let alice_acc = near_api::Account(alice.id().clone());
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
     assert_eq!(keys.keys.len(), 1);

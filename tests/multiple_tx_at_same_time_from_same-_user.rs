@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
-use near::{
+use near_api::{
     signer::{Signer, SignerTrait},
     Account, NetworkConfig, Tokens,
 };

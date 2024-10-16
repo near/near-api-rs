@@ -1,4 +1,4 @@
-use near::{signer::Signer, Account, NetworkConfig};
+use near_api::{signer::Signer, Account, NetworkConfig};
 use near_crypto::SecretKey;
 use near_primitives::account::AccessKeyPermission;
 
