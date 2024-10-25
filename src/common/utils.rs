@@ -49,7 +49,7 @@ pub fn parse_decimal_number(s: &str, pref_const: u128) -> Result<u128, DecimalNu
     Ok(result)
 }
 
-pub(crate) async fn retry<R, E, T, F>(
+pub async fn retry<R, E, T, F>(
     mut task: F,
     retries: u8,
     initial_sleep: std::time::Duration,
@@ -58,6 +58,7 @@ pub(crate) async fn retry<R, E, T, F>(
 where
     F: FnMut() -> T + Send,
     T: core::future::Future<Output = core::result::Result<R, E>> + Send,
+    T::Output: Send,
 {
     let mut retries = (1..=retries).rev();
     let mut sleep_duration = initial_sleep;

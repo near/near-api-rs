@@ -111,7 +111,7 @@ impl ExecuteSignedTransaction {
         self
     }
 
-    pub fn with_exponential_backoff(mut self) -> Self {
+    pub const fn with_exponential_backoff(mut self) -> Self {
         self.exponential_backoff = true;
         self
     }
