@@ -184,6 +184,7 @@ pub enum ExecuteTransactionError {
     PreQueryError(#[from] QueryError<RpcQueryRequest>),
     #[error("Retries exhausted. The last error is: {0}")]
     RetriesExhausted(JsonRpcError<RpcTransactionError>),
+    #[deprecated(since = "0.2.1", note = "unused")]
     #[error("Transaction error: {0}")]
     CriticalTransactionError(JsonRpcError<RpcTransactionError>),
     #[error(transparent)]

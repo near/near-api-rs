@@ -9,7 +9,7 @@ use near_primitives::{
     views::FinalExecutionOutcomeView,
 };
 use reqwest::Response;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 use crate::{
     config::NetworkConfig,
@@ -22,7 +22,8 @@ use crate::{
 };
 
 use super::{
-    signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
+    signed_delegate_action::SignedDelegateActionAsBase64, utils::retry,
+    META_TRANSACTION_VALID_FOR_DEFAULT,
 };
 
 const TX_EXECUTOR_TARGET: &str = "near_api::tx::executor";
@@ -81,6 +82,7 @@ pub struct ExecuteSignedTransaction {
     pub signer: Arc<Signer>,
     pub retries: u8,
     pub sleep_duration: std::time::Duration,
+    pub exponential_backoff: bool,
 }
 
 impl ExecuteSignedTransaction {
@@ -89,7 +91,9 @@ impl ExecuteSignedTransaction {
             tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
             signer,
             retries: 5,
-            sleep_duration: std::time::Duration::from_secs(1),
+            // 50ms, 100ms, 200ms, 400ms, 800ms
+            sleep_duration: std::time::Duration::from_millis(50),
+            exponential_backoff: true,
         }
     }
 
@@ -104,6 +108,11 @@ impl ExecuteSignedTransaction {
 
     pub const fn with_sleep_duration(mut self, sleep_duration: std::time::Duration) -> Self {
         self.sleep_duration = sleep_duration;
+        self
+    }
+
+    pub const fn with_exponential_backoff(mut self) -> Self {
+        self.exponential_backoff = true;
         self
     }
 
@@ -226,58 +235,35 @@ impl ExecuteSignedTransaction {
         retries: u8,
         sleep_duration: std::time::Duration,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
-        let mut retries = (1..=retries).rev();
-        let transaction_info = loop {
-            debug!(
-                target: TX_EXECUTOR_TARGET,
-                "Attempting to broadcast transaction. Retries left: {}",
-                retries.len()
-            );
-            let transaction_info_result = network
+        retry(
+            || {
+                let signed_tr = signed_tr.clone();
+                async move {
+                    let result = network
                 .json_rpc_client()
                 .call(
                     near_jsonrpc_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
                         signed_transaction: signed_tr.clone(),
-                    },
-                )
-                .await;
-            match transaction_info_result {
-                Ok(response) => {
-                    info!(
+                        },
+                    )
+                    .await;
+
+                    tracing::debug!(
                         target: TX_EXECUTOR_TARGET,
-                        "Transaction successfully broadcasted. Transaction hash: {:?}",
-                        response.transaction.hash
+                        "Broadcasting transaction {} resulted in {:?}",
+                        signed_tr.get_hash(),
+                        result
                     );
-                    break response;
+
+                    result
                 }
-                Err(err) => {
-                    if is_critical_error(&err) {
-                        error!(
-                            target: TX_EXECUTOR_TARGET,
-                            "Critical error encountered while broadcasting transaction: {:?}",
-                            err
-                        );
-                        return Err(ExecuteTransactionError::CriticalTransactionError(err));
-                    } else if retries.next().is_some() {
-                        warn!(
-                            target: TX_EXECUTOR_TARGET,
-                            "Error encountered while broadcasting transaction. Retrying in {:?}. Error: {:?}",
-                            sleep_duration,
-                            err
-                        );
-                        tokio::time::sleep(sleep_duration).await;
-                    } else {
-                        error!(
-                            target: TX_EXECUTOR_TARGET,
-                            "All retries exhausted. Failed to broadcast transaction: {:?}",
-                            err
-                        );
-                        return Err(ExecuteTransactionError::RetriesExhausted(err));
-                    }
-                }
-            };
-        };
-        Ok(transaction_info)
+            },
+            retries,
+            sleep_duration,
+            false,
+        )
+        .await
+        .map_err(ExecuteTransactionError::RetriesExhausted)
     }
 }
 
@@ -470,47 +456,5 @@ impl ExecuteMetaTransaction {
             tr.delegate_action.receiver_id
         );
         Ok(resp)
-    }
-}
-
-pub const fn is_critical_error(
-    err: &near_jsonrpc_client::errors::JsonRpcError<
-        near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError,
-    >,
-) -> bool {
-    match err {
-        near_jsonrpc_client::errors::JsonRpcError::TransportError(_rpc_transport_error) => {
-            false
-        }
-        near_jsonrpc_client::errors::JsonRpcError::ServerError(rpc_server_error) => match rpc_server_error {
-            near_jsonrpc_client::errors::JsonRpcServerError::HandlerError(rpc_transaction_error) => match rpc_transaction_error {
-                near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::TimeoutError => {
-                    false
-                }
-                near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::InvalidTransaction { .. } |
-                    near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::DoesNotTrackShard |
-                        near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::RequestRouted{..} |
-                            near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::UnknownTransaction{..} |
-                                near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::InternalError{..} => {
-                    true
-                }
-            }
-            near_jsonrpc_client::errors::JsonRpcServerError::RequestValidationError(..) |
-            near_jsonrpc_client::errors::JsonRpcServerError::NonContextualError(..) => {
-                true
-            }
-            near_jsonrpc_client::errors::JsonRpcServerError::InternalError{ .. } => {
-                false
-            }
-            near_jsonrpc_client::errors::JsonRpcServerError::ResponseStatusError(json_rpc_server_response_status_error) => match json_rpc_server_response_status_error {
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::Unauthorized |
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::Unexpected{..} => {
-                    true
-                }
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::TooManyRequests => {
-                    false
-                }
-            }
-        }
     }
 }
