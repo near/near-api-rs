@@ -16,7 +16,7 @@ use near_primitives::{
 use serde::de::DeserializeOwned;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::{config::NetworkConfig, errors::QueryError, types::Data};
+use crate::{common::utils::retry, config::NetworkConfig, errors::QueryError, types::Data};
 
 const QUERY_EXECUTOR_TARGET: &str = "near_api::query::executor";
 
@@ -102,13 +102,16 @@ where
     reference: Reference,
     requests: Vec<Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>>,
     handler: ResponseHandler,
+    retries: u8,
+    sleep_duration: std::time::Duration,
+    exponential_backoff: bool,
 }
 
 impl<Handler, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
 where
     Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method> + Send + Sync,
-    Method: RpcMethod + Send + Sync + 'static,
-    Method::Response: Send + Sync,
+    Method: RpcMethod + std::fmt::Debug + Send + Sync + 'static,
+    Method::Response: std::fmt::Debug + Send + Sync,
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
     Reference: Clone + Send + Sync,
 {
@@ -117,6 +120,10 @@ where
             reference,
             requests: vec![],
             handler,
+            retries: 5,
+            // 50ms, 100ms, 200ms, 400ms, 800ms
+            sleep_duration: std::time::Duration::from_millis(50),
+            exponential_backoff: true,
         }
     }
 
@@ -155,9 +162,27 @@ where
             .collect::<Result<_, _>>()?;
 
         info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", requests.len());
-        let requests = requests
-            .into_iter()
-            .map(|request| json_rpc_client.call(request));
+        let requests = requests.into_iter().map(|query| {
+            let json_rpc_client = json_rpc_client.clone();
+            async move {
+                retry(
+                    || async {
+                        let result = json_rpc_client.call(&query).await;
+                        tracing::debug!(
+                            target: QUERY_EXECUTOR_TARGET,
+                            "Querying RPC with {:?} resulted in {:?}",
+                            query,
+                            result
+                        );
+                        result
+                    },
+                    self.retries,
+                    self.sleep_duration,
+                    self.exponential_backoff,
+                )
+                .await
+            }
+        });
 
         let requests: Vec<_> = join_all(requests)
             .await
@@ -187,14 +212,16 @@ pub struct RpcBuilder<Handler, Method, Reference> {
     reference: Reference,
     request: Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>,
     handler: Handler,
+    retries: u8,
+    sleep_duration: std::time::Duration,
+    exponential_backoff: bool,
 }
 
 impl<Handler, Method, Reference> RpcBuilder<Handler, Method, Reference>
 where
     Handler: ResponseHandler<QueryResponse = Method::Response, Method = Method> + Send + Sync,
-    Method: RpcMethod + Send + Sync + 'static,
-    Method::Response: Send + Sync,
-    Method: RpcMethod + 'static,
+    Method: RpcMethod + std::fmt::Debug + Send + Sync + 'static,
+    Method::Response: std::fmt::Debug + Send + Sync,
     Method::Error: std::fmt::Display + std::fmt::Debug + Sync + Send,
     Reference: Send + Sync,
 {
@@ -207,6 +234,10 @@ where
             reference,
             request: Arc::new(request),
             handler,
+            retries: 5,
+            // 50ms, 100ms, 200ms, 400ms, 800ms
+            sleep_duration: std::time::Duration::from_millis(50),
+            exponential_backoff: true,
         }
     }
 
@@ -214,18 +245,46 @@ where
         Self { reference, ..self }
     }
 
+    pub const fn with_retries(mut self, retries: u8) -> Self {
+        self.retries = retries;
+        self
+    }
+
+    pub const fn with_sleep_duration(mut self, sleep_duration: std::time::Duration) -> Self {
+        self.sleep_duration = sleep_duration;
+        self
+    }
+
+    pub const fn with_exponential_backoff(mut self) -> Self {
+        self.exponential_backoff = true;
+        self
+    }
+
     #[instrument(skip(self, network))]
     pub async fn fetch_from(
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Method> {
-        let json_rpc_client = network.json_rpc_client();
-
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
+        let json_rpc_client = network.json_rpc_client();
         let query = self.request.create_query(network, self.reference)?;
 
-        info!(target: QUERY_EXECUTOR_TARGET, "Sending query");
-        let query_response = json_rpc_client.call(query).await?;
+        let query_response = retry(
+            || async {
+                let result = json_rpc_client.call(&query).await;
+                tracing::debug!(
+                    target: QUERY_EXECUTOR_TARGET,
+                    "Querying RPC with {:?} resulted in {:?}",
+                    query,
+                    result
+                );
+                result
+            },
+            3,
+            std::time::Duration::from_secs(1),
+            false,
+        )
+        .await?;
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Processing query response");
         self.handler.process_response(vec![query_response])
