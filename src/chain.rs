@@ -12,9 +12,7 @@ use crate::common::query::{
 pub struct Chain;
 
 impl Chain {
-    pub fn block_number(
-        &self,
-    ) -> BlockQueryBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
+    pub fn block_number() -> BlockQueryBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
         BlockQueryBuilder::new(
             SimpleBlockRpc,
             BlockReference::latest(),
@@ -25,7 +23,7 @@ impl Chain {
         )
     }
 
-    pub fn block_hash(&self) -> BlockQueryBuilder<PostprocessHandler<CryptoHash, RpcBlockHandler>> {
+    pub fn block_hash() -> BlockQueryBuilder<PostprocessHandler<CryptoHash, RpcBlockHandler>> {
         BlockQueryBuilder::new(
             SimpleBlockRpc,
             BlockReference::latest(),
@@ -36,7 +34,7 @@ impl Chain {
         )
     }
 
-    pub fn block(&self) -> BlockQueryBuilder<RpcBlockHandler> {
+    pub fn block() -> BlockQueryBuilder<RpcBlockHandler> {
         BlockQueryBuilder::new(SimpleBlockRpc, BlockReference::latest(), RpcBlockHandler)
     }
 }
