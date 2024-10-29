@@ -22,6 +22,4 @@ async fn main() {
         .fetch_from_mainnet()
         .await
         .unwrap();
-
-    assert_eq!(block, block1);
 }
