@@ -1,8 +1,11 @@
 use near_crypto::{PublicKey, SecretKey};
-use near_primitives::{hash::CryptoHash, transaction::Transaction, types::Nonce};
+use near_primitives::{transaction::Transaction, types::Nonce};
 use tracing::{debug, instrument, trace};
 
-use crate::{errors::SignerError, types::transactions::PrepopulateTransaction};
+use crate::{
+    errors::SignerError,
+    types::{transactions::PrepopulateTransaction, CryptoHash},
+};
 
 use super::SignerTrait;
 
@@ -30,7 +33,7 @@ impl SignerTrait for SecretKeySigner {
             public_key,
             tr.receiver_id,
             nonce,
-            block_hash,
+            block_hash.into(),
         );
         *transaction.actions_mut() = tr.actions;
 

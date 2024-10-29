@@ -1,4 +1,5 @@
-use near_api::{signer::Signer, types::Data, Contract, NetworkConfig};
+use near_api::prelude::*;
+
 use serde_json::json;
 
 #[tokio::test]

@@ -466,7 +466,7 @@ where
             Ok(Data {
                 data,
                 block_height: response.block_height,
-                block_hash: response.block_hash,
+                block_hash: response.block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
@@ -506,7 +506,7 @@ impl ResponseHandler for AccountViewHandler {
             Ok(Data {
                 data: account,
                 block_height: response.block_height,
-                block_hash: response.block_hash,
+                block_hash: response.block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
@@ -582,7 +582,7 @@ impl ResponseHandler for AccessKeyHandler {
             Ok(Data {
                 data: key,
                 block_height: response.block_height,
-                block_hash: response.block_hash,
+                block_hash: response.block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
@@ -622,7 +622,7 @@ impl ResponseHandler for ViewStateHandler {
             Ok(Data {
                 data,
                 block_height: response.block_height,
-                block_hash: response.block_hash,
+                block_hash: response.block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
@@ -662,7 +662,7 @@ impl ResponseHandler for ViewCodeHandler {
             Ok(Data {
                 data: code,
                 block_height: response.block_height,
-                block_hash: response.block_hash,
+                block_hash: response.block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);

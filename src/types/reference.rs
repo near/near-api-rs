@@ -1,6 +1,7 @@
-use near_primitives::{hash::CryptoHash, types::BlockHeight};
+// Source: <https://github.com/near/near-workspaces-rs/blob/10a6c1a00b2b6c937242043312455e05f0d4a125/workspaces/src/types/mod.rs#L513C1-L537C2>
 
-/// Source: https://github.com/near/near-workspaces-rs/blob/10a6c1a00b2b6c937242043312455e05f0d4a125/workspaces/src/types/mod.rs#L513C1-L537C2
+use crate::types::CryptoHash;
+use near_primitives::types::{BlockHeight, EpochId};
 
 /// Finality of a transaction or block in which transaction is included in. For more info
 /// go to the [NEAR finality](https://docs.near.org/docs/concepts/transaction#finality) docs.
@@ -31,8 +32,36 @@ impl From<Reference> for near_primitives::types::BlockReference {
                 near_primitives::types::BlockId::Height(block_height).into()
             }
             Reference::AtBlockHash(block_hash) => {
-                near_primitives::types::BlockId::Hash(block_hash).into()
+                near_primitives::types::BlockId::Hash(block_hash.into()).into()
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum EpochReference {
+    /// Reference to a specific Epoch Id
+    AtEpoch(CryptoHash),
+    /// Reference to a specific block.
+    AtBlock(BlockHeight),
+    /// Reference to a specific block hash.
+    AtBlockHash(CryptoHash),
+    /// Latest epoch on the node
+    Latest,
+}
+
+impl From<EpochReference> for near_primitives::types::EpochReference {
+    fn from(value: EpochReference) -> Self {
+        match value {
+            EpochReference::AtBlock(block_height) => {
+                Self::BlockId(near_primitives::types::BlockId::Height(block_height))
+            }
+            EpochReference::AtBlockHash(block_hash) => {
+                Self::BlockId(near_primitives::types::BlockId::Hash(block_hash.into()))
+            }
+            EpochReference::AtEpoch(epoch) => Self::EpochId(EpochId(epoch.into())),
+            EpochReference::Latest => Self::Latest,
         }
     }
 }

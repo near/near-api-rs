@@ -268,3 +268,11 @@ pub enum NonEmptyVecError {
     #[error("Vector is empty")]
     EmptyVector,
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum CryptoHashError {
+    #[error(transparent)]
+    Base58DecodeError(#[from] bs58::decode::Error),
+    #[error("Incorrect hash length (expected 32, but {0} was given)")]
+    IncorrectHashLength(usize),
+}

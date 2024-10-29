@@ -3,7 +3,6 @@ use std::sync::Arc;
 use near_crypto::PublicKey;
 use near_primitives::{
     action::delegate::SignedDelegateAction,
-    hash::CryptoHash,
     transaction::SignedTransaction,
     types::{BlockHeight, Nonce},
     views::FinalExecutionOutcomeView,
@@ -18,7 +17,7 @@ use crate::{
         ValidationError,
     },
     signer::Signer,
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 use super::{

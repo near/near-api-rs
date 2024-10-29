@@ -1,11 +1,11 @@
 use near_primitives::{
-    hash::CryptoHash,
     types::{BlockHeight, BlockReference},
     views::BlockView,
 };
 
-use crate::common::query::{
-    BlockQueryBuilder, PostprocessHandler, RpcBlockHandler, SimpleBlockRpc,
+use crate::{
+    common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler, SimpleBlockRpc},
+    types::CryptoHash,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +29,7 @@ impl Chain {
             BlockReference::latest(),
             PostprocessHandler::new(
                 RpcBlockHandler,
-                Box::new(|data: BlockView| data.header.hash),
+                Box::new(|data: BlockView| data.header.hash.into()),
             ),
         )
     }

@@ -1,14 +1,13 @@
 use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{
-    action::delegate::SignedDelegateAction, hash::CryptoHash, transaction::Transaction,
-    types::Nonce,
+    action::delegate::SignedDelegateAction, transaction::Transaction, types::Nonce,
 };
 use slipped10::BIP32Path;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     errors::{LedgerError, MetaSignError, SignerError},
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 use super::SignerTrait;
@@ -42,7 +41,7 @@ impl SignerTrait for LedgerSigner {
             public_key,
             tr.receiver_id,
             nonce,
-            block_hash,
+            block_hash.into(),
         );
         *unsigned_tx.actions_mut() = tr.actions;
         let unsigned_tx_bytes = borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?;

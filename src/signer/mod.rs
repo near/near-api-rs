@@ -11,7 +11,6 @@ use std::{
 use near_crypto::{ED25519SecretKey, PublicKey, SecretKey};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
-    hash::CryptoHash,
     transaction::{SignedTransaction, Transaction},
     types::{AccountId, BlockHeight, Nonce},
 };
@@ -22,7 +21,7 @@ use tracing::{debug, info, instrument, trace, warn};
 use crate::{
     config::NetworkConfig,
     errors::{AccessKeyFileError, MetaSignError, SecretError, SignerError},
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 use self::{access_keyfile_signer::AccessKeyFileSigner, secret_key::SecretKeySigner};

@@ -89,7 +89,7 @@ impl Transaction {
         )
         .add_actions(unsigned_tx.take_actions())
         .with_signer(signer)
-        .presign_offline(public_key, block_hash, nonce)
+        .presign_offline(public_key, block_hash.into(), nonce)
         .await
     }
 }
