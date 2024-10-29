@@ -1,6 +1,5 @@
 use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{
-    hash::CryptoHash,
     transaction::Transaction,
     types::{AccountId, Nonce},
     views::AccessKeyPermissionView,
@@ -10,7 +9,7 @@ use tracing::{debug, info, instrument, trace, warn};
 use crate::{
     config::NetworkConfig,
     errors::{KeyStoreError, SignerError},
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 use super::{AccountKeyPair, SignerTrait};
@@ -50,7 +49,7 @@ impl SignerTrait for KeystoreSigner {
             public_key,
             tr.receiver_id,
             nonce,
-            block_hash,
+            block_hash.into(),
         );
         *transaction.actions_mut() = tr.actions;
 

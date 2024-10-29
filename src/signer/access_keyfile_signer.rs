@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use near_crypto::{PublicKey, SecretKey};
-use near_primitives::{hash::CryptoHash, transaction::Transaction, types::Nonce};
+use near_primitives::{transaction::Transaction, types::Nonce};
 use tracing::{debug, instrument, trace};
 
 use super::{AccountKeyPair, SignerTrait};
 use crate::{
     errors::{AccessKeyFileError, SignerError},
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 const ACCESS_KEYFILE_SIGNER_TARGET: &str = "near_api::signer::access_keyfile";
@@ -43,7 +43,7 @@ impl SignerTrait for AccessKeyFileSigner {
             public_key,
             tr.receiver_id,
             nonce,
-            block_hash,
+            block_hash.into(),
         );
         *transaction.actions_mut() = tr.actions;
 

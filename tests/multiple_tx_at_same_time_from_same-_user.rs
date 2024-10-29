@@ -1,10 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
-use near_api::{
-    signer::{Signer, SignerTrait},
-    Account, NetworkConfig, Tokens,
-};
+use near_api::prelude::*;
+
 use near_crypto::PublicKey;
 use near_primitives::account::AccessKeyPermission;
 use near_token::NearToken;

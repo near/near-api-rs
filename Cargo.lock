@@ -1734,6 +1734,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "borsh",
+ "bs58 0.4.0",
  "ed25519-dalek",
  "futures",
  "keyring",

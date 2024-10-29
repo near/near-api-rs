@@ -1,5 +1,6 @@
 use near_account_id::AccountId;
-use near_api::{signer::Signer, NetworkConfig};
+use near_api::prelude::*;
+
 use near_token::NearToken;
 
 #[tokio::main]
@@ -8,7 +9,7 @@ async fn main() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    let balance = near_api::Tokens::of(account.id().clone())
+    let balance = Tokens::of(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -19,7 +20,7 @@ async fn main() {
     let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
-    near_api::Account::create_account()
+    Account::create_account()
         .fund_myself(
             new_account.clone(),
             account.id().clone(),
@@ -33,7 +34,7 @@ async fn main() {
         .await
         .unwrap();
 
-    near_api::Tokens::of(account.id().clone())
+    Tokens::of(account.id().clone())
         .send_to(new_account.clone())
         .near(NearToken::from_near(1))
         .with_signer(signer)
@@ -41,12 +42,12 @@ async fn main() {
         .await
         .unwrap();
 
-    let new_acccount_balance = near_api::Tokens::of(account.id().clone())
+    let new_acccount_balance = Tokens::of(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
         .unwrap();
-    let bob_balance = near_api::Tokens::of(new_account)
+    let bob_balance = Tokens::of(new_account)
         .near_balance()
         .fetch_from(&network)
         .await

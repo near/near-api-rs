@@ -30,6 +30,7 @@ slipped10 = { version = "0.4.6" }
 url = { version = "2", features = ["serde"] }
 tokio = { version = "1.0", default-features = false, features = ["time"] }
 tracing = "0.1"
+bs58 = "0.4"
 
 thiserror = "1"
 
