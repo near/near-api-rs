@@ -2,6 +2,7 @@ use std::{marker::PhantomData, sync::Arc};
 
 use futures::future::join_all;
 use near_jsonrpc_client::methods::{
+    block::RpcBlockRequest,
     query::{RpcQueryRequest, RpcQueryResponse},
     validators::RpcValidatorRequest,
     RpcMethod,
@@ -9,7 +10,7 @@ use near_jsonrpc_client::methods::{
 use near_primitives::{
     types::{BlockReference, EpochReference},
     views::{
-        AccessKeyList, AccessKeyView, AccountView, ContractCodeView, EpochValidatorInfo,
+        AccessKeyList, AccessKeyView, AccountView, BlockView, ContractCodeView, EpochValidatorInfo,
         QueryRequest, ViewStateResult,
     },
 };
@@ -89,10 +90,27 @@ impl QueryCreator<RpcValidatorRequest> for SimpleValidatorRpc {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct SimpleBlockRpc;
+
+impl QueryCreator<RpcBlockRequest> for SimpleBlockRpc {
+    type RpcReference = BlockReference;
+    fn create_query(
+        &self,
+        _network: &NetworkConfig,
+        reference: BlockReference,
+    ) -> ResultWithMethod<RpcBlockRequest, RpcBlockRequest> {
+        Ok(RpcBlockRequest {
+            block_reference: reference,
+        })
+    }
+}
+
 pub type QueryBuilder<T> = RpcBuilder<T, RpcQueryRequest, BlockReference>;
 pub type MultiQueryBuilder<T> = MultiRpcBuilder<T, RpcQueryRequest, BlockReference>;
 
 pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochReference>;
+pub type BlockQueryBuilder<T> = RpcBuilder<T, RpcBlockRequest, BlockReference>;
 
 pub struct MultiRpcBuilder<ResponseHandler, Method, Reference>
 where
@@ -241,8 +259,11 @@ where
         }
     }
 
-    pub fn at(self, reference: Reference) -> Self {
-        Self { reference, ..self }
+    pub fn at(self, reference: impl Into<Reference>) -> Self {
+        Self {
+            reference: reference.into(),
+            ..self
+        }
     }
 
     pub const fn with_retries(mut self, retries: u8) -> Self {
@@ -675,6 +696,33 @@ impl ResponseHandler for RpcValidatorHandler {
             "Processed EpochValidatorInfo response, epoch height: {}, validators count: {}",
             response.epoch_height,
             response.current_validators.len()
+        );
+        Ok(response)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RpcBlockHandler;
+
+impl ResponseHandler for RpcBlockHandler {
+    type Response = BlockView;
+    type QueryResponse = BlockView;
+    type Method = RpcBlockRequest;
+
+    fn process_response(
+        &self,
+        response: Vec<BlockView>,
+    ) -> ResultWithMethod<Self::Response, Self::Method> {
+        let response = response
+            .into_iter()
+            .next()
+            .ok_or(QueryError::InternalErrorNoResponse)?;
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed Block response, height: {}, hash: {:?}",
+            response.header.height,
+            response.header.hash
         );
         Ok(response)
     }

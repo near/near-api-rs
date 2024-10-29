@@ -2,6 +2,7 @@ use near_primitives::{hash::CryptoHash, types::BlockHeight};
 use reqwest::header::InvalidHeaderValue;
 
 pub mod contract;
+pub mod reference;
 pub mod stake;
 pub mod storage;
 pub mod tokens;
