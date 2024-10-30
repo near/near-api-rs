@@ -2,14 +2,13 @@ use near_crypto::{PublicKey, SecretKey};
 use near_primitives::{
     transaction::Transaction,
     types::{AccountId, Nonce},
-    views::AccessKeyPermissionView,
 };
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
     errors::{KeyStoreError, SignerError},
-    types::{transactions::PrepopulateTransaction, CryptoHash},
+    types::{transactions::PrepopulateTransaction, views::AccessKeyPermission, CryptoHash},
 };
 
 use super::{AccountKeyPair, SignerTrait};
@@ -88,10 +87,11 @@ impl KeystoreSigner {
 
         debug!(target: KEYSTORE_SIGNER_TARGET, "Filtering and collecting potential public keys");
         let potential_pubkeys: Vec<PublicKey> = account_keys
+            .data
             .keys
             .into_iter()
             // TODO: support functional access keys
-            .filter(|key| key.access_key.permission == AccessKeyPermissionView::FullAccess)
+            .filter(|key| key.access_key.permission == AccessKeyPermission::FullAccess)
             .flat_map(|key| {
                 Self::get_secret_key(&account_id, &key.public_key, &network.network_name)
                     .map(|keypair| keypair.public_key)
