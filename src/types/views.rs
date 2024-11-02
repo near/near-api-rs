@@ -81,7 +81,7 @@ impl From<near_primitives::views::BlockHeaderView> for BlockHeader {
     }
 }
 
-/// The header belonging to a [`Chunk`]. This is a non-exhaustive list of
+/// The header belonging to a `Chunk`. This is a non-exhaustive list of
 /// members belonging to a Chunk, where newer fields can be added in the future.
 ///
 /// NOTE: For maintainability purposes, some items have been excluded. If required,
