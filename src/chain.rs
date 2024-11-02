@@ -1,11 +1,8 @@
-use near_primitives::{
-    types::{BlockHeight, BlockReference},
-    views::BlockView,
-};
+use near_primitives::types::{BlockHeight, BlockReference};
 
 use crate::{
     common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler, SimpleBlockRpc},
-    types::CryptoHash,
+    types::{views::Block, CryptoHash},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -16,10 +13,7 @@ impl Chain {
         BlockQueryBuilder::new(
             SimpleBlockRpc,
             BlockReference::latest(),
-            PostprocessHandler::new(
-                RpcBlockHandler,
-                Box::new(|data: BlockView| data.header.height),
-            ),
+            PostprocessHandler::new(RpcBlockHandler, Box::new(|data: Block| data.header.height)),
         )
     }
 
@@ -27,10 +21,7 @@ impl Chain {
         BlockQueryBuilder::new(
             SimpleBlockRpc,
             BlockReference::latest(),
-            PostprocessHandler::new(
-                RpcBlockHandler,
-                Box::new(|data: BlockView| data.header.hash.into()),
-            ),
+            PostprocessHandler::new(RpcBlockHandler, Box::new(|data: Block| data.header.hash)),
         )
     }
 

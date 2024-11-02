@@ -1,6 +1,6 @@
 use near_account_id::AccountId;
 use near_api::prelude::*;
-use near_primitives::{account::AccessKeyPermission, views::AccessKeyPermissionView};
+use near_api::types::views::AccessKeyPermission;
 use near_token::NearToken;
 
 #[tokio::test]
@@ -102,7 +102,7 @@ async fn access_key_management() {
     let alice_acc = Account(alice.id().clone());
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
-    assert_eq!(keys.keys.len(), 1);
+    assert_eq!(keys.data.keys.len(), 1);
 
     let (secret, tx) = alice_acc
         .add_key(AccessKeyPermission::FullAccess)
@@ -117,7 +117,7 @@ async fn access_key_management() {
         .assert_success();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
-    assert_eq!(keys.keys.len(), 2);
+    assert_eq!(keys.data.keys.len(), 2);
 
     let new_key_info = alice_acc
         .access_key(secret.public_key())
@@ -127,7 +127,7 @@ async fn access_key_management() {
 
     assert_eq!(
         new_key_info.data.permission,
-        AccessKeyPermissionView::FullAccess
+        AccessKeyPermission::FullAccess
     );
 
     alice_acc
@@ -140,7 +140,7 @@ async fn access_key_management() {
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
 
-    assert_eq!(keys.keys.len(), 1);
+    assert_eq!(keys.data.keys.len(), 1);
 
     alice_acc
         .access_key(secret.public_key())
@@ -164,10 +164,10 @@ async fn access_key_management() {
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
 
-    assert_eq!(keys.keys.len(), 11);
+    assert_eq!(keys.data.keys.len(), 11);
 
     alice_acc
-        .delete_keys(keys.keys.into_iter().map(|k| k.public_key).collect())
+        .delete_keys(keys.data.keys.into_iter().map(|k| k.public_key).collect())
         .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
         .send_to(&network)
         .await
@@ -175,5 +175,5 @@ async fn access_key_management() {
         .assert_success();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
-    assert_eq!(keys.keys.len(), 0);
+    assert_eq!(keys.data.keys.len(), 0);
 }

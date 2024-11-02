@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use near_crypto::PublicKey;
 use near_primitives::{
-    account::{AccessKey, AccessKeyPermission},
+    account::AccessKey,
     action::{AddKeyAction, DeleteKeyAction},
     types::{AccountId, BlockReference},
 };
@@ -15,6 +15,7 @@ use crate::common::{
     secret::SecretBuilder,
 };
 use crate::transactions::ConstructTransaction;
+use crate::types::views::AccessKeyPermission;
 
 use self::create::CreateAccountBuilder;
 
@@ -69,7 +70,7 @@ impl Account {
                     near_primitives::transaction::Action::AddKey(Box::new(AddKeyAction {
                         access_key: AccessKey {
                             nonce: 0,
-                            permission,
+                            permission: permission.into(),
                         },
                         public_key,
                     })),

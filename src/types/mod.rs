@@ -11,6 +11,7 @@ pub mod stake;
 pub mod storage;
 pub mod tokens;
 pub mod transactions;
+pub mod views;
 
 #[derive(
     Debug,

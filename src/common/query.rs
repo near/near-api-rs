@@ -7,17 +7,23 @@ use near_jsonrpc_client::methods::{
     validators::RpcValidatorRequest,
     RpcMethod,
 };
+use near_primitives::views::QueryRequest;
 use near_primitives::{
     types::{BlockReference, EpochReference},
-    views::{
-        AccessKeyList, AccessKeyView, AccountView, BlockView, ContractCodeView, EpochValidatorInfo,
-        QueryRequest, ViewStateResult,
-    },
+    views::{BlockView, EpochValidatorInfo},
 };
 use serde::de::DeserializeOwned;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::{common::utils::retry, config::NetworkConfig, errors::QueryError, types::Data};
+use crate::{
+    common::utils::retry,
+    config::NetworkConfig,
+    errors::QueryError,
+    types::{
+        views::{AccessKey, AccessKeyList, Account, Block, ContractCode, ViewStateResult},
+        Data,
+    },
+};
 
 const QUERY_EXECUTOR_TARGET: &str = "near_api::query::executor";
 
@@ -483,7 +489,7 @@ pub struct AccountViewHandler;
 
 impl ResponseHandler for AccountViewHandler {
     type QueryResponse = RpcQueryResponse;
-    type Response = Data<AccountView>;
+    type Response = Data<Account>;
     type Method = RpcQueryRequest;
 
     fn process_response(
@@ -504,7 +510,7 @@ impl ResponseHandler for AccountViewHandler {
                  account.amount, account.locked
             );
             Ok(Data {
-                data: account,
+                data: account.into(),
                 block_height: response.block_height,
                 block_hash: response.block_hash.into(),
             })
@@ -522,7 +528,7 @@ impl ResponseHandler for AccountViewHandler {
 pub struct AccessKeyListHandler;
 
 impl ResponseHandler for AccessKeyListHandler {
-    type Response = AccessKeyList;
+    type Response = Data<AccessKeyList>;
     type QueryResponse = RpcQueryResponse;
     type Method = RpcQueryRequest;
 
@@ -543,7 +549,11 @@ impl ResponseHandler for AccessKeyListHandler {
                 "Processed AccessKeyList response, keys count: {}",
                 access_key_list.keys.len()
             );
-            Ok(access_key_list)
+            Ok(Data {
+                data: access_key_list.into(),
+                block_height: response.block_height,
+                block_hash: response.block_hash.into(),
+            })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
@@ -558,7 +568,7 @@ impl ResponseHandler for AccessKeyListHandler {
 pub struct AccessKeyHandler;
 
 impl ResponseHandler for AccessKeyHandler {
-    type Response = Data<AccessKeyView>;
+    type Response = Data<AccessKey>;
     type QueryResponse = RpcQueryResponse;
     type Method = RpcQueryRequest;
 
@@ -580,7 +590,7 @@ impl ResponseHandler for AccessKeyHandler {
                 key.permission
             );
             Ok(Data {
-                data: key,
+                data: key.into(),
                 block_height: response.block_height,
                 block_hash: response.block_hash.into(),
             })
@@ -620,7 +630,7 @@ impl ResponseHandler for ViewStateHandler {
                 data.proof.len()
             );
             Ok(Data {
-                data,
+                data: data.into(),
                 block_height: response.block_height,
                 block_hash: response.block_hash.into(),
             })
@@ -638,7 +648,7 @@ impl ResponseHandler for ViewStateHandler {
 pub struct ViewCodeHandler;
 
 impl ResponseHandler for ViewCodeHandler {
-    type Response = Data<ContractCodeView>;
+    type Response = Data<ContractCode>;
     type QueryResponse = RpcQueryResponse;
     type Method = RpcQueryRequest;
 
@@ -660,7 +670,7 @@ impl ResponseHandler for ViewCodeHandler {
                 code.hash
             );
             Ok(Data {
-                data: code,
+                data: code.into(),
                 block_height: response.block_height,
                 block_hash: response.block_hash.into(),
             })
@@ -705,7 +715,7 @@ impl ResponseHandler for RpcValidatorHandler {
 pub struct RpcBlockHandler;
 
 impl ResponseHandler for RpcBlockHandler {
-    type Response = BlockView;
+    type Response = Block;
     type QueryResponse = BlockView;
     type Method = RpcBlockRequest;
 
@@ -724,7 +734,7 @@ impl ResponseHandler for RpcBlockHandler {
             response.header.height,
             response.header.hash
         );
-        Ok(response)
+        Ok(response.into())
     }
 }
 

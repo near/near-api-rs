@@ -7,7 +7,6 @@ use near_contract_standards::{
 use near_primitives::{
     action::{Action, TransferAction},
     types::{AccountId, BlockReference},
-    views::AccountView,
 };
 use near_sdk::json_types::U128;
 use near_token::NearToken;
@@ -28,6 +27,7 @@ use crate::{
     types::{
         tokens::{FTBalance, UserBalance},
         transactions::PrepopulateTransaction,
+        views::Account,
         Data,
     },
 };
@@ -56,7 +56,7 @@ impl Tokens {
             BlockReference::latest(),
             PostprocessHandler::new(
                 AccountViewHandler,
-                Box::new(|account: Data<AccountView>| {
+                Box::new(|account: Data<Account>| {
                     let account = account.data;
                     let liquid = NearToken::from_yoctonear(account.amount);
                     let locked = NearToken::from_yoctonear(account.locked);
