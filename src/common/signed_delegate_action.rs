@@ -1,4 +1,4 @@
-use near_primitives::{borsh, borsh::BorshDeserialize};
+use borsh::{self, BorshDeserialize};
 
 #[derive(Debug, Clone)]
 pub struct SignedDelegateActionAsBase64 {

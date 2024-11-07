@@ -2,7 +2,6 @@ use std::convert::Infallible;
 
 use near_crypto::PublicKey;
 use near_gas::NearGas;
-use near_primitives::types::AccountId;
 use near_token::NearToken;
 use reqwest::Response;
 use serde_json::json;
@@ -13,7 +12,7 @@ use crate::{
     errors::{AccountCreationError, FaucetError, ValidationError},
     prelude::*,
     transactions::{ConstructTransaction, TransactionWithSign},
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, AccountId},
 };
 
 #[derive(Clone, Debug)]

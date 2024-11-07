@@ -4,7 +4,7 @@ use near_gas::NearGas;
 
 use near_primitives::{
     action::{Action, DeployContractAction, FunctionCallAction},
-    types::{AccountId, BlockReference, StoreKey},
+    types::BlockReference,
 };
 use near_token::NearToken;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -20,7 +20,7 @@ use crate::{
     errors::BuilderError,
     signer::Signer,
     transactions::{ConstructTransaction, Transaction},
-    types::{contract::ContractSourceMetadata, Data},
+    types::{contract::ContractSourceMetadata, views::StoreKey, AccountId, Data},
 };
 
 #[derive(Clone, Debug)]

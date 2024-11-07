@@ -1,4 +1,3 @@
-use near_primitives::types::AccountId;
 use near_token::NearToken;
 use serde_json::json;
 
@@ -7,7 +6,7 @@ use crate::{
     contract::{Contract, ContractTransactBuilder},
     errors::BuilderError,
     transactions::ConstructTransaction,
-    types::storage::StorageBalance,
+    types::{storage::StorageBalance, AccountId},
 };
 
 #[derive(Clone, Debug)]

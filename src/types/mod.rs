@@ -13,6 +13,10 @@ pub mod tokens;
 pub mod transactions;
 pub mod views;
 
+pub use near_account_id::AccountId;
+pub use near_gas::NearGas;
+pub use near_token::NearToken;
+
 #[derive(
     Debug,
     Clone,

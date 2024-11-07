@@ -4,13 +4,13 @@ pub struct NetworkConfig {
     pub rpc_url: url::Url,
     pub rpc_api_key: Option<crate::types::ApiKey>,
     // https://github.com/near/near-cli-rs/issues/116
-    pub linkdrop_account_id: Option<near_primitives::types::AccountId>,
+    pub linkdrop_account_id: Option<crate::types::AccountId>,
     // https://docs.near.org/social/contract
-    pub near_social_db_contract_account_id: Option<near_primitives::types::AccountId>,
+    pub near_social_db_contract_account_id: Option<crate::types::AccountId>,
     pub faucet_url: Option<url::Url>,
     pub meta_transaction_relayer_url: Option<url::Url>,
     pub fastnear_url: Option<url::Url>,
-    pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
+    pub staking_pools_factory_account_id: Option<crate::types::AccountId>,
 }
 
 impl NetworkConfig {

@@ -6,7 +6,7 @@ use near_contract_standards::{
 };
 use near_primitives::{
     action::{Action, TransferAction},
-    types::{AccountId, BlockReference},
+    types::BlockReference,
 };
 use near_sdk::json_types::U128;
 use near_token::NearToken;
@@ -28,7 +28,7 @@ use crate::{
         tokens::{FTBalance, UserBalance},
         transactions::PrepopulateTransaction,
         views::Account,
-        Data,
+        AccountId, Data,
     },
 };
 

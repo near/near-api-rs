@@ -4,7 +4,7 @@ use near_crypto::PublicKey;
 use near_primitives::{
     account::AccessKey,
     action::{AddKeyAction, DeleteKeyAction},
-    types::{AccountId, BlockReference},
+    types::BlockReference,
 };
 
 use crate::common::{
@@ -15,7 +15,7 @@ use crate::common::{
     secret::SecretBuilder,
 };
 use crate::transactions::ConstructTransaction;
-use crate::types::views::AccessKeyPermission;
+use crate::types::{views::AccessKeyPermission, AccountId};
 
 use self::create::CreateAccountBuilder;
 

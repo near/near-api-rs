@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use near_primitives::{action::Action, types::AccountId};
+use near_primitives::action::Action;
 
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
     errors::{SignerError, ValidationError},
     signer::Signer,
-    types::transactions::PrepopulateTransaction,
+    types::{transactions::PrepopulateTransaction, AccountId},
 };
 
 #[derive(Clone, Debug)]

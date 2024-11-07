@@ -1,14 +1,13 @@
 use near_crypto::{PublicKey, SecretKey};
-use near_primitives::{
-    transaction::Transaction,
-    types::{AccountId, Nonce},
-};
+use near_primitives::{transaction::Transaction, types::Nonce};
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
     errors::{KeyStoreError, SignerError},
-    types::{transactions::PrepopulateTransaction, views::AccessKeyPermission, CryptoHash},
+    types::{
+        transactions::PrepopulateTransaction, views::AccessKeyPermission, AccountId, CryptoHash,
+    },
 };
 
 use super::{AccountKeyPair, SignerTrait};
