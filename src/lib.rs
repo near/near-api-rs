@@ -30,7 +30,10 @@ pub mod prelude {
         types::{
             reference::{EpochReference, Reference},
             tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
-            AccountId, Data, NearGas, NearToken,
+            Data,
         },
     };
+
+    pub use near_account_id::AccountId;
+    pub use near_token::NearToken;
 }

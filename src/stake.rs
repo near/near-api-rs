@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use near_gas::NearGas;
 use near_jsonrpc_client::methods::query::RpcQueryRequest;
-use near_primitives::types::{BlockReference, EpochReference};
+use near_primitives::types::{AccountId, BlockReference, EpochReference};
 use near_token::NearToken;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
     transactions::ConstructTransaction,
     types::{
         stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
-        AccountId, Data,
+        Data,
     },
 };
 

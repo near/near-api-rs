@@ -1,12 +1,13 @@
 use std::collections::BTreeSet;
 
+use near_primitives::types::AccountId;
 use serde::de::DeserializeOwned;
 
 use crate::errors::FastNearError;
-use crate::types::AccountId;
+
 #[derive(Debug, serde::Deserialize)]
 pub struct StakingPool {
-    pool_id: AccountId,
+    pool_id: near_primitives::types::AccountId,
 }
 
 #[derive(Debug, serde::Deserialize)]

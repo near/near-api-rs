@@ -23,7 +23,7 @@ async fn main() {
     );
 
     let (key, tx) = Account(account.id().clone())
-        .add_key(near_api::types::views::AccessKeyPermission::FullAccess)
+        .add_key(near_primitives::account::AccessKeyPermission::FullAccess)
         .new_keypair()
         .generate_secret_key()
         .unwrap();
