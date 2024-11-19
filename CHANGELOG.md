@@ -10,16 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0](https://github.com/near/near-api-rs/compare/v0.2.1...v0.3.0) - 2024-11-19
 
 ### Added
-
-- replaced `near-primitives` views with own types ([#11](https://github.com/near/near-api-rs/pull/11))
+- added querying block, block hash, and block number ([#9](https://github.com/near/near-api-rs/pull/9))
+- added prelude module ([#9](https://github.com/near/near-api-rs/pull/9))
 
 ### Other
-
-- reverted own-type changes
-- compilation fix ([#14](https://github.com/near/near-api-rs/pull/14))
-- [**breaking**] updates near-* dependencies to 0.27 release ([#13](https://github.com/near/near-api-rs/pull/13))
-- use own re-export
-- block querying, encapsulation improvements. ([#9](https://github.com/near/near-api-rs/pull/9))
+- [**breaking**] updated near-* dependencies to 0.27 release ([#13](https://github.com/near/near-api-rs/pull/13))
 
 ## [0.2.1](https://github.com/near/near-api-rs/compare/v0.2.0...v0.2.1) - 2024-10-25
 
