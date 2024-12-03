@@ -44,8 +44,8 @@ impl Contract {
         })
     }
 
-    pub fn deploy(&self, code: Vec<u8>) -> DeployContractBuilder {
-        DeployContractBuilder::new(self.0.clone(), code)
+    pub fn deploy(contract: AccountId, code: Vec<u8>) -> DeployContractBuilder {
+        DeployContractBuilder::new(contract, code)
     }
 
     pub fn abi(

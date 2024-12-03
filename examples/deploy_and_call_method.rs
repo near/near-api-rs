@@ -6,18 +6,21 @@ async fn main() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    let contract = Contract(account.id().clone());
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
-    contract
-        .deploy(include_bytes!("../resources/counter.wasm").to_vec())
-        // You can add init call as well using `with_init_call`
-        .without_init_call()
-        .with_signer(signer.clone())
-        .send_to(&network)
-        .await
-        .unwrap();
+    Contract::deploy(
+        account.id().clone(),
+        include_bytes!("../resources/counter.wasm").to_vec(),
+    )
+    // You can add init call as well using `with_init_call`
+    .without_init_call()
+    .with_signer(signer.clone())
+    .send_to(&network)
+    .await
+    .unwrap();
+
+    let contract = Contract(account.id().clone());
 
     // Let's fetch current value on a contract
     let current_value: Data<i8> = contract
