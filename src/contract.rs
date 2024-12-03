@@ -44,7 +44,7 @@ impl Contract {
         })
     }
 
-    pub fn deploy(contract: AccountId, code: Vec<u8>) -> DeployContractBuilder {
+    pub const fn deploy(contract: AccountId, code: Vec<u8>) -> DeployContractBuilder {
         DeployContractBuilder::new(contract, code)
     }
 
