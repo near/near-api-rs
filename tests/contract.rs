@@ -8,16 +8,18 @@ async fn contract_without_init_call() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    let contract = Contract(account.id().clone());
+    Contract::deploy(
+        account.id().clone(),
+        include_bytes!("../resources/counter.wasm").to_vec(),
+    )
+    .without_init_call()
+    .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
+    .send_to(&network)
+    .await
+    .unwrap()
+    .assert_success();
 
-    contract
-        .deploy(include_bytes!("../resources/counter.wasm").to_vec())
-        .without_init_call()
-        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
-        .send_to(&network)
-        .await
-        .unwrap()
-        .assert_success();
+    let contract = Contract(account.id().clone());
 
     assert!(!contract
         .wasm()
@@ -76,23 +78,25 @@ async fn contract_with_init_call() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    let contract = Contract(account.id().clone());
+    Contract::deploy(
+        account.id().clone(),
+        include_bytes!("../resources/fungible_token.wasm").to_vec(),
+    )
+    .with_init_call(
+        "new_default_meta",
+        json!({
+            "owner_id": account.id().to_string(),
+            "total_supply": "1000000000000000000000000000"
+        }),
+    )
+    .unwrap()
+    .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
+    .send_to(&network)
+    .await
+    .unwrap()
+    .assert_success();
 
-    contract
-        .deploy(include_bytes!("../resources/fungible_token.wasm").to_vec())
-        .with_init_call(
-            "new_default_meta",
-            json!({
-                "owner_id": account.id().to_string(),
-                "total_supply": "1000000000000000000000000000"
-            }),
-        )
-        .unwrap()
-        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
-        .send_to(&network)
-        .await
-        .unwrap()
-        .assert_success();
+    let contract = Contract(account.id().clone());
 
     assert!(!contract
         .wasm()

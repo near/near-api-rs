@@ -11,23 +11,26 @@ async fn main() {
     let account = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
-    let contract = Contract(nft.id().clone());
     let nft_signer = Signer::new(Signer::from_workspace(&nft)).unwrap();
 
     // Deploying token contract
-    contract
-        .deploy(include_bytes!("../resources/nft.wasm").to_vec())
-        .with_init_call(
-            "new_default_meta",
-            json!({
-                "owner_id": nft.id().to_string(),
-            }),
-        )
-        .unwrap()
-        .with_signer(nft_signer.clone())
-        .send_to(&network)
-        .await
-        .unwrap();
+    Contract::deploy(
+        nft.id().clone(),
+        include_bytes!("../resources/nft.wasm").to_vec(),
+    )
+    .with_init_call(
+        "new_default_meta",
+        json!({
+            "owner_id": nft.id().to_string(),
+        }),
+    )
+    .unwrap()
+    .with_signer(nft_signer.clone())
+    .send_to(&network)
+    .await
+    .unwrap();
+
+    let contract = Contract(nft.id().clone());
 
     // Mint NFT via contract call
     contract
