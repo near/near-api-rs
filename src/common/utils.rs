@@ -59,8 +59,8 @@ pub enum RetryResponse<R, E> {
 impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
     fn from(value: Result<R, E>) -> Self {
         match value {
-            Ok(value) => RetryResponse::Ok(value),
-            Err(value) => RetryResponse::Retry(value),
+            Ok(value) => Self::Ok(value),
+            Err(value) => Self::Retry(value),
         }
     }
 }
