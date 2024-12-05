@@ -75,7 +75,7 @@ impl CreateAccountBuilder {
                 return Err(AccountCreationError::TopLevelAccountIsNotAllowed);
             };
 
-            let prepopulated = ConstructTransaction::new(signer_account_id.clone(), receiver_id)
+            let prepopulated = ConstructTransaction::new(signer_account_id, receiver_id)
                 .add_actions(actions)
                 .prepopulated();
 
