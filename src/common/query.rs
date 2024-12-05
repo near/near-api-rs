@@ -2,9 +2,9 @@ use std::{marker::PhantomData, sync::Arc};
 
 use futures::future::join_all;
 use near_jsonrpc_client::methods::{
-    block::RpcBlockRequest,
-    query::{RpcQueryRequest, RpcQueryResponse},
-    validators::RpcValidatorRequest,
+    block::{RpcBlockError, RpcBlockRequest},
+    query::{RpcQueryError, RpcQueryRequest, RpcQueryResponse},
+    validators::{RpcValidatorError, RpcValidatorRequest},
     RpcMethod,
 };
 use near_primitives::{
@@ -17,7 +17,16 @@ use near_primitives::{
 use serde::de::DeserializeOwned;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::{common::utils::retry, config::NetworkConfig, errors::QueryError, types::Data};
+use crate::{
+    common::utils::{retry, RetryResponse},
+    config::NetworkConfig,
+    errors::QueryError,
+    types::Data,
+};
+
+use super::utils::{
+    is_critical_blocks_error, is_critical_query_error, is_critical_validator_error,
+};
 
 const QUERY_EXECUTOR_TARGET: &str = "near_api::query::executor";
 
@@ -53,6 +62,11 @@ where
         network: &NetworkConfig,
         reference: Self::RpcReference,
     ) -> ResultWithMethod<Method, Method>;
+
+    fn is_critical_error(
+        &self,
+        error: &near_jsonrpc_client::errors::JsonRpcError<Method::Error>,
+    ) -> bool;
 }
 
 #[derive(Clone, Debug)]
@@ -72,6 +86,13 @@ impl QueryCreator<RpcQueryRequest> for SimpleQuery {
             request: self.request.clone(),
         })
     }
+
+    fn is_critical_error(
+        &self,
+        error: &near_jsonrpc_client::errors::JsonRpcError<RpcQueryError>,
+    ) -> bool {
+        is_critical_query_error(error)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -88,6 +109,13 @@ impl QueryCreator<RpcValidatorRequest> for SimpleValidatorRpc {
             epoch_reference: reference,
         })
     }
+
+    fn is_critical_error(
+        &self,
+        error: &near_jsonrpc_client::errors::JsonRpcError<RpcValidatorError>,
+    ) -> bool {
+        is_critical_validator_error(error)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -103,6 +131,13 @@ impl QueryCreator<RpcBlockRequest> for SimpleBlockRpc {
         Ok(RpcBlockRequest {
             block_reference: reference,
         })
+    }
+
+    fn is_critical_error(
+        &self,
+        error: &near_jsonrpc_client::errors::JsonRpcError<RpcBlockError>,
+    ) -> bool {
+        is_critical_blocks_error(error)
     }
 }
 
@@ -176,16 +211,26 @@ where
         let requests: Vec<_> = self
             .requests
             .into_iter()
-            .map(|request| request.create_query(network, self.reference.clone()))
+            .map(|request| {
+                request
+                    .create_query(network, self.reference.clone())
+                    .map(|query| (query, request))
+            })
             .collect::<Result<_, _>>()?;
 
         info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", requests.len());
-        let requests = requests.into_iter().map(|query| {
+        let requests = requests.into_iter().map(|(query, request)| {
             let json_rpc_client = json_rpc_client.clone();
             async move {
                 retry(
                     || async {
-                        let result = json_rpc_client.call(&query).await;
+                        let result = match json_rpc_client.call(&query).await {
+                            Ok(result) => RetryResponse::Ok(result),
+                            Err(err) if request.is_critical_error(&err) => {
+                                RetryResponse::Critical(err)
+                            }
+                            Err(err) => RetryResponse::Retry(err),
+                        };
                         tracing::debug!(
                             target: QUERY_EXECUTOR_TARGET,
                             "Querying RPC with {:?} resulted in {:?}",
@@ -292,7 +337,13 @@ where
 
         let query_response = retry(
             || async {
-                let result = json_rpc_client.call(&query).await;
+                let result = match json_rpc_client.call(&query).await {
+                    Ok(result) => RetryResponse::Ok(result),
+                    Err(err) if self.request.is_critical_error(&err) => {
+                        RetryResponse::Critical(err)
+                    }
+                    Err(err) => RetryResponse::Retry(err),
+                };
                 tracing::debug!(
                     target: QUERY_EXECUTOR_TARGET,
                     "Querying RPC with {:?} resulted in {:?}",

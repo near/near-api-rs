@@ -13,7 +13,7 @@ pub enum QueryCreationError {
 #[derive(thiserror::Error, Debug)]
 pub enum QueryError<Method: RpcMethod>
 where
-    Method::Error: std::fmt::Debug + std::fmt::Display,
+    Method::Error: std::fmt::Debug + std::fmt::Display + 'static,
 {
     #[error(transparent)]
     QueryCreationError(#[from] QueryCreationError),
@@ -24,8 +24,8 @@ where
     },
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
-    #[error(transparent)]
-    JsonRpcError(#[from] JsonRpcError<Method::Error>),
+    #[error("Query error: {0}")]
+    JsonRpcError(#[from] RetryError<JsonRpcError<Method::Error>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
 }
@@ -173,6 +173,14 @@ pub enum DecimalNumberParsingError {
 }
 
 #[derive(thiserror::Error, Debug)]
+pub enum RetryError<E> {
+    #[error("Retries exhausted. The last error is: {0}")]
+    RetriesExhausted(E),
+    #[error("Critical error: {0}")]
+    Critical(E),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum ExecuteTransactionError {
     #[error("Transaction validation error: {0}")]
     ValidationError(#[from] ValidationError),
@@ -182,8 +190,8 @@ pub enum ExecuteTransactionError {
     MetaSignError(#[from] MetaSignError),
     #[error("Pre-query error: {0}")]
     PreQueryError(#[from] QueryError<RpcQueryRequest>),
-    #[error("Retries exhausted. The last error is: {0}")]
-    RetriesExhausted(JsonRpcError<RpcTransactionError>),
+    #[error("Transaction error: {0}")]
+    TransactionError(#[from] RetryError<JsonRpcError<RpcTransactionError>>),
     #[deprecated(since = "0.2.1", note = "unused")]
     #[error("Transaction error: {0}")]
     CriticalTransactionError(JsonRpcError<RpcTransactionError>),
