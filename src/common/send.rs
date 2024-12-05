@@ -11,6 +11,7 @@ use reqwest::Response;
 use tracing::{debug, info};
 
 use crate::{
+    common::utils::{is_critical_transaction_error, RetryResponse},
     config::NetworkConfig,
     errors::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
@@ -238,14 +239,19 @@ impl ExecuteSignedTransaction {
             || {
                 let signed_tr = signed_tr.clone();
                 async move {
-                    let result = network
+                    let result = match network
                 .json_rpc_client()
                 .call(
                     near_jsonrpc_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
                         signed_transaction: signed_tr.clone(),
                         },
                     )
-                    .await;
+                        .await
+                    {
+                        Ok(result) => RetryResponse::Ok(result),
+                        Err(err) if is_critical_transaction_error(&err) => RetryResponse::Critical(err),
+                        Err(err) => RetryResponse::Retry(err),
+                    };
 
                     tracing::debug!(
                         target: TX_EXECUTOR_TARGET,
@@ -262,7 +268,7 @@ impl ExecuteSignedTransaction {
             false,
         )
         .await
-        .map_err(ExecuteTransactionError::RetriesExhausted)
+        .map_err(ExecuteTransactionError::TransactionError)
     }
 }
 

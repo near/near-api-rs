@@ -1,15 +1,18 @@
 use std::collections::BTreeMap;
 
 use near_gas::NearGas;
-use near_jsonrpc_client::methods::query::RpcQueryRequest;
+use near_jsonrpc_client::methods::query::{RpcQueryError, RpcQueryRequest};
 use near_primitives::types::{AccountId, BlockReference, EpochReference};
 use near_token::NearToken;
 
 use crate::{
-    common::query::{
-        CallResultHandler, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler, QueryBuilder,
-        QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc, ValidatorQueryBuilder,
-        ViewStateHandler,
+    common::{
+        query::{
+            CallResultHandler, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
+            QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc,
+            ValidatorQueryBuilder, ViewStateHandler,
+        },
+        utils::is_critical_query_error,
     },
     contract::Contract,
     errors::{BuilderError, QueryCreationError, QueryError},
@@ -412,5 +415,12 @@ impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
                 include_proof: false,
             },
         })
+    }
+
+    fn is_critical_error(
+        &self,
+        error: &near_jsonrpc_client::errors::JsonRpcError<RpcQueryError>,
+    ) -> bool {
+        is_critical_query_error(error)
     }
 }
