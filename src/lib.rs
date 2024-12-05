@@ -18,6 +18,7 @@ pub mod prelude {
     pub use crate::{
         account::Account,
         chain::Chain,
+        common::secret::*,
         config::NetworkConfig,
         contract::Contract,
         fastnear::FastNear,

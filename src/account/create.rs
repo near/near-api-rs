@@ -9,7 +9,7 @@ use serde_json::json;
 use url::Url;
 
 use crate::{
-    common::{secret::SecretBuilder, send::Transactionable},
+    common::send::Transactionable,
     errors::{AccountCreationError, FaucetError, ValidationError},
     prelude::*,
     transactions::{ConstructTransaction, TransactionWithSign},
@@ -17,17 +17,19 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct CreateAccountBuilder;
+pub struct CreateAccountBuilder {
+    pub account_id: AccountId,
+}
 
 impl CreateAccountBuilder {
     pub fn fund_myself(
         self,
-        account_id: AccountId,
         signer_account_id: AccountId,
         initial_balance: NearToken,
-    ) -> SecretBuilder<TransactionWithSign<CreateAccountFundMyselfTx>, AccountCreationError> {
-        SecretBuilder::new(Box::new(move |public_key| {
-            let (actions, receiver_id) = if account_id.is_sub_account_of(&signer_account_id) {
+    ) -> PublicKeyProvider<TransactionWithSign<CreateAccountFundMyselfTx>, AccountCreationError>
+    {
+        PublicKeyProvider::new(Box::new(move |public_key| {
+            let (actions, receiver_id) = if self.account_id.is_sub_account_of(&signer_account_id) {
                 (
                     vec![
                         near_primitives::transaction::Action::CreateAccount(
@@ -49,15 +51,15 @@ impl CreateAccountBuilder {
                             },
                         )),
                     ],
-                    account_id.clone(),
+                    self.account_id.clone(),
                 )
-            } else if let Some(linkdrop_account_id) = account_id.get_parent_account_id() {
+            } else if let Some(linkdrop_account_id) = self.account_id.get_parent_account_id() {
                 (
                     Contract(linkdrop_account_id.to_owned())
                         .call_function(
                             "create_account",
                             json!({
-                                "new_account_id": account_id.to_string(),
+                                "new_account_id": self.account_id.to_string(),
                                 "new_public_key": public_key.to_string(),
                             }),
                         )?
@@ -86,17 +88,13 @@ impl CreateAccountBuilder {
     pub fn sponsor_by_faucet_service(
         self,
         account_id: AccountId,
-    ) -> SecretBuilder<CreateAccountByFaucet, Infallible> {
-        SecretBuilder::new(Box::new(move |public_key| {
+    ) -> PublicKeyProvider<CreateAccountByFaucet, Infallible> {
+        PublicKeyProvider::new(Box::new(move |public_key| {
             Ok(CreateAccountByFaucet {
                 new_account_id: account_id,
                 public_key,
             })
         }))
-    }
-
-    pub fn implicit(self) -> SecretBuilder<PublicKey, Infallible> {
-        SecretBuilder::new(Box::new(Ok))
     }
 }
 
@@ -165,5 +163,21 @@ impl Transactionable for CreateAccountFundMyselfTx {
         }
 
         Ok(())
+    }
+}
+
+pub type PublicKeyCallback<T, E> = dyn FnOnce(PublicKey) -> Result<T, E>;
+
+pub struct PublicKeyProvider<T, E> {
+    next_step: Box<PublicKeyCallback<T, E>>,
+}
+
+impl<T, E> PublicKeyProvider<T, E> {
+    pub const fn new(next_step: Box<PublicKeyCallback<T, E>>) -> Self {
+        Self { next_step }
+    }
+
+    pub fn public_key(self, pk: PublicKey) -> Result<T, E> {
+        (self.next_step)(pk)
     }
 }

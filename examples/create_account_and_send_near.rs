@@ -20,14 +20,9 @@ async fn main() {
     let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
-    Account::create_account()
-        .fund_myself(
-            new_account.clone(),
-            account.id().clone(),
-            NearToken::from_near(1),
-        )
-        .new_keypair()
-        .save_generated_seed_to_file("./new_account_seed".into())
+    Account::create_account(new_account.clone())
+        .fund_myself(account.id().clone(), NearToken::from_near(1))
+        .public_key(generate_secret_key().unwrap().public_key())
         .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)

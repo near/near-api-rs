@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use near_crypto::PublicKey;
 use near_primitives::{
     account::{AccessKey, AccessKeyPermission},
@@ -7,12 +5,9 @@ use near_primitives::{
     types::{AccountId, BlockReference},
 };
 
-use crate::common::{
-    query::{
-        AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder, RpcBuilder,
-        SimpleQuery,
-    },
-    secret::SecretBuilder,
+use crate::common::query::{
+    AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder, RpcBuilder,
+    SimpleQuery,
 };
 use crate::transactions::ConstructTransaction;
 
@@ -61,21 +56,17 @@ impl Account {
     pub fn add_key(
         &self,
         permission: AccessKeyPermission,
-    ) -> SecretBuilder<ConstructTransaction, Infallible> {
-        let account_id = self.0.clone();
-        SecretBuilder::new(move |public_key| {
-            Ok(
-                ConstructTransaction::new(account_id.clone(), account_id.clone()).add_action(
-                    near_primitives::transaction::Action::AddKey(Box::new(AddKeyAction {
-                        access_key: AccessKey {
-                            nonce: 0,
-                            permission,
-                        },
-                        public_key,
-                    })),
-                ),
-            )
-        })
+        public_key: PublicKey,
+    ) -> ConstructTransaction {
+        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(
+            near_primitives::transaction::Action::AddKey(Box::new(AddKeyAction {
+                access_key: AccessKey {
+                    nonce: 0,
+                    permission,
+                },
+                public_key,
+            })),
+        )
     }
 
     pub fn delete_key(&self, public_key: PublicKey) -> ConstructTransaction {
@@ -110,7 +101,7 @@ impl Account {
         )
     }
 
-    pub const fn create_account() -> CreateAccountBuilder {
-        CreateAccountBuilder
+    pub const fn create_account(account_id: AccountId) -> CreateAccountBuilder {
+        CreateAccountBuilder { account_id }
     }
 }
