@@ -58,38 +58,31 @@ async fn multiple_tx_at_same_time_from_different_keys() {
 
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
-    let (key1, acc) = Account(account.id().clone())
-        .add_key(AccessKeyPermission::FullAccess)
-        .new_keypair()
-        .generate_secret_key()
-        .unwrap();
-    acc.with_signer(signer.clone())
+    let secret = generate_secret_key().unwrap();
+    Account(account.id().clone())
+        .add_key(AccessKeyPermission::FullAccess, secret.public_key())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
         .assert_success();
 
     signer
-        .add_signer_to_pool(Signer::secret_key(key1.clone()))
+        .add_signer_to_pool(Signer::secret_key(secret.clone()))
         .await
         .unwrap();
 
-    let (key2, acc) = Account(account.id().clone())
-        .add_key(AccessKeyPermission::FullAccess)
-        .new_keypair()
-        .generate_secret_key()
-        .unwrap();
-    let result = acc
+    let secret2 = generate_secret_key().unwrap();
+    Account(account.id().clone())
+        .add_key(AccessKeyPermission::FullAccess, secret2.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap();
     signer
-        .add_signer_to_pool(Signer::secret_key(key2.clone()))
+        .add_signer_to_pool(Signer::secret_key(secret2.clone()))
         .await
         .unwrap();
-
-    result.assert_success();
 
     let tx = (0..12).map(|i| {
         Tokens::of(account.id().clone())
@@ -115,6 +108,6 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     let initial_key: PublicKey = initial_key.to_string().parse().unwrap();
     assert_eq!(hash_map.len(), 3);
     assert_eq!(hash_map[&initial_key], 4);
-    assert_eq!(hash_map[&key1.public_key()], 4);
-    assert_eq!(hash_map[&key2.public_key()], 4);
+    assert_eq!(hash_map[&secret2.public_key()], 4);
+    assert_eq!(hash_map[&secret.public_key()], 4);
 }

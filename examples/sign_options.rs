@@ -10,25 +10,20 @@ async fn main() {
 
     // Current secret key from workspace
     let current_secret_key: SecretKey = account.secret_key().to_string().parse().unwrap();
+    let (new_seed_phrase, public_key) = generate_seed_phrase().unwrap();
 
     // Let's add new key and get the seed phrase
-    let (new_seed_phrase, tx) = Account(account.id().clone())
-        .add_key(AccessKeyPermission::FullAccess)
-        .new_keypair()
-        // Passphrase is optional. You can also configure hd_path
-        .passphrase("smile".to_string())
-        .generate_seed_phrase()
-        .unwrap();
-    tx.with_signer(Signer::new(Signer::secret_key(current_secret_key.clone())).unwrap())
+    Account(account.id().clone())
+        .add_key(AccessKeyPermission::FullAccess, public_key)
+        .with_signer(Signer::new(Signer::secret_key(current_secret_key.clone())).unwrap())
         .send_to(&network)
         .await
         .unwrap();
 
     // Let's add ledger to the account with the new seed phrase
+    let ledger_pubkey = Signer::ledger().get_public_key().unwrap();
     Account(account.id().clone())
-        .add_key(AccessKeyPermission::FullAccess)
-        .use_public_key_from(&Signer::ledger())
-        .unwrap()
+        .add_key(AccessKeyPermission::FullAccess, ledger_pubkey)
         .with_signer(
             Signer::new(Signer::seed_phrase(new_seed_phrase, Some("smile".to_string())).unwrap())
                 .unwrap(),

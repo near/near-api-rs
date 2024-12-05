@@ -10,17 +10,11 @@ async fn create_and_delete_account() {
     let network: NetworkConfig = NetworkConfig::from(network);
 
     let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
-
-    Account::create_account()
-        .fund_myself(
-            new_account.clone(),
-            account.id().clone(),
-            NearToken::from_near(1),
-        )
-        .new_keypair()
-        .generate_secret_key()
+    let secret = generate_secret_key().unwrap();
+    Account::create_account(new_account.clone())
+        .fund_myself(account.id().clone(), NearToken::from_near(1))
+        .public_key(secret.public_key())
         .unwrap()
-        .1
         .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
         .await
@@ -104,13 +98,11 @@ async fn access_key_management() {
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
     assert_eq!(keys.keys.len(), 1);
 
-    let (secret, tx) = alice_acc
-        .add_key(AccessKeyPermission::FullAccess)
-        .new_keypair()
-        .generate_secret_key()
-        .unwrap();
+    let secret = generate_secret_key().unwrap();
 
-    tx.with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+    alice_acc
+        .add_key(AccessKeyPermission::FullAccess, secret.public_key())
+        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -149,12 +141,9 @@ async fn access_key_management() {
         .expect_err("Shouldn't exist");
 
     for _ in 0..10 {
+        let secret = generate_secret_key().unwrap();
         alice_acc
-            .add_key(AccessKeyPermission::FullAccess)
-            .new_keypair()
-            .generate_secret_key()
-            .unwrap()
-            .1
+            .add_key(AccessKeyPermission::FullAccess, secret.public_key())
             .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
             .send_to(&network)
             .await

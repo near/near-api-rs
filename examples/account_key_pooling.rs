@@ -22,22 +22,22 @@ async fn main() {
         signer.get_public_key().await.unwrap()
     );
 
-    let (key, tx) = Account(account.id().clone())
-        .add_key(near_primitives::account::AccessKeyPermission::FullAccess)
-        .new_keypair()
-        .generate_secret_key()
-        .unwrap();
+    let secret_key = generate_secret_key().unwrap();
+    println!("New public key: {}", secret_key.public_key());
 
-    println!("New public key: {}", key.public_key());
-
-    tx.with_signer(Arc::clone(&signer))
+    Account(account.id().clone())
+        .add_key(
+            near_primitives::account::AccessKeyPermission::FullAccess,
+            secret_key.public_key(),
+        )
+        .with_signer(Arc::clone(&signer))
         .send_to(&network)
         .await
         .unwrap()
         .assert_success();
 
     signer
-        .add_signer_to_pool(Signer::secret_key(key))
+        .add_signer_to_pool(Signer::secret_key(secret_key))
         .await
         .unwrap();
 
