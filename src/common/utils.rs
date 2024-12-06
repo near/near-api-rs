@@ -1,6 +1,6 @@
 // https://github.com/near/near-token-rs/blob/3feafec624e7d1028ed00695f2acf87e1d823fa7/src/utils.rs#L1-L49
 
-use crate::errors::{DecimalNumberParsingError, RetryError};
+use crate::errors::DecimalNumberParsingError;
 
 /// Parsing decimal numbers from `&str` type in `u128`.
 /// Function also takes a value of metric prefix in u128 type.
@@ -47,55 +47,6 @@ pub fn parse_decimal_number(s: &str, pref_const: u128) -> Result<u128, DecimalNu
         )
         .ok_or_else(|| DecimalNumberParsingError::LongWhole(int.to_string()))?;
     Ok(result)
-}
-
-#[derive(Debug)]
-pub enum RetryResponse<R, E> {
-    Ok(R),
-    Retry(E),
-    Critical(E),
-}
-
-impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
-    fn from(value: Result<R, E>) -> Self {
-        match value {
-            Ok(value) => Self::Ok(value),
-            Err(value) => Self::Retry(value),
-        }
-    }
-}
-
-pub async fn retry<R, E, T, F>(
-    mut task: F,
-    retries: u8,
-    initial_sleep: std::time::Duration,
-    exponential_backoff: bool,
-) -> Result<R, RetryError<E>>
-where
-    F: FnMut() -> T + Send,
-    T: core::future::Future<Output = RetryResponse<R, E>> + Send,
-    T::Output: Send,
-{
-    let mut retries = (1..=retries).rev();
-    let mut sleep_duration = initial_sleep;
-    loop {
-        let result = task().await;
-        match result {
-            RetryResponse::Ok(result) => return Ok(result),
-            RetryResponse::Retry(_) if retries.next().is_some() => {
-                tokio::time::sleep(sleep_duration).await;
-                sleep_duration = if exponential_backoff {
-                    sleep_duration * 2
-                } else {
-                    sleep_duration
-                };
-            }
-            RetryResponse::Retry(err) => {
-                return Err(RetryError::RetriesExhausted(err));
-            }
-            RetryResponse::Critical(err) => return Err(RetryError::Critical(err)),
-        }
-    }
 }
 
 pub fn is_critical_blocks_error(

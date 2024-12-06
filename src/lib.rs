@@ -19,7 +19,7 @@ pub mod prelude {
         account::Account,
         chain::Chain,
         common::secret::*,
-        config::NetworkConfig,
+        config::{retry, NetworkConfig, RPCEndpoint, RetryResponse},
         contract::Contract,
         fastnear::FastNear,
         signer::{Signer, SignerTrait},

@@ -174,7 +174,9 @@ pub enum DecimalNumberParsingError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum RetryError<E> {
-    #[error("Retries exhausted. The last error is: {0}")]
+    #[error("No RPC endpoints are defined in the network config")]
+    NoRpcEndpoints,
+    #[error("Request failed. Retries exhausted. Last error: {0}")]
     RetriesExhausted(E),
     #[error("Critical error: {0}")]
     Critical(E),
