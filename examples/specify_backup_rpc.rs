@@ -1,7 +1,4 @@
-use near_api::{
-    prelude::*,
-    types::reference::Reference,
-};
+use near_api::{prelude::*, types::reference::Reference};
 
 #[tokio::main]
 async fn main() {
