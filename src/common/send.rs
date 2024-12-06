@@ -11,8 +11,8 @@ use reqwest::Response;
 use tracing::{debug, info};
 
 use crate::{
-    common::utils::{is_critical_transaction_error, RetryResponse},
-    config::NetworkConfig,
+    common::utils::is_critical_transaction_error,
+    config::{retry, NetworkConfig, RetryResponse},
     errors::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
         ValidationError,
@@ -22,8 +22,7 @@ use crate::{
 };
 
 use super::{
-    signed_delegate_action::SignedDelegateActionAsBase64, utils::retry,
-    META_TRANSACTION_VALID_FOR_DEFAULT,
+    signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
 };
 
 const TX_EXECUTOR_TARGET: &str = "near_api::tx::executor";
@@ -80,9 +79,6 @@ impl From<SignedTransaction> for PrepopulateTransaction {
 pub struct ExecuteSignedTransaction {
     pub tr: TransactionableOrSigned<SignedTransaction>,
     pub signer: Arc<Signer>,
-    pub retries: u8,
-    pub sleep_duration: std::time::Duration,
-    pub exponential_backoff: bool,
 }
 
 impl ExecuteSignedTransaction {
@@ -90,30 +86,11 @@ impl ExecuteSignedTransaction {
         Self {
             tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
             signer,
-            retries: 5,
-            // 50ms, 100ms, 200ms, 400ms, 800ms
-            sleep_duration: std::time::Duration::from_millis(50),
-            exponential_backoff: true,
         }
     }
 
     pub fn meta(self) -> ExecuteMetaTransaction {
         ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
-    }
-
-    pub const fn with_retries(mut self, retries: u8) -> Self {
-        self.retries = retries;
-        self
-    }
-
-    pub const fn with_sleep_duration(mut self, sleep_duration: std::time::Duration) -> Self {
-        self.sleep_duration = sleep_duration;
-        self
-    }
-
-    pub const fn with_exponential_backoff(mut self) -> Self {
-        self.exponential_backoff = true;
-        self
     }
 
     pub async fn presign_offline(
@@ -169,9 +146,6 @@ impl ExecuteSignedTransaction {
         mut self,
         network: &NetworkConfig,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
-        let sleep_duration = self.sleep_duration;
-        let retries = self.retries;
-
         let (signed, transactionable) = match &mut self.tr {
             TransactionableOrSigned::Transactionable(tr) => {
                 debug!(target: TX_EXECUTOR_TARGET, "Preparing unsigned transaction");
@@ -212,7 +186,7 @@ impl ExecuteSignedTransaction {
             signed.transaction.nonce(),
         );
 
-        Self::send_impl(network, signed, retries, sleep_duration).await
+        Self::send_impl(network, signed).await
     }
 
     pub async fn send_to_mainnet(
@@ -232,15 +206,11 @@ impl ExecuteSignedTransaction {
     async fn send_impl(
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
-        retries: u8,
-        sleep_duration: std::time::Duration,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
-        retry(
-            || {
-                let signed_tr = signed_tr.clone();
-                async move {
-                    let result = match network
-                .json_rpc_client()
+        retry(network.clone(), |json_rpc_client| {
+            let signed_tr = signed_tr.clone();
+            async move {
+                    let result = match json_rpc_client
                 .call(
                     near_jsonrpc_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
                         signed_transaction: signed_tr.clone(),
@@ -263,9 +233,6 @@ impl ExecuteSignedTransaction {
                     result
                 }
             },
-            retries,
-            sleep_duration,
-            false,
         )
         .await
         .map_err(ExecuteTransactionError::TransactionError)
