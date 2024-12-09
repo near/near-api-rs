@@ -1,4 +1,4 @@
-use near_api::prelude::*;
+use near_api::*;
 
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_token::NearToken;

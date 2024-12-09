@@ -1,7 +1,7 @@
-use near_account_id::AccountId;
-use near_api::prelude::*;
+use near_api::*;
 
 use near_token::NearToken;
+use signer::generate_secret_key;
 
 #[tokio::main]
 async fn main() {

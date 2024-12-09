@@ -1,6 +1,7 @@
-use near_api::prelude::*;
+use near_api::*;
 use near_crypto::SecretKey;
 use near_primitives::account::AccessKeyPermission;
+use signer::generate_seed_phrase;
 
 #[tokio::main]
 async fn main() {

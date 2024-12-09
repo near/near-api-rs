@@ -1,7 +1,6 @@
-use near_account_id::AccountId;
-use near_api::prelude::*;
+use near_api::*;
 use near_primitives::{account::AccessKeyPermission, views::AccessKeyPermissionView};
-use near_token::NearToken;
+use signer::generate_secret_key;
 
 #[tokio::test]
 async fn create_and_delete_account() {

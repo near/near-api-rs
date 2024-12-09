@@ -1,4 +1,4 @@
-use near_api::prelude::*;
+use near_api::*;
 
 use serde_json::json;
 
