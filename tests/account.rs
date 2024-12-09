@@ -20,7 +20,7 @@ async fn create_and_delete_account() {
         .unwrap()
         .assert_success();
 
-    let balance_before_del = Tokens::of(new_account.clone())
+    let balance_before_del = Tokens::account(new_account.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -36,7 +36,7 @@ async fn create_and_delete_account() {
         .unwrap())
     .assert_success();
 
-    Tokens::of(account.id().clone())
+    Tokens::account(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -45,7 +45,7 @@ async fn create_and_delete_account() {
     // TODO: why do we need a sleep to wait for beneficiary transfer?
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let balance_after_del = Tokens::of(new_account.clone())
+    let balance_after_del = Tokens::account(new_account.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -60,7 +60,7 @@ async fn transfer_funds() {
     let bob = network.dev_create_account().await.unwrap();
     let network: NetworkConfig = NetworkConfig::from(network);
 
-    Tokens::of(alice.id().clone())
+    Tokens::account(alice.id().clone())
         .send_to(bob.id().clone())
         .near(NearToken::from_near(50))
         .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
@@ -69,13 +69,13 @@ async fn transfer_funds() {
         .unwrap()
         .assert_success();
 
-    let alice_balance = Tokens::of(alice.id().clone())
+    let alice_balance = Tokens::account(alice.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
         .unwrap();
 
-    let bob_balance = Tokens::of(bob.id().clone())
+    let bob_balance = Tokens::account(bob.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await

@@ -24,7 +24,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
         .nonce;
 
     let tx = (0..100).map(|i| {
-        Tokens::of(account.id().clone())
+        Tokens::account(account.id().clone())
             .send_to(tmp_account.id().clone())
             .near(NearToken::from_millinear(i))
     });
@@ -85,7 +85,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap();
 
     let tx = (0..12).map(|i| {
-        Tokens::of(account.id().clone())
+        Tokens::account(account.id().clone())
             .send_to(tmp_account.id().clone())
             .near(NearToken::from_millinear(i))
     });

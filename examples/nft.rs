@@ -1,7 +1,6 @@
 use near_api::*;
 
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
-use near_token::NearToken;
 use serde_json::json;
 
 #[tokio::main]
@@ -55,7 +54,7 @@ async fn main() {
         .unwrap();
 
     // Verifying that account has our nft token
-    let tokens = Tokens::of(account.id().clone())
+    let tokens = Tokens::account(account.id().clone())
         .nft_assets(nft.id().clone())
         .unwrap()
         .fetch_from(&network)
@@ -65,7 +64,7 @@ async fn main() {
     assert_eq!(tokens.data.len(), 1);
     println!("Account has {}", tokens.data.first().unwrap().token_id);
 
-    Tokens::of(account.id().clone())
+    Tokens::account(account.id().clone())
         .send_to(nft.id().clone())
         .nft(nft.id().clone(), "1".to_string())
         .unwrap()
@@ -75,7 +74,7 @@ async fn main() {
         .unwrap();
 
     // Verifying that account doesn't have nft anymore
-    let tokens = Tokens::of(account.id().clone())
+    let tokens = Tokens::account(account.id().clone())
         .nft_assets(nft.id().clone())
         .unwrap()
         .fetch_from(&network)
@@ -84,7 +83,7 @@ async fn main() {
 
     assert!(tokens.data.is_empty());
 
-    let tokens = Tokens::of(nft.id().clone())
+    let tokens = Tokens::account(nft.id().clone())
         .nft_assets(nft.id().clone())
         .unwrap()
         .fetch_from(&network)

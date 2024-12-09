@@ -43,7 +43,7 @@ async fn main() {
         .unwrap();
 
     let txs = (0..2).map(|_| {
-        Tokens::of(account.id().clone())
+        Tokens::account(account.id().clone())
             .send_to(second_account.id().clone())
             .near(NearToken::from_near(1))
             .with_signer(Arc::clone(&signer))

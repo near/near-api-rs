@@ -29,7 +29,7 @@ async fn main() {
     .unwrap();
 
     // Verifying that user has 1000 tokens
-    let tokens = Tokens::of(token.id().clone())
+    let tokens = Tokens::account(token.id().clone())
         .ft_balance(token.id().clone())
         .unwrap()
         .fetch_from(&network)
@@ -40,7 +40,7 @@ async fn main() {
 
     // Transfer 100 tokens to the account
     // We handle internally the storage deposit for the receiver account
-    Tokens::of(token.id().clone())
+    Tokens::account(token.id().clone())
         .send_to(account.id().clone())
         .ft(
             token.id().clone(),
@@ -54,7 +54,7 @@ async fn main() {
         .unwrap()
         .assert_success();
 
-    let tokens = Tokens::of(account.id().clone())
+    let tokens = Tokens::account(account.id().clone())
         .ft_balance(token.id().clone())
         .unwrap()
         .fetch_from(&network)
@@ -63,7 +63,7 @@ async fn main() {
 
     println!("Account has {}", tokens);
 
-    let tokens = Tokens::of(token.id().clone())
+    let tokens = Tokens::account(token.id().clone())
         .ft_balance(token.id().clone())
         .unwrap()
         .fetch_from(&network)
@@ -73,7 +73,7 @@ async fn main() {
     println!("Owner has {}", tokens);
 
     // We validate decimals at the network level so this should fail with a validation error
-    let token = Tokens::of(token.id().clone())
+    let token = Tokens::account(token.id().clone())
         .send_to(account.id().clone())
         .ft(
             token.id().clone(),
