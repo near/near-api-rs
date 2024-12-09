@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
-use near_api::prelude::*;
+use near_api::*;
 
 use near_crypto::PublicKey;
 use near_primitives::account::AccessKeyPermission;
-use near_token::NearToken;
+use signer::generate_secret_key;
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_same_key() {
@@ -24,7 +24,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
         .nonce;
 
     let tx = (0..100).map(|i| {
-        Tokens::of(account.id().clone())
+        Tokens::account(account.id().clone())
             .send_to(tmp_account.id().clone())
             .near(NearToken::from_millinear(i))
     });
@@ -85,7 +85,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap();
 
     let tx = (0..12).map(|i| {
-        Tokens::of(account.id().clone())
+        Tokens::account(account.id().clone())
             .send_to(tmp_account.id().clone())
             .near(NearToken::from_millinear(i))
     });

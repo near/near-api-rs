@@ -11,9 +11,9 @@ use url::Url;
 use crate::{
     common::send::Transactionable,
     errors::{AccountCreationError, FaucetError, ValidationError},
-    prelude::*,
     transactions::{ConstructTransaction, TransactionWithSign},
     types::transactions::PrepopulateTransaction,
+    Contract, NetworkConfig,
 };
 
 #[derive(Clone, Debug)]

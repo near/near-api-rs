@@ -1,4 +1,4 @@
-use near_api::{prelude::*, types::Data};
+use near_api::*;
 
 #[tokio::main]
 async fn main() {

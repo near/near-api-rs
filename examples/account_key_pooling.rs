@@ -3,8 +3,9 @@
 ///
 /// This is an example of how to use account key pooling to send multiple transactions
 /// using different keys.
-use near_api::prelude::*;
+use near_api::*;
 use near_token::NearToken;
+use signer::generate_secret_key;
 
 use std::sync::Arc;
 
@@ -42,7 +43,7 @@ async fn main() {
         .unwrap();
 
     let txs = (0..2).map(|_| {
-        Tokens::of(account.id().clone())
+        Tokens::account(account.id().clone())
             .send_to(second_account.id().clone())
             .near(NearToken::from_near(1))
             .with_signer(Arc::clone(&signer))
