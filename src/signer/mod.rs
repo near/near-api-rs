@@ -274,8 +274,9 @@ pub trait SignerTrait {
     fn get_public_key(&self) -> Result<PublicKey, SignerError>;
 }
 
-/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations of [SignerTrait](`SignerTrait`).
-/// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
+/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
+/// of [SignerTrait](`SignerTrait`). It provides an access key pooling and
+/// a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, PublicKey), AtomicU64>>,
@@ -535,8 +536,9 @@ pub fn get_secret_key_from_seed(
     Ok(SecretKey::ED25519(secret_key))
 }
 
-/// Helper utility function to generate a new seed phrase with optional customization of word count, HD path and passphrase.
-/// Prefer using [generate_seed_phrase](`generate_seed_phrase`) or [generate_secret_key](`generate_secret_key`) if you don't need to customize the seed phrase.
+/// Helper utility function to generate a new seed phrase with optional customization
+/// of word count, HD path and passphrase. Prefer using [generate_seed_phrase](`generate_seed_phrase`)
+/// or [generate_secret_key](`generate_secret_key`) if you don't need to customize the seed phrase.
 pub fn generate_seed_phrase_custom(
     word_count: Option<usize>,
     hd_path: Option<BIP32Path>,
