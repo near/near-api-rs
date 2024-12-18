@@ -85,14 +85,9 @@
 //! - Automatically increments nonces for sequential transactions
 //!
 //! # Secret generation
+//! The crate provides utility functions to generate new secret keys and seed phrases
 //!
-//! The crate provides utility functions to generate new secret keys and seed phrases:
-//! - [`generate_seed_phrase`]: Generates a new seed phrase with default settings
-//! - [`generate_seed_phrase_with_hd_path`]: Generates a new seed phrase with a custom HD path
-//! - [`generate_seed_phrase_with_passphrase`]: Generates a new seed phrase with a custom passphrase
-//! - [`generate_seed_phrase_with_word_count`]: Generates a new seed phrase with a custom word count
-//! - [`generate_secret_key`]: Generates a new secret key from a new seed phrase
-//! - [`generate_secret_key_from_seed_phrase`]: Generates a secret key from a seed phrase
+//! See [functions](#functions) section for details
 //!
 //! # Custom signer
 //! The user can instantiate [`Signer`] with a custom signing logic by utilising the [`SignerTrait`] trait.
@@ -133,9 +128,13 @@ pub mod ledger;
 pub mod secret_key;
 
 const SIGNER_TARGET: &str = "near_api::signer";
-const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
-const DEFAULT_WORD_COUNT: usize = 12;
+/// Default HD path for seed phrases and secret keys generation
+pub const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
+/// Default word count for seed phrases generation
+pub const DEFAULT_WORD_COUNT: usize = 12;
 
+/// A struct representing a pair of public and private keys for an account.
+/// This might be useful for getting keys from a file. E.g. ~/.near-credentials.
 #[derive(Debug, Deserialize, Clone)]
 pub struct AccountKeyPair {
     pub public_key: near_crypto::PublicKey,
@@ -149,8 +148,78 @@ impl AccountKeyPair {
     }
 }
 
+/// A trait for implementing custom signing logic.
+///
+/// This trait provides the core functionality needed to sign transactions and delegate actions.
+/// It is used by the [`Signer`] to abstract over different signing methods (secret key, ledger, keystore, etc.).
+///
+/// # Examples
+///
+/// ## Implementing a custom signer
+/// ```rust,no_run
+/// use near_api::{signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
+/// use near_crypto::{PublicKey, SecretKey};
+/// use near_primitives::transaction::Transaction;
+///
+/// struct CustomSigner {
+///     secret_key: SecretKey,
+/// }
+///
+/// #[async_trait::async_trait]
+/// impl SignerTrait for CustomSigner {
+///     fn tx_and_secret(
+///         &self,
+///         tr: PrepopulateTransaction,
+///         public_key: PublicKey,
+///         nonce: u64,
+///         block_hash: CryptoHash,
+///     ) -> Result<(Transaction, SecretKey), SignerError> {
+///         let mut transaction = Transaction::new_v0(
+///             tr.signer_id.clone(),
+///             public_key,
+///             tr.receiver_id,
+///             nonce,
+///             block_hash.into(),
+///         );
+///         *transaction.actions_mut() = tr.actions;
+///         Ok((transaction, self.secret_key.clone()))
+///     }
+///
+///     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+///         Ok(self.secret_key.public_key())
+///     }
+/// }
+/// ```
+///
+/// ## Using a custom signer
+/// ```rust,no_run
+/// # use near_api::{signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
+/// # use near_crypto::{PublicKey, SecretKey};
+/// # struct CustomSigner;
+/// # impl CustomSigner {
+/// #     fn new(_: SecretKey) -> Self { Self }
+/// # }
+/// # #[async_trait::async_trait]
+/// # impl SignerTrait for CustomSigner {
+/// #     fn tx_and_secret(&self, _: PrepopulateTransaction, _: PublicKey, _: u64, _: CryptoHash,
+/// #     ) -> Result<(near_primitives::transaction::Transaction, SecretKey), SignerError> { unimplemented!() }
+/// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
+/// # }
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let secret_key = "ed25519:...".parse()?;
+/// let custom_signer = CustomSigner::new(secret_key);
+/// let signer = Signer::new(custom_signer)?;
+/// # Ok(())
+/// # }
+/// ```
 #[async_trait::async_trait]
 pub trait SignerTrait {
+    /// Signs a delegate action for meta transactions.
+    ///
+    /// This method is used for meta-transactions where one account can delegate transaction delivery and gas payment to another account.
+    /// The delegate action is signed with a maximum block height to ensure the delegation expiration after some point in time.
+    ///
+    /// The default implementation should work for most cases.
     async fn sign_meta(
         &self,
         tr: PrepopulateTransaction,
@@ -165,6 +234,12 @@ pub trait SignerTrait {
         get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
     }
 
+    /// Signs a regular transaction.
+    ///
+    /// This method is used for standard transactions. It creates a signed transaction
+    /// that can be sent to the NEAR network.
+    ///
+    /// The default implementation should work for most cases.
     async fn sign(
         &self,
         tr: PrepopulateTransaction,
@@ -179,6 +254,12 @@ pub trait SignerTrait {
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
+    /// Creates an unsigned transaction and returns it along with the secret key.
+    /// This is a `helper` method that should be implemented by the signer or fail with SignerError.
+    /// As long as this method works, the default implementation of the [sign_meta](`SignerTrait::sign_meta`) and [sign](`SignerTrait::sign`) methods should work.
+    ///
+    /// If you can't provide a SecretKey for some reason (E.g. Ledger),
+    /// you can fail with SignerError and override `sign_meta` and `sign` methods.
     fn tx_and_secret(
         &self,
         tr: PrepopulateTransaction,
@@ -186,9 +267,15 @@ pub trait SignerTrait {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<(Transaction, SecretKey), SignerError>;
+
+    /// Returns the public key associated with this signer.
+    ///
+    /// This method is used by the [`Signer`] to manage the pool of signing keys.
     fn get_public_key(&self) -> Result<PublicKey, SignerError>;
 }
 
+/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations of [SignerTrait](`SignerTrait`).
+/// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, PublicKey), AtomicU64>>,
@@ -386,7 +473,7 @@ impl Signer {
 }
 
 #[instrument(skip(unsigned_transaction, private_key))]
-pub fn get_signed_delegate_action(
+fn get_signed_delegate_action(
     unsigned_transaction: Transaction,
     private_key: SecretKey,
     max_block_height: u64,
@@ -425,6 +512,8 @@ pub fn get_signed_delegate_action(
     })
 }
 
+/// Helper utility function to generate a secret key from a seed phrase.
+/// Prefer using [generate_secret_key_from_seed_phrase](`generate_secret_key_from_seed_phrase`) if you don't need to customize the HD path and passphrase.
 #[instrument(skip(seed_phrase_hd_path, master_seed_phrase, password))]
 pub fn get_secret_key_from_seed(
     seed_phrase_hd_path: BIP32Path,
@@ -446,7 +535,8 @@ pub fn get_secret_key_from_seed(
     Ok(SecretKey::ED25519(secret_key))
 }
 
-/// Generates a new seed phrase with optional customization
+/// Helper utility function to generate a new seed phrase with optional customization of word count, HD path and passphrase.
+/// Prefer using [generate_seed_phrase](`generate_seed_phrase`) or [generate_secret_key](`generate_secret_key`) if you don't need to customize the seed phrase.
 pub fn generate_seed_phrase_custom(
     word_count: Option<usize>,
     hd_path: Option<BIP32Path>,
@@ -464,33 +554,33 @@ pub fn generate_seed_phrase_custom(
     Ok((seed_phrase, secret_key.public_key()))
 }
 
-/// Generates a new seed phrase with default settings (12 words, default HD path)
+/// Generates a new seed phrase with default settings (12 words, [default HD path](`DEFAULT_HD_PATH`))
 pub fn generate_seed_phrase() -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(None, None, None)
 }
 
-/// Generates a new seed phrase with a custom HD path
+/// Helper utility function to generate a new 12-words seed phrase with a custom HD path
 pub fn generate_seed_phrase_with_hd_path(
     hd_path: BIP32Path,
 ) -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(None, Some(hd_path), None)
 }
 
-/// Generates a new seed phrase with a custom passphrase
+/// Helper utility function to generate a new 12-words seed phrase with a custom passphrase and [default HD path](`DEFAULT_HD_PATH`)
 pub fn generate_seed_phrase_with_passphrase(
     passphrase: &str,
 ) -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(None, None, Some(passphrase))
 }
 
-/// Generates a new seed phrase with a custom word count
+/// Helper utility function to generate a new seed phrase with a custom word count and [default HD path](`DEFAULT_HD_PATH`)
 pub fn generate_seed_phrase_with_word_count(
     word_count: usize,
 ) -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(Some(word_count), None, None)
 }
 
-/// Generates a secret key from a new seed phrase using default settings
+/// Helper utility function to generate a secret key from a new seed phrase using default settings
 pub fn generate_secret_key() -> Result<SecretKey, SecretError> {
     let (seed_phrase, _) = generate_seed_phrase()?;
     let secret_key = get_secret_key_from_seed(
@@ -501,6 +591,7 @@ pub fn generate_secret_key() -> Result<SecretKey, SecretError> {
     Ok(secret_key)
 }
 
+/// Helper utility function to generate a secret key from a seed phrase using [default HD path](`DEFAULT_HD_PATH`)
 pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<SecretKey, SecretError> {
     get_secret_key_from_seed(
         DEFAULT_HD_PATH.parse().expect("Valid HD path"),

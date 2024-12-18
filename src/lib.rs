@@ -52,7 +52,7 @@
 //! - [`StorageDeposit`]: Storage management and staking operations
 //! - [`Tokens`]: Token operations (NEAR, FT, NFT)
 //! - [`Transaction`]: Custom transaction building and signing
-//! - [`Signer`]: Signer management and signing
+//! - [`Signer`](`signer`): Signer management and signing
 
 mod account;
 mod chain;
