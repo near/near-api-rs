@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use near_api::*;
 use near_crypto::SecretKey;
 use near_primitives::account::AccessKeyPermission;
@@ -26,8 +28,7 @@ async fn main() {
     Account(account.id().clone())
         .add_key(AccessKeyPermission::FullAccess, ledger_pubkey)
         .with_signer(
-            Signer::new(Signer::seed_phrase(new_seed_phrase, Some("smile".to_string())).unwrap())
-                .unwrap(),
+            Signer::new(Signer::seed_phrase(&new_seed_phrase, Some("smile")).unwrap()).unwrap(),
         )
         .send_to(&network)
         .await
