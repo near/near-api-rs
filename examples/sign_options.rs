@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use near_api::*;
 use near_crypto::SecretKey;
 use near_primitives::account::AccessKeyPermission;
