@@ -37,7 +37,7 @@ type Result<T> = core::result::Result<T, BuilderError>;
 /// A wrapper struct that simplifies interactions with NEAR tokens (NEAR, FT, NFT).
 ///
 /// This struct provides convenient methods to interact with different types of tokens on NEAR Protocol:
-/// - Native NEAR token operations
+/// - [Native NEAR](https://docs.near.org/concepts/basics/tokens) token operations
 /// - [Fungible Token](https://docs.near.org/build/primitives/ft) (FT) standard operations
 /// - [Non-Fungible Token](https://docs.near.org/build/primitives/nft) (NFT) standard operations
 ///

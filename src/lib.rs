@@ -3,7 +3,7 @@
 //! This crate provides a high-level API for interacting with NEAR Protocol, including:
 //! - [Account management and creation](Account)
 //! - [Contract deployment and interaction with it](Contract)
-//! - [Token operations (NEAR, FT, NFT)](Tokens)
+//! - [Token operations](Tokens) ([`NEAR`](https://docs.near.org/concepts/basics/tokens), [`FT`](https://docs.near.org/build/primitives/ft), [`NFT`](https://docs.near.org/build/primitives/nft))
 //! - [Storage management and staking operations](Staking)
 //! - [Custom transaction building and signing](Transaction)
 //! - [Querying the chain data](Chain)
@@ -12,7 +12,7 @@
 //! - Support for backup RPC endpoints
 //!
 //! # Example
-//! In this example, we use Bob account with a predefined seed phrase to create Alice account and pre-fund it with 1 NEAR.
+//! In this example, we use Bob account with a predefined seed phrase to create Alice account and pre-fund it with 1 `NEAR`.
 //! ```rust,no_run
 //! use near_api::{*, signer::generate_secret_key};
 //! use std::str::FromStr;
