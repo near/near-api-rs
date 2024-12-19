@@ -99,7 +99,7 @@
 //! The signer automatically manages nonces for transactions:
 //! - Caches nonces per (account_id, public_key) pair
 //! - Automatically increments nonces for sequential transactions
-//! - Supports concurrent transactions as long as the Arc<Signer> is same
+//! - Supports concurrent transactions as long as the `Arc<Signer>` is same
 //!
 //! # Secret generation
 //! The crate provides utility functions to generate new secret keys and seed phrases
