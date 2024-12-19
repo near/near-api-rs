@@ -4,7 +4,7 @@
 //! - Secret key signing
 //! - Seed phrase (mnemonic) signing
 //! - Access key file signing
-//! - Hardware wallet (Ledger) signing
+//! - Hardware wallet (`Ledger`) signing
 //! - System keychain signing
 //!
 //! # Examples
@@ -32,7 +32,7 @@
 //! # }
 //! ```
 //!
-//! ## Creating a Ledger signer
+//! ## Creating a `Ledger` signer
 //! ```rust,no_run
 //! # #[cfg(feature = "ledger")]
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,7 +43,7 @@
 //! # }
 //! ```
 //!
-//! ## Creating a keystore signer
+//! ## Creating a `keystore` signer
 //! ```rust,no_run
 //! # #[cfg(feature = "keystore")]
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -151,7 +151,7 @@ pub const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
 pub const DEFAULT_WORD_COUNT: usize = 12;
 
 /// A struct representing a pair of public and private keys for an account.
-/// This might be useful for getting keys from a file. E.g. ~/.near-credentials.
+/// This might be useful for getting keys from a file. E.g. `~/.near-credentials`.
 #[derive(Debug, Deserialize, Clone)]
 pub struct AccountKeyPair {
     pub public_key: near_crypto::PublicKey,
@@ -168,7 +168,7 @@ impl AccountKeyPair {
 /// A trait for implementing custom signing logic.
 ///
 /// This trait provides the core functionality needed to sign transactions and delegate actions.
-/// It is used by the [`Signer`] to abstract over different signing methods (secret key, ledger, keystore, etc.).
+/// It is used by the [`Signer`] to abstract over different signing methods (secret key, `ledger`, `keystore`, etc.).
 ///
 /// # Examples
 ///
@@ -229,6 +229,11 @@ impl AccountKeyPair {
 /// # Ok(())
 /// # }
 /// ```
+///
+/// ## Example of implementing `sign_meta` and `sign` methods
+/// The default implementation of `sign_meta` and `sign` methods should work for most cases.
+/// If you need to implement custom logic, you can override these methods.
+/// See [`near_ledger`](`ledger::LedgerSigner`) implementation for an example.
 #[async_trait::async_trait]
 pub trait SignerTrait {
     /// Signs a delegate action for meta transactions.
@@ -254,7 +259,7 @@ pub trait SignerTrait {
     /// Signs a regular transaction.
     ///
     /// This method is used for standard transactions. It creates a signed transaction
-    /// that can be sent to the NEAR network.
+    /// that can be sent to the `NEAR` network.
     ///
     /// The default implementation should work for most cases.
     async fn sign(
@@ -275,7 +280,7 @@ pub trait SignerTrait {
     /// This is a `helper` method that should be implemented by the signer or fail with SignerError.
     /// As long as this method works, the default implementation of the [sign_meta](`SignerTrait::sign_meta`) and [sign](`SignerTrait::sign`) methods should work.
     ///
-    /// If you can't provide a SecretKey for some reason (E.g. Ledger),
+    /// If you can't provide a SecretKey for some reason (E.g. `Ledger``),
     /// you can fail with SignerError and override `sign_meta` and `sign` methods.
     fn tx_and_secret(
         &self,
