@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::DecimalNumberParsingError;
 
-pub const USDT_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDC");
-pub const USDC_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDT");
+pub const USDT_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDT");
+pub const USDC_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDC");
 pub const W_NEAR_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(24, "wNEAR");
 
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]

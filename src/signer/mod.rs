@@ -9,53 +9,70 @@
 //!
 //! # Examples
 //!
-//! ## Sign with Secret Key
+//! ## Creating a signer using a secret key
 //! ```rust,no_run
 //! use near_api::*;
 //! use near_crypto::SecretKey;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let secret_key: SecretKey = "ed25519:...".parse()?;
-//! let signer = Signer::new(Signer::secret_key(secret_key))?;
+//! let secret_key: SecretKey = "ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?;
+//! let signer = Signer::new(Signer::from_secret_key(secret_key))?;
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! ## Sign with Seed Phrase
+//! ## Creating a signer using a seed phrase
 //! ```rust,no_run
 //! use near_api::*;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let seed_phrase = "witch collapse practice feed shame open despair creek road again ice least";
-//! let signer = Signer::new(Signer::seed_phrase(seed_phrase, None)?)?;
+//! let signer = Signer::new(Signer::from_seed_phrase(seed_phrase, None)?)?;
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! ## Sign with Ledger
+//! ## Creating a Ledger signer
 //! ```rust,no_run
 //! # #[cfg(feature = "ledger")]
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use near_api::*;
 //!
-//! let signer = Signer::new(Signer::ledger())?;
+//! let signer = Signer::new(Signer::from_ledger())?;
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! ## Sign with a key from the system keychain
+//! ## Creating a keystore signer
 //! ```rust,no_run
 //! # #[cfg(feature = "keystore")]
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use near_api::*;
 //!
-//! let preloaded_keychain = Signer::keystore_search_for_keys("account_id.testnet".parse()?, &NetworkConfig::testnet()).await?;
+//! let preloaded_keychain = Signer::from_keystore_with_search_for_keys("account_id.testnet".parse()?, &NetworkConfig::testnet()).await?;
 //! let signer = Signer::new(preloaded_keychain)?;
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! # Access Key Pooling
+//! ## Example signing with [Signer](`Signer`)
+//!
+//! ```rust,no_run
+//! # use near_api::*;
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let signer = Signer::new(Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?))?;
+//! let transaction_result = Tokens::account("alice.testnet".parse()?)
+//!     .send_to("bob.testnet".parse()?)
+//!     .near(NearToken::from_near(1))
+//!     .with_signer(signer)
+//!     .send_to_testnet()
+//!     .await?;
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Advanced: Access Key Pooling
 //!
 //! The signer supports pooling multiple access keys for improved transaction throughput.
 //! It helps to mitigate concurrency issues that arise when multiple transactions are signed but the
@@ -68,11 +85,11 @@
 //! use near_crypto::SecretKey;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let signer = Signer::new(Signer::secret_key("ed25519:...".parse()?))?;
+//! let signer = Signer::new(Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?))?;
 //!
 //! // Add additional keys to the pool
-//! signer.add_signer_to_pool(Signer::secret_key("ed25519:...".parse()?)).await?;
-//! signer.add_signer_to_pool(Signer::secret_key("ed25519:...".parse()?)).await?;
+//! signer.add_signer_to_pool(Signer::from_seed_phrase("witch collapse practice feed shame open despair creek road again ice least", None)?).await?;
+//! signer.add_signer_to_pool(Signer::from_seed_phrase("return cactus real attack meat pitch trash found autumn upgrade mystery pupil", None)?).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -81,8 +98,8 @@
 //!
 //! The signer automatically manages nonces for transactions:
 //! - Caches nonces per (account_id, public_key) pair
-//! - Handles concurrent transactions safely
 //! - Automatically increments nonces for sequential transactions
+//! - Supports concurrent transactions as long as the Arc<Signer> is same
 //!
 //! # Secret generation
 //! The crate provides utility functions to generate new secret keys and seed phrases
@@ -206,7 +223,7 @@ impl AccountKeyPair {
 /// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let secret_key = "ed25519:...".parse()?;
+/// let secret_key = "ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?;
 /// let custom_signer = CustomSigner::new(secret_key);
 /// let signer = Signer::new(custom_signer)?;
 /// # Ok(())
@@ -357,25 +374,25 @@ impl Signer {
         Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
-    /// Helper function to create a [SecretKeySigner](`SecretKeySigner`) using seed phrase with default HD path.
-    pub fn seed_phrase(
+    /// Creates a [SecretKeySigner](`SecretKeySigner`) using seed phrase with default HD path.
+    pub fn from_seed_phrase(
         seed_phrase: &str,
         password: Option<&str>,
     ) -> Result<SecretKeySigner, SecretError> {
-        Self::seed_phrase_with_hd_path(
+        Self::from_seed_phrase_with_hd_path(
             seed_phrase,
             BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
             password,
         )
     }
 
-    /// Helper function to create a [SecretKeySigner](`SecretKeySigner`) using a secret key.
-    pub fn secret_key(secret_key: SecretKey) -> SecretKeySigner {
+    /// Creates a [SecretKeySigner](`SecretKeySigner`) using a secret key.
+    pub fn from_secret_key(secret_key: SecretKey) -> SecretKeySigner {
         SecretKeySigner::new(secret_key)
     }
 
-    /// Helper function to create a [SecretKeySigner](`SecretKeySigner`) using seed phrase with a custom HD path.
-    pub fn seed_phrase_with_hd_path(
+    /// Creates a [SecretKeySigner](`SecretKeySigner`) using seed phrase with a custom HD path.
+    pub fn from_seed_phrase_with_hd_path(
         seed_phrase: &str,
         hd_path: BIP32Path,
         password: Option<&str>,
@@ -384,40 +401,40 @@ impl Signer {
         Ok(SecretKeySigner::new(secret_key))
     }
 
-    /// Helper function to create a [AccessKeyFileSigner](`AccessKeyFileSigner`) using a path to the access key file.
-    pub fn access_keyfile(path: PathBuf) -> Result<AccessKeyFileSigner, AccessKeyFileError> {
+    /// Creates a [AccessKeyFileSigner](`AccessKeyFileSigner`) using a path to the access key file.
+    pub fn from_access_keyfile(path: PathBuf) -> Result<AccessKeyFileSigner, AccessKeyFileError> {
         AccessKeyFileSigner::new(path)
     }
 
-    /// Helper function to create a [LedgerSigner](`ledger::LedgerSigner`) using default HD path.
+    /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using default HD path.
     #[cfg(feature = "ledger")]
-    pub fn ledger() -> ledger::LedgerSigner {
+    pub fn from_ledger() -> ledger::LedgerSigner {
         ledger::LedgerSigner::new(BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"))
     }
 
-    /// Helper function to create a [LedgerSigner](`ledger::LedgerSigner`) using a custom HD path.
+    /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using a custom HD path.
     #[cfg(feature = "ledger")]
-    pub const fn ledger_with_hd_path(hd_path: BIP32Path) -> ledger::LedgerSigner {
+    pub const fn from_ledger_with_hd_path(hd_path: BIP32Path) -> ledger::LedgerSigner {
         ledger::LedgerSigner::new(hd_path)
     }
 
-    /// Helper function to create a [KeystoreSigner](`keystore::KeystoreSigner`) with predefined public key.
+    /// Creates a [KeystoreSigner](`keystore::KeystoreSigner`) with predefined public key.
     #[cfg(feature = "keystore")]
-    pub fn keystore(pub_key: PublicKey) -> keystore::KeystoreSigner {
+    pub fn from_keystore(pub_key: PublicKey) -> keystore::KeystoreSigner {
         keystore::KeystoreSigner::new_with_pubkey(pub_key)
     }
 
-    /// Helper function to create a [KeystoreSigner](`keystore::KeystoreSigner`). The provided function will query provided account for public keys and search
+    /// Creates a [KeystoreSigner](`keystore::KeystoreSigner`). The provided function will query provided account for public keys and search
     /// in the system keychain for the corresponding secret keys.
     #[cfg(feature = "keystore")]
-    pub async fn keystore_search_for_keys(
+    pub async fn from_keystore_with_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
     ) -> Result<keystore::KeystoreSigner, crate::errors::KeyStoreError> {
         keystore::KeystoreSigner::search_for_keys(account_id, network).await
     }
 
-    /// Helper function to create a [SecretKeySigner](`secret_key::SecretKeySigner`) from a [near_workspaces::Account](`near_workspaces::Account`) for testing purposes.
+    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) from a [near_workspaces::Account](`near_workspaces::Account`) for testing purposes.
     #[cfg(feature = "workspaces")]
     pub fn from_workspace(account: &near_workspaces::Account) -> SecretKeySigner {
         SecretKeySigner::new(account.secret_key().to_string().parse().unwrap())
@@ -514,7 +531,8 @@ fn get_signed_delegate_action(
     })
 }
 
-/// Helper utility function to generate a secret key from a seed phrase.
+/// Generates a secret key from a seed phrase.
+///
 /// Prefer using [generate_secret_key_from_seed_phrase](`generate_secret_key_from_seed_phrase`) if you don't need to customize the HD path and passphrase.
 #[instrument(skip(seed_phrase_hd_path, master_seed_phrase, password))]
 pub fn get_secret_key_from_seed(
@@ -537,7 +555,7 @@ pub fn get_secret_key_from_seed(
     Ok(SecretKey::ED25519(secret_key))
 }
 
-/// Helper utility function to generate a new seed phrase with optional customization.
+/// Generates a new seed phrase with optional customization.
 ///
 /// Prefer using [generate_seed_phrase](`generate_seed_phrase`) or [generate_secret_key](`generate_secret_key`) if you don't need to customize the seed phrase.
 pub fn generate_seed_phrase_custom(
@@ -562,28 +580,28 @@ pub fn generate_seed_phrase() -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(None, None, None)
 }
 
-/// Helper utility function to generate a new 12-words seed phrase with a custom HD path
+/// Generates a new 12-words seed phrase with a custom HD path
 pub fn generate_seed_phrase_with_hd_path(
     hd_path: BIP32Path,
 ) -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(None, Some(hd_path), None)
 }
 
-/// Helper utility function to generate a new 12-words seed phrase with a custom passphrase and [default HD path](`DEFAULT_HD_PATH`)
+/// Generates a new 12-words seed phrase with a custom passphrase and [default HD path](`DEFAULT_HD_PATH`)
 pub fn generate_seed_phrase_with_passphrase(
     passphrase: &str,
 ) -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(None, None, Some(passphrase))
 }
 
-/// Helper utility function to generate a new seed phrase with a custom word count and [default HD path](`DEFAULT_HD_PATH`)
+/// Generates a new seed phrase with a custom word count and [default HD path](`DEFAULT_HD_PATH`)
 pub fn generate_seed_phrase_with_word_count(
     word_count: usize,
 ) -> Result<(String, PublicKey), SecretError> {
     generate_seed_phrase_custom(Some(word_count), None, None)
 }
 
-/// Helper utility function to generate a secret key from a new seed phrase using default settings
+/// Generates a secret key from a new seed phrase using default settings
 pub fn generate_secret_key() -> Result<SecretKey, SecretError> {
     let (seed_phrase, _) = generate_seed_phrase()?;
     let secret_key = get_secret_key_from_seed(
@@ -594,7 +612,7 @@ pub fn generate_secret_key() -> Result<SecretKey, SecretError> {
     Ok(secret_key)
 }
 
-/// Helper utility function to generate a secret key from a seed phrase using [default HD path](`DEFAULT_HD_PATH`)
+/// Generates a secret key from a seed phrase using [default HD path](`DEFAULT_HD_PATH`)
 pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<SecretKey, SecretError> {
     get_secret_key_from_seed(
         DEFAULT_HD_PATH.parse().expect("Valid HD path"),

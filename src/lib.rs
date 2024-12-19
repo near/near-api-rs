@@ -1,16 +1,18 @@
 //! A Rust library for interacting with the NEAR Protocol blockchain
 //!
 //! This crate provides a high-level API for interacting with NEAR Protocol, including:
-//! - Account management and creation
-//! - Contract deployment and interaction
-//! - Token operations (NEAR, FT, NFT)
-//! - Storage management and staking operations
-//! - Custom transaction building and signing
-//! - Several ways to sign the transaction (SecretKey, Seedphrase, File, Ledger, Secure keychain).
+//! - [Account management and creation](Account)
+//! - [Contract deployment and interaction with it](Contract)
+//! - [Token operations (NEAR, FT, NFT)](Tokens)
+//! - [Storage management and staking operations](Staking)
+//! - [Custom transaction building and signing](Transaction)
+//! - [Querying the chain data](Chain)
+//! - [Several ways to sign the transaction](signer)
 //! - Account nonce caching and access-key pooling mechanisms to speed up the transaction processing.
 //! - Support for backup RPC endpoints
 //!
 //! # Example
+//! In this example, we use Bob account with a predefined seed phrase to create Alice account and pre-fund it with 1 NEAR.
 //! ```rust,no_run
 //! use near_api::{*, signer::generate_secret_key};
 //! use std::str::FromStr;
@@ -27,7 +29,7 @@
 //!     .await?;
 //!
 //! // Create an account instance
-//! let signer = Signer::new(Signer::seed_phrase(bob_seed_phrase, None)?)?;
+//! let signer = Signer::new(Signer::from_seed_phrase(bob_seed_phrase, None)?)?;
 //! let alice_secret_key = generate_secret_key()?;
 //! Account::create_account(AccountId::from_str("alice.testnet")?)
 //!     .fund_myself(bob.clone(), NearToken::from_near(1))
@@ -43,16 +45,6 @@
 //! - `ledger`: Enables hardware wallet support
 //! - `keystore`: Enables system keychain integration
 //! - `workspaces`: Enables integration with near-workspaces for testing
-//!
-//! # Modules
-//! - [`Account`]: Account management and creation
-//! - [`Chain`]: Chain data queries (block, block number)
-//! - [`Contract`]: Contract deployment and interaction
-//! - [`Staking`]: Staking operations
-//! - [`StorageDeposit`]: Storage management and staking operations
-//! - [`Tokens`]: Token operations (NEAR, FT, NFT)
-//! - [`Transaction`]: Custom transaction building and signing
-//! - [`Signer`](`signer`): Signer management and signing
 
 mod account;
 mod chain;

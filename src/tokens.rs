@@ -34,6 +34,80 @@ use crate::{
 
 type Result<T> = core::result::Result<T, BuilderError>;
 
+/// A wrapper struct that simplifies interactions with NEAR tokens (NEAR, FT, NFT).
+///
+/// This struct provides convenient methods to interact with different types of tokens on NEAR Protocol:
+/// - Native NEAR token operations
+/// - [Fungible Token](https://docs.near.org/build/primitives/ft) (FT) standard operations
+/// - [Non-Fungible Token](https://docs.near.org/build/primitives/nft) (NFT) standard operations
+///
+/// # Examples
+///
+/// ## Fungible Token Operations
+/// ```
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let bob_tokens = Tokens::account("bob.testnet".parse()?);
+///
+/// // Check FT balance
+/// let balance = bob_tokens.ft_balance("usdt.tether-token.near".parse()?)?.fetch_from_mainnet().await?;
+/// println!("Bob balance: {}", balance);
+///
+/// // Transfer FT tokens
+/// bob_tokens.send_to("alice.testnet".parse()?)
+///     .ft(
+///         "usdt.tether-token.near".parse()?,
+///         USDT_BALANCE.with_whole_amount(100)
+///     )?
+///     .with_signer(Signer::new(Signer::from_ledger())?)
+///     .send_to_mainnet()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## NFT Operations
+/// ```
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let alice_tokens = Tokens::account("alice.testnet".parse()?);
+///
+/// // Check NFT assets
+/// let tokens = alice_tokens.nft_assets("nft-contract.testnet".parse()?)?.fetch_from_testnet().await?;
+/// println!("NFT count: {}", tokens.data.len());
+///
+/// // Transfer NFT
+/// alice_tokens.send_to("bob.testnet".parse()?)
+///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())?
+///     .with_signer(Signer::new(Signer::from_ledger())?)
+///     .send_to_testnet()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## NEAR Token Operations
+/// ```
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let alice_account = Tokens::account("alice.testnet".parse()?);
+///
+/// // Check NEAR balance
+/// let balance = alice_account.near_balance().fetch_from_testnet().await?;
+/// println!("NEAR balance: {}", balance.liquid);
+///
+/// // Send NEAR
+/// alice_account.send_to("bob.testnet".parse()?)
+///     .near(NearToken::from_near(1))
+///     .with_signer(Signer::new(Signer::from_ledger())?)
+///     .send_to_testnet()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Tokens {
     account_id: AccountId,
