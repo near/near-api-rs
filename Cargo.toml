@@ -1,6 +1,6 @@
 [package]
 name = "near-api"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
     "frol <frolvlad@gmail.com>",
