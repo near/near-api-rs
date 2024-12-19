@@ -15,6 +15,21 @@ use self::create::CreateAccountBuilder;
 
 mod create;
 
+/// Account management related interactions with the NEAR Protocol
+///
+/// The [`Account`] struct provides methods to interact with NEAR accounts, including querying account information, managing access keys, and creating new accounts.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let account_info = Account("alice.testnet".parse()?).view().fetch_from_testnet().await?;
+/// println!("Account: {:?}", account_info);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Account(pub AccountId);
 

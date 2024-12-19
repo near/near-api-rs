@@ -38,7 +38,7 @@ async fn main() {
         .assert_success();
 
     signer
-        .add_signer_to_pool(Signer::secret_key(secret_key))
+        .add_signer_to_pool(Signer::from_secret_key(secret_key))
         .await
         .unwrap();
 
