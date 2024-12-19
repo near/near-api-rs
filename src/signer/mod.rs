@@ -72,7 +72,7 @@
 //! # }
 //! ```
 //!
-//! # Advanced: Access Key Pooling
+//! # Advanced: [Access Key Pooling](https://github.com/akorchyn/near-api/issues/2)
 //!
 //! The signer supports pooling multiple access keys for improved transaction throughput.
 //! It helps to mitigate concurrency issues that arise when multiple transactions are signed but the
