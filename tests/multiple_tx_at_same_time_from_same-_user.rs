@@ -68,7 +68,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .assert_success();
 
     signer
-        .add_signer_to_pool(Signer::secret_key(secret.clone()))
+        .add_signer_to_pool(Signer::from_secret_key(secret.clone()))
         .await
         .unwrap();
 
@@ -80,7 +80,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .await
         .unwrap();
     signer
-        .add_signer_to_pool(Signer::secret_key(secret2.clone()))
+        .add_signer_to_pool(Signer::from_secret_key(secret2.clone()))
         .await
         .unwrap();
 

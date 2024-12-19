@@ -10,6 +10,32 @@ use crate::{
     types::storage::StorageBalance,
 };
 
+/// A wrapper struct that simplifies interactions with NEAR storage management standard.
+///
+/// Contracts on NEAR Protocol often implement a [standard interface](https://nomicon.io/Standards/StorageManagement) for managing storage deposits,
+/// which are required for storing data on the blockchain. This struct provides convenient methods
+/// to interact with these storage-related functions.
+///
+/// # Example
+/// ```
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let storage = StorageDeposit::on_contract("contract.testnet".parse()?);
+///
+/// // Check storage balance
+/// let balance = storage.view_account_storage("alice.testnet".parse()?)?.fetch_from_testnet().await?;
+/// println!("Storage balance: {:?}", balance);
+///
+/// // Bob pays for Alice's storage on the contract contract.testnet
+/// let deposit_tx = storage.deposit("alice.testnet".parse()?, NearToken::from_near(1))?
+///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+///     .send_to_testnet()
+///     .await
+///     .unwrap();
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct StorageDeposit(AccountId);
 

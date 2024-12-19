@@ -249,6 +249,22 @@ impl Delegation {
     }
 }
 
+/// Staking-related interactions with the NEAR Protocol
+///
+/// The [`Staking`] struct provides methods to interact with NEAR staking, including querying staking pools, validators, and delegators,
+/// as well as delegating and withdrawing from staking pools.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let staking_pools = Staking::active_staking_pools().fetch_from_testnet().await?;
+/// println!("Staking pools: {:?}", staking_pools);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Staking {}
 

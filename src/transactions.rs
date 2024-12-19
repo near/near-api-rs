@@ -67,6 +67,36 @@ impl Transactionable for ConstructTransaction {
     }
 }
 
+/// Low-level transaction builder.
+///
+/// This struct provides a low-level interface for constructing and signing transactions.
+/// It is designed to be used in scenarios where more control over the transaction process is required.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use near_api::*;
+/// use near_primitives::{action::Action, transaction::TransferAction};
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let signer = Signer::new(Signer::from_ledger())?;
+///
+/// // Construct a transaction to transfer tokens
+/// let transaction_result = Transaction::construct(
+///     "sender.near".parse()?,
+///     "receiver.near".parse()?
+/// )
+/// .add_action(Action::Transfer(
+///     TransferAction {
+///         deposit: NearToken::from_near(1).as_yoctonear(),
+///     },
+/// ))
+/// .with_signer(signer)
+/// .send_to_mainnet()
+/// .await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Transaction;
 

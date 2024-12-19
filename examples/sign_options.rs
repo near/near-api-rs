@@ -16,17 +16,17 @@ async fn main() {
     // Let's add new key and get the seed phrase
     Account(account.id().clone())
         .add_key(AccessKeyPermission::FullAccess, public_key)
-        .with_signer(Signer::new(Signer::secret_key(current_secret_key.clone())).unwrap())
+        .with_signer(Signer::new(Signer::from_secret_key(current_secret_key.clone())).unwrap())
         .send_to(&network)
         .await
         .unwrap();
 
     // Let's add ledger to the account with the new seed phrase
-    let ledger_pubkey = Signer::ledger().get_public_key().unwrap();
+    let ledger_pubkey = Signer::from_ledger().get_public_key().unwrap();
     Account(account.id().clone())
         .add_key(AccessKeyPermission::FullAccess, ledger_pubkey)
         .with_signer(
-            Signer::new(Signer::seed_phrase(new_seed_phrase, Some("smile".to_string())).unwrap())
+            Signer::new(Signer::from_seed_phrase(&new_seed_phrase, Some("smile")).unwrap())
                 .unwrap(),
         )
         .send_to(&network)
@@ -37,7 +37,7 @@ async fn main() {
     // Let's sign some tx with the ledger key
     Account(account.id().clone())
         .delete_key(current_secret_key.public_key())
-        .with_signer(Signer::new(Signer::ledger()).unwrap())
+        .with_signer(Signer::new(Signer::from_ledger()).unwrap())
         .send_to(&network)
         .await
         .unwrap();

@@ -23,6 +23,21 @@ use crate::{
     types::{contract::ContractSourceMetadata, Data},
 };
 
+/// Contract-related interactions with the NEAR Protocol
+///
+/// The [`Contract`] struct provides methods to interact with NEAR contracts, including calling functions, querying storage, and deploying contracts.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let abi = Contract("some_contract.testnet".parse()?).abi().fetch_from_testnet().await?;
+/// println!("ABI: {:?}", abi);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct Contract(pub AccountId);
 
