@@ -4,3 +4,4 @@ contract_rs.wasm
 shell.nix
 .envrc
 .direnv
+Cargo.lock
