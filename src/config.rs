@@ -3,19 +3,26 @@ use near_jsonrpc_client::JsonRpcClient;
 use crate::errors::RetryError;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-/// Using this struct to configure RPC endpoints.
-/// This is primary way to configure retry logic.
+/// Configuration for a [NEAR RPC](https://docs.near.org/api/rpc/providers) endpoint with retry and backoff settings.
 pub struct RPCEndpoint {
+    /// The URL of the RPC endpoint
     pub url: url::Url,
+    /// Optional API key for authenticated requests
     pub api_key: Option<crate::types::ApiKey>,
     /// Number of consecutive failures to move on to the next endpoint.
     pub retries: u8,
+    /// Whether to use exponential backoff between retries
+    ///
+    /// The formula is `d = initial_sleep * factor^retry`
     pub exponential_backoff: bool,
+    /// Multiplier for exponential backoff calculation
     pub factor: u8,
+    /// Base delay duration between retries
     pub initial_sleep: std::time::Duration,
 }
 
 impl RPCEndpoint {
+    /// Constructs a new RPC endpoint configuration with default settings.
     pub const fn new(url: url::Url) -> Self {
         Self {
             url,
@@ -28,10 +35,12 @@ impl RPCEndpoint {
         }
     }
 
+    /// Constructs default mainnet configuration.
     pub fn mainnet() -> Self {
         Self::new("https://archival-rpc.mainnet.near.org".parse().unwrap())
     }
 
+    /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
         Self::new("https://archival-rpc.testnet.near.org".parse().unwrap())
     }
@@ -71,20 +80,45 @@ impl RPCEndpoint {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Configuration for a NEAR network including RPC endpoints and network-specific settings.
+///
+/// # Multiple RPC endpoints
+///
+/// This struct is used to configure multiple RPC endpoints for a NEAR network.
+/// It allows for failover between endpoints in case of a failure.
+///
+///
+/// ## Example
+/// ```rust,no_run
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let config = NetworkConfig {
+///     rpc_endpoints: vec![RPCEndpoint::mainnet(), RPCEndpoint::new("https://near.lava.build".parse()?)],
+///     ..NetworkConfig::mainnet()
+/// };
+/// # Ok(())
+/// # }
+/// ```
 pub struct NetworkConfig {
+    /// Human readable name of the network (e.g. "mainnet", "testnet")
     pub network_name: String,
+    /// List of [RPC endpoints](https://docs.near.org/api/rpc/providers) to use with failover
     pub rpc_endpoints: Vec<RPCEndpoint>,
-    // https://github.com/near/near-cli-rs/issues/116
+    /// Account ID used for [linkdrop functionality](https://docs.near.org/build/primitives/linkdrop)
     pub linkdrop_account_id: Option<near_primitives::types::AccountId>,
-    // https://docs.near.org/social/contract
+    /// Account ID of the [NEAR Social contract](https://docs.near.org/social/contract)
     pub near_social_db_contract_account_id: Option<near_primitives::types::AccountId>,
+    /// URL of the network's faucet service
     pub faucet_url: Option<url::Url>,
+    /// URL for the [meta transaction relayer](https://docs.near.org/concepts/abstraction/relayers) service
     pub meta_transaction_relayer_url: Option<url::Url>,
-    pub fastnear_url: Option<url::Url>,
+    /// Account ID of the [staking pools factory](https://github.com/near/core-contracts/tree/master/staking-pool-factory)
     pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
 }
 
 impl NetworkConfig {
+    /// Constructs default mainnet configuration.
     pub fn mainnet() -> Self {
         Self {
             network_name: "mainnet".to_string(),
@@ -93,11 +127,11 @@ impl NetworkConfig {
             near_social_db_contract_account_id: Some("social.near".parse().unwrap()),
             faucet_url: None,
             meta_transaction_relayer_url: None,
-            fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
-            staking_pools_factory_account_id: Some("pool.near".parse().unwrap()),
+            staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
         }
     }
 
+    /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
         Self {
             network_name: "testnet".to_string(),
@@ -105,8 +139,7 @@ impl NetworkConfig {
             linkdrop_account_id: Some("testnet".parse().unwrap()),
             near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
             faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
-            meta_transaction_relayer_url: Some("http://localhost:3030/relay".parse().unwrap()),
-            fastnear_url: None,
+            meta_transaction_relayer_url: None,
             staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
         }
     }
@@ -136,16 +169,19 @@ impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkCo
             near_social_db_contract_account_id: None,
             faucet_url: None,
             meta_transaction_relayer_url: None,
-            fastnear_url: None,
             staking_pools_factory_account_id: None,
         }
     }
 }
 
 #[derive(Debug)]
+/// Represents the possible outcomes of a retryable operation.
 pub enum RetryResponse<R, E> {
+    /// Operation succeeded with result R
     Ok(R),
+    /// Operation failed with error E, should be retried
     Retry(E),
+    /// Operation failed with critical error E, should not be retried
     Critical(E),
 }
 
@@ -158,6 +194,11 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
     }
 }
 
+/// Retry a task with exponential backoff and failover.
+///
+/// # Arguments
+/// * `network` - The network configuration to use for the retryable operation.
+/// * `task` - The task to retry.
 pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
     F: FnMut(JsonRpcClient) -> T + Send,
