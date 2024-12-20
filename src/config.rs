@@ -113,6 +113,10 @@ pub struct NetworkConfig {
     pub faucet_url: Option<url::Url>,
     /// URL for the [meta transaction relayer](https://docs.near.org/concepts/abstraction/relayers) service
     pub meta_transaction_relayer_url: Option<url::Url>,
+    /// URL for the [fastnear](https://docs.near.org/tools/ecosystem-apis/fastnear-api) service.
+    ///
+    /// Currently, unused. See [#30](https://github.com/near/near-api-rs/issues/30)
+    pub fastnear_url: Option<url::Url>,
     /// Account ID of the [staking pools factory](https://github.com/near/core-contracts/tree/master/staking-pool-factory)
     pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
 }
@@ -127,6 +131,7 @@ impl NetworkConfig {
             near_social_db_contract_account_id: Some("social.near".parse().unwrap()),
             faucet_url: None,
             meta_transaction_relayer_url: None,
+            fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
             staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
         }
     }
@@ -140,6 +145,7 @@ impl NetworkConfig {
             near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
             faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
             meta_transaction_relayer_url: None,
+            fastnear_url: None,
             staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
         }
     }
@@ -168,6 +174,7 @@ impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkCo
             linkdrop_account_id: None,
             near_social_db_contract_account_id: None,
             faucet_url: None,
+            fastnear_url: None,
             meta_transaction_relayer_url: None,
             staking_pools_factory_account_id: None,
         }
