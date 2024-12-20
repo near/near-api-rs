@@ -10,7 +10,7 @@ use crate::{
     types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
-use super::SignerTrait;
+use super::{NEP413Payload, SignerTrait};
 
 const LEDGER_SIGNER_TARGET: &str = "near_api::signer::ledger";
 
@@ -130,13 +130,43 @@ impl SignerTrait for LedgerSigner {
         })
     }
 
-    fn tx_and_secret(
+    #[instrument(skip(self), fields(receiver_id = %payload.recipient, message = %payload.message))]
+    async fn sign_message_nep413(
         &self,
-        _tr: PrepopulateTransaction,
+        _signer_id: crate::AccountId,
         _public_key: PublicKey,
-        _nonce: Nonce,
-        _block_hash: CryptoHash,
-    ) -> Result<(Transaction, SecretKey), SignerError> {
+        payload: NEP413Payload,
+    ) -> Result<near_crypto::Signature, SignerError> {
+        info!(target: LEDGER_SIGNER_TARGET, "Signing NEP413 message with Ledger");
+        let hd_path = self.hd_path.clone();
+        let payload = payload.into();
+
+        let signature = tokio::task::spawn_blocking(move || {
+            let signature =
+                near_ledger::sign_message_nep413(&payload, hd_path).map_err(LedgerError::from)?;
+
+            Ok::<_, LedgerError>(signature)
+        })
+        .await
+        .map_err(LedgerError::from)
+        .map_err(SignerError::from)?;
+
+        let signature = signature.map_err(SignerError::from)?;
+
+        debug!(target: LEDGER_SIGNER_TARGET, "Creating Signature object for NEP413");
+        let signature =
+            near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)
+                .map_err(LedgerError::from)
+                .map_err(SignerError::from)?;
+
+        Ok(signature)
+    }
+
+    fn secret(
+        &self,
+        _signer_id: &crate::AccountId,
+        _public_key: &PublicKey,
+    ) -> Result<SecretKey, SignerError> {
         warn!(target: LEDGER_SIGNER_TARGET, "Attempted to access secret key, which is not available for Ledger signer");
         Err(SignerError::SecretKeyIsNotAvailable)
     }
