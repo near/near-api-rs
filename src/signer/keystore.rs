@@ -1,15 +1,10 @@
 use near_crypto::{PublicKey, SecretKey};
-use near_primitives::{
-    transaction::Transaction,
-    types::{AccountId, Nonce},
-    views::AccessKeyPermissionView,
-};
+use near_primitives::{types::AccountId, views::AccessKeyPermissionView};
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
     errors::{KeyStoreError, SignerError},
-    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 use super::{AccountKeyPair, SignerTrait};
@@ -23,38 +18,26 @@ pub struct KeystoreSigner {
 
 #[async_trait::async_trait]
 impl SignerTrait for KeystoreSigner {
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
-    fn tx_and_secret(
+    #[instrument(skip(self))]
+    fn secret(
         &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> Result<(Transaction, SecretKey), SignerError> {
+        signer_id: &AccountId,
+        public_key: &PublicKey,
+    ) -> Result<SecretKey, SignerError> {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Searching for matching public key");
         self.potential_pubkeys
             .iter()
-            .find(|key| *key == &public_key)
+            .find(|key| *key == public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?;
 
         info!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key");
         // TODO: fix this. Well the search is a bit suboptimal, but it's not a big deal for now
-        let secret = Self::get_secret_key(&tr.signer_id, &public_key, "mainnet")
-            .or_else(|_| Self::get_secret_key(&tr.signer_id, &public_key, "testnet"))
+        let secret = Self::get_secret_key(signer_id, public_key, "mainnet")
+            .or_else(|_| Self::get_secret_key(signer_id, public_key, "testnet"))
             .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
 
-        debug!(target: KEYSTORE_SIGNER_TARGET, "Creating transaction");
-        let mut transaction = Transaction::new_v0(
-            tr.signer_id.clone(),
-            public_key,
-            tr.receiver_id,
-            nonce,
-            block_hash.into(),
-        );
-        *transaction.actions_mut() = tr.actions;
-
-        info!(target: KEYSTORE_SIGNER_TARGET, "Transaction and secret key prepared successfully");
-        Ok((transaction, secret.private_key))
+        info!(target: KEYSTORE_SIGNER_TARGET, "Secret key prepared successfully");
+        Ok(secret.private_key)
     }
 
     #[instrument(skip(self))]

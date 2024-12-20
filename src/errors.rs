@@ -48,6 +48,8 @@ pub enum SignerError {
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0}")]
     FetchNonceError(#[from] QueryError<RpcQueryRequest>),
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
 
     #[cfg(feature = "ledger")]
     #[error(transparent)]

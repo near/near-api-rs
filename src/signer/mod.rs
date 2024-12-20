@@ -119,13 +119,15 @@ use std::{
     },
 };
 
-use near_crypto::{ED25519SecretKey, PublicKey, SecretKey};
+use borsh::{BorshDeserialize, BorshSerialize};
+use near_crypto::{ED25519SecretKey, PublicKey, SecretKey, Signature};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
     transaction::{SignedTransaction, Transaction},
     types::{AccountId, BlockHeight, Nonce},
 };
-use serde::Deserialize;
+use openssl::sha::sha256;
+use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -135,9 +137,8 @@ use crate::{
     types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
-use self::{access_keyfile_signer::AccessKeyFileSigner, secret_key::SecretKeySigner};
+use secret_key::SecretKeySigner;
 
-pub mod access_keyfile_signer;
 #[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
@@ -152,7 +153,7 @@ pub const DEFAULT_WORD_COUNT: usize = 12;
 
 /// A struct representing a pair of public and private keys for an account.
 /// This might be useful for getting keys from a file. E.g. `~/.near-credentials`.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccountKeyPair {
     pub public_key: near_crypto::PublicKey,
     pub private_key: near_crypto::SecretKey,
@@ -162,6 +163,32 @@ impl AccountKeyPair {
     fn load_access_key_file(path: &Path) -> Result<Self, AccessKeyFileError> {
         let data = std::fs::read_to_string(path)?;
         Ok(serde_json::from_str(&data)?)
+    }
+}
+
+/// [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) payload
+/// Input for NEP413 message signing
+#[derive(Debug, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+pub struct NEP413Payload {
+    /// The message that wants to be transmitted.
+    pub message: String,
+    /// The recipient to whom the message is destined (e.g. "alice.near" or "myapp.com").
+    pub recipient: String,
+    /// A nonce that uniquely identifies this instance of the message, denoted as a 32 bytes array.
+    pub nonce: [u8; 32],
+    /// A callback URL that will be called with the signed message as a query parameter.
+    pub callback_url: Option<String>,
+}
+
+#[cfg(feature = "ledger")]
+impl From<NEP413Payload> for near_ledger::NEP413Payload {
+    fn from(payload: NEP413Payload) -> Self {
+        Self {
+            messsage: payload.message,
+            nonce: payload.nonce,
+            recipient: payload.recipient,
+            callback_url: payload.callback_url,
+        }
     }
 }
 
@@ -184,22 +211,12 @@ impl AccountKeyPair {
 ///
 /// #[async_trait::async_trait]
 /// impl SignerTrait for CustomSigner {
-///     fn tx_and_secret(
+///     fn secret(
 ///         &self,
-///         tr: PrepopulateTransaction,
-///         public_key: PublicKey,
-///         nonce: u64,
-///         block_hash: CryptoHash,
-///     ) -> Result<(Transaction, SecretKey), SignerError> {
-///         let mut transaction = Transaction::new_v0(
-///             tr.signer_id.clone(),
-///             public_key,
-///             tr.receiver_id,
-///             nonce,
-///             block_hash.into(),
-///         );
-///         *transaction.actions_mut() = tr.actions;
-///         Ok((transaction, self.secret_key.clone()))
+///         _signer_id: &AccountId,
+///         _public_key: &PublicKey
+///     ) -> Result<SecretKey, SignerError> {
+///         Ok(self.secret_key.clone())
 ///     }
 ///
 ///     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
@@ -250,8 +267,15 @@ pub trait SignerTrait {
         block_hash: CryptoHash,
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
-        let (unsigned_transaction, signer_secret_key) =
-            self.tx_and_secret(tr, public_key, nonce, block_hash)?;
+        let signer_secret_key = self.secret(&tr.signer_id, &public_key)?;
+        let mut unsigned_transaction = Transaction::new_v0(
+            tr.signer_id.clone(),
+            public_key,
+            tr.receiver_id,
+            nonce,
+            block_hash.into(),
+        );
+        *unsigned_transaction.actions_mut() = tr.actions;
 
         get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
     }
@@ -269,26 +293,51 @@ pub trait SignerTrait {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
-        let (unsigned_transaction, signer_secret_key) =
-            self.tx_and_secret(tr, public_key, nonce, block_hash)?;
+        let signer_secret_key = self.secret(&tr.signer_id, &public_key)?;
+        let mut unsigned_transaction = Transaction::new_v0(
+            tr.signer_id.clone(),
+            public_key,
+            tr.receiver_id,
+            nonce,
+            block_hash.into(),
+        );
+        *unsigned_transaction.actions_mut() = tr.actions;
+
         let signature = signer_secret_key.sign(unsigned_transaction.get_hash_and_size().0.as_ref());
 
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
-    /// Creates an unsigned transaction and returns it along with the secret key.
-    /// This is a `helper` method that should be implemented by the signer or fail with SignerError.
+    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message.
+    ///
+    /// This method is used for NEP413 messages. It creates a signature that can be used to authenticate access to an account.
+    ///
+    /// The default implementation should work for most cases.
+    async fn sign_message_nep413(
+        &self,
+        signer_id: AccountId,
+        public_key: PublicKey,
+        payload: NEP413Payload,
+    ) -> Result<Signature, SignerError> {
+        let mut bytes = borsh::to_vec(&2147484061u32)?;
+        bytes.extend(borsh::to_vec(&payload)?);
+        let hash = sha256(&bytes);
+        let secret = self.secret(&signer_id, &public_key)?;
+        let signature = secret.sign(hash.as_ref());
+        Ok(signature)
+    }
+
+    /// Returns the secret key associated with this signer.
+    /// This is a `helper` method that should be implemented by the signer or fail with [`SignerError`].
     /// As long as this method works, the default implementation of the [sign_meta](`SignerTrait::sign_meta`) and [sign](`SignerTrait::sign`) methods should work.
     ///
-    /// If you can't provide a SecretKey for some reason (E.g. `Ledger``),
-    /// you can fail with SignerError and override `sign_meta` and `sign` methods.
-    fn tx_and_secret(
+    /// If you can't provide a [`SecretKey`] for some reason (E.g. `Ledger``),
+    /// you can fail with SignerError and override `sign_meta` and `sign`, `sign_message_nep413` methods.
+    fn secret(
         &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> Result<(Transaction, SecretKey), SignerError>;
+        signer_id: &AccountId,
+        public_key: &PublicKey,
+    ) -> Result<SecretKey, SignerError>;
 
     /// Returns the public key associated with this signer.
     ///
@@ -406,9 +455,12 @@ impl Signer {
         Ok(SecretKeySigner::new(secret_key))
     }
 
-    /// Creates a [AccessKeyFileSigner](`AccessKeyFileSigner`) using a path to the access key file.
-    pub fn from_access_keyfile(path: PathBuf) -> Result<AccessKeyFileSigner, AccessKeyFileError> {
-        AccessKeyFileSigner::new(path)
+    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) using a path to the access key file.
+    pub fn from_access_keyfile(path: PathBuf) -> Result<SecretKeySigner, AccessKeyFileError> {
+        let keypair = AccountKeyPair::load_access_key_file(&path)?;
+        debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
+
+        Ok(SecretKeySigner::new(keypair.private_key))
     }
 
     /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using default HD path.
@@ -624,4 +676,39 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
         &seed_phrase,
         None,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::SignerTrait;
+
+    use super::{NEP413Payload, Signer};
+
+    #[tokio::test]
+    pub async fn test_nep413() {
+        let payload = NEP413Payload {
+            message: "hi".to_string(),
+            nonce: [
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+                23, 24, 25, 26, 27, 28, 29, 30, 31,
+            ],
+            recipient: "myapp.com".to_string(),
+            callback_url: Some("myapp.com/callback".to_string()),
+        };
+
+        let signer = Signer::from_seed_phrase(
+            "lucky barrel fall come bottom can rib join rough around subway cloth",
+            None,
+        )
+        .unwrap();
+        let signature = signer
+            .sign_message_nep413(
+                "yurtur.testnet".parse().unwrap(),
+                signer.get_public_key().unwrap(),
+                payload,
+            )
+            .await
+            .unwrap();
+        println!("signature: {:?}", signature);
+    }
 }
