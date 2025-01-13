@@ -68,7 +68,7 @@ pub mod types;
 pub use crate::{
     account::Account,
     chain::Chain,
-    config::{NetworkConfig, RPCEndpoint},
+    config::{NetworkConfig, RPCEndpoint, RetryMethod},
     contract::Contract,
     signer::{Signer, SignerTrait},
     stake::Staking,
