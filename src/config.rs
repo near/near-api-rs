@@ -3,35 +3,60 @@ use near_jsonrpc_client::JsonRpcClient;
 use crate::errors::RetryError;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-/// Using this struct to configure RPC endpoints.
-/// This is primary way to configure retry logic.
+/// Specifies the retry strategy for RPC endpoint requests.
+pub enum RetryMethod {
+    /// Exponential backoff strategy with configurable initial delay and multiplication factor.
+    /// The delay is calculated as: `initial_sleep * factor^retry_number`
+    ExponentialBackoff {
+        /// The initial delay duration before the first retry
+        initial_sleep: std::time::Duration,
+        /// The multiplication factor for calculating subsequent delays
+        factor: u8,
+    },
+    /// Fixed delay strategy with constant sleep duration
+    Fixed {
+        /// The constant delay duration between retries
+        sleep: std::time::Duration,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Configuration for a [NEAR RPC](https://docs.near.org/api/rpc/providers) endpoint with retry and backoff settings.
 pub struct RPCEndpoint {
+    /// The URL of the RPC endpoint
     pub url: url::Url,
+    /// Optional API key for authenticated requests
     pub api_key: Option<crate::types::ApiKey>,
     /// Number of consecutive failures to move on to the next endpoint.
     pub retries: u8,
-    pub exponential_backoff: bool,
-    pub factor: u8,
-    pub initial_sleep: std::time::Duration,
+    /// The retry method to use
+    pub retry_method: RetryMethod,
 }
 
 impl RPCEndpoint {
+    /// Constructs a new RPC endpoint configuration with default settings.
+    ///
+    /// The default retry method is `ExponentialBackoff` with an initial sleep of 10ms and a factor of 2.
+    /// The delays will be 10ms, 20ms, 40ms, 80ms, 160ms.
     pub const fn new(url: url::Url) -> Self {
         Self {
             url,
             api_key: None,
             retries: 5,
-            exponential_backoff: true,
-            factor: 2,
             // 10ms, 20ms, 40ms, 80ms, 160ms
-            initial_sleep: std::time::Duration::from_millis(10),
+            retry_method: RetryMethod::ExponentialBackoff {
+                initial_sleep: std::time::Duration::from_millis(10),
+                factor: 2,
+            },
         }
     }
 
+    /// Constructs default mainnet configuration.
     pub fn mainnet() -> Self {
         Self::new("https://archival-rpc.mainnet.near.org".parse().unwrap())
     }
 
+    /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
         Self::new("https://archival-rpc.testnet.near.org".parse().unwrap())
     }
@@ -48,43 +73,66 @@ impl RPCEndpoint {
         self
     }
 
-    /// Should we use exponential backoff for the endpoint. Default is true.
-    pub const fn with_exponential_backoff(mut self, exponential_backoff: bool, factor: u8) -> Self {
-        self.exponential_backoff = exponential_backoff;
-        self.factor = factor;
-        self
-    }
-
-    /// Set initial sleep duration for the endpoint. Default is 10ms.
-    pub const fn with_initial_sleep(mut self, initial_sleep: std::time::Duration) -> Self {
-        self.initial_sleep = initial_sleep;
+    pub const fn with_retry_method(mut self, retry_method: RetryMethod) -> Self {
+        self.retry_method = retry_method;
         self
     }
 
     pub fn get_sleep_duration(&self, retry: usize) -> std::time::Duration {
-        if self.exponential_backoff {
-            self.initial_sleep * ((self.factor as u32).pow(retry as u32))
-        } else {
-            self.initial_sleep
+        match self.retry_method {
+            RetryMethod::ExponentialBackoff {
+                initial_sleep,
+                factor,
+            } => initial_sleep * ((factor as u32).pow(retry as u32)),
+            RetryMethod::Fixed { sleep } => sleep,
         }
     }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Configuration for a NEAR network including RPC endpoints and network-specific settings.
+///
+/// # Multiple RPC endpoints
+///
+/// This struct is used to configure multiple RPC endpoints for a NEAR network.
+/// It allows for failover between endpoints in case of a failure.
+///
+///
+/// ## Example
+/// ```rust,no_run
+/// use near_api::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let config = NetworkConfig {
+///     rpc_endpoints: vec![RPCEndpoint::mainnet(), RPCEndpoint::new("https://near.lava.build".parse()?)],
+///     ..NetworkConfig::mainnet()
+/// };
+/// # Ok(())
+/// # }
+/// ```
 pub struct NetworkConfig {
+    /// Human readable name of the network (e.g. "mainnet", "testnet")
     pub network_name: String,
+    /// List of [RPC endpoints](https://docs.near.org/api/rpc/providers) to use with failover
     pub rpc_endpoints: Vec<RPCEndpoint>,
-    // https://github.com/near/near-cli-rs/issues/116
+    /// Account ID used for [linkdrop functionality](https://docs.near.org/build/primitives/linkdrop)
     pub linkdrop_account_id: Option<near_primitives::types::AccountId>,
-    // https://docs.near.org/social/contract
+    /// Account ID of the [NEAR Social contract](https://docs.near.org/social/contract)
     pub near_social_db_contract_account_id: Option<near_primitives::types::AccountId>,
+    /// URL of the network's faucet service
     pub faucet_url: Option<url::Url>,
+    /// URL for the [meta transaction relayer](https://docs.near.org/concepts/abstraction/relayers) service
     pub meta_transaction_relayer_url: Option<url::Url>,
+    /// URL for the [fastnear](https://docs.near.org/tools/ecosystem-apis/fastnear-api) service.
+    ///
+    /// Currently, unused. See [#30](https://github.com/near/near-api-rs/issues/30)
     pub fastnear_url: Option<url::Url>,
+    /// Account ID of the [staking pools factory](https://github.com/NearSocial/social-db)
     pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
 }
 
 impl NetworkConfig {
+    /// Constructs default mainnet configuration.
     pub fn mainnet() -> Self {
         Self {
             network_name: "mainnet".to_string(),
@@ -94,10 +142,11 @@ impl NetworkConfig {
             faucet_url: None,
             meta_transaction_relayer_url: None,
             fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
-            staking_pools_factory_account_id: Some("pool.near".parse().unwrap()),
+            staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
         }
     }
 
+    /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
         Self {
             network_name: "testnet".to_string(),
@@ -105,7 +154,7 @@ impl NetworkConfig {
             linkdrop_account_id: Some("testnet".parse().unwrap()),
             near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
             faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
-            meta_transaction_relayer_url: Some("http://localhost:3030/relay".parse().unwrap()),
+            meta_transaction_relayer_url: None,
             fastnear_url: None,
             staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
         }
@@ -135,17 +184,21 @@ impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkCo
             linkdrop_account_id: None,
             near_social_db_contract_account_id: None,
             faucet_url: None,
-            meta_transaction_relayer_url: None,
             fastnear_url: None,
+            meta_transaction_relayer_url: None,
             staking_pools_factory_account_id: None,
         }
     }
 }
 
 #[derive(Debug)]
+/// Represents the possible outcomes of a retryable operation.
 pub enum RetryResponse<R, E> {
+    /// Operation succeeded with result R
     Ok(R),
+    /// Operation failed with error E, should be retried
     Retry(E),
+    /// Operation failed with critical error E, should not be retried
     Critical(E),
 }
 
@@ -158,6 +211,11 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
     }
 }
 
+/// Retry a task with exponential backoff and failover.
+///
+/// # Arguments
+/// * `network` - The network configuration to use for the retryable operation.
+/// * `task` - The task to retry.
 pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
     F: FnMut(JsonRpcClient) -> T + Send,
