@@ -201,7 +201,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
+/// use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
 /// use near_crypto::{PublicKey, SecretKey};
 /// use near_primitives::transaction::Transaction;
 ///
@@ -227,7 +227,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
+/// # use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
 /// # use near_crypto::{PublicKey, SecretKey};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
@@ -235,8 +235,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 /// # }
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
-/// #     fn tx_and_secret(&self, _: PrepopulateTransaction, _: PublicKey, _: u64, _: CryptoHash,
-/// #     ) -> Result<(near_primitives::transaction::Transaction, SecretKey), SignerError> { unimplemented!() }
+/// #     fn secret(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
 /// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
