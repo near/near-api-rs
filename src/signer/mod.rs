@@ -308,9 +308,8 @@ pub trait SignerTrait {
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
-    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is used for the [authentication](https://docs.near.org/build/web3-apps/backend/).
-    ///
-    /// This method is used for NEP413 messages. It creates a signature that can be used to authenticate access to an account.
+    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is widely used for the [authentication](https://docs.near.org/build/web3-apps/backend/)
+    /// and offchain proof of account ownership.
     ///
     /// The default implementation should work for most cases.
     async fn sign_message_nep413(
