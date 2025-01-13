@@ -123,10 +123,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use near_crypto::{ED25519SecretKey, PublicKey, SecretKey, Signature};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
+    hash::hash,
     transaction::{SignedTransaction, Transaction},
     types::{AccountId, BlockHeight, Nonce},
 };
-use openssl::sha::sha256;
 use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
 use tracing::{debug, info, instrument, trace, warn};
@@ -172,10 +172,10 @@ impl AccountKeyPair {
 pub struct NEP413Payload {
     /// The message that wants to be transmitted.
     pub message: String,
-    /// The recipient to whom the message is destined (e.g. "alice.near" or "myapp.com").
-    pub recipient: String,
     /// A nonce that uniquely identifies this instance of the message, denoted as a 32 bytes array.
     pub nonce: [u8; 32],
+    /// The recipient to whom the message is destined (e.g. "alice.near" or "myapp.com").
+    pub recipient: String,
     /// A callback URL that will be called with the signed message as a query parameter.
     pub callback_url: Option<String>,
 }
@@ -308,7 +308,7 @@ pub trait SignerTrait {
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
-    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message.
+    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is used for the [authentication](https://docs.near.org/build/web3-apps/backend/).
     ///
     /// This method is used for NEP413 messages. It creates a signature that can be used to authenticate access to an account.
     ///
@@ -319,9 +319,10 @@ pub trait SignerTrait {
         public_key: PublicKey,
         payload: NEP413Payload,
     ) -> Result<Signature, SignerError> {
-        let mut bytes = borsh::to_vec(&2147484061u32)?;
-        bytes.extend(borsh::to_vec(&payload)?);
-        let hash = sha256(&bytes);
+        const NEP413_413_SIGN_MESSAGE_PREFIX: u32 = (1u32 << 31u32) + 413u32;
+        let mut bytes = NEP413_413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
+        borsh::to_writer(&mut bytes, &payload)?;
+        let hash = hash(&bytes);
         let secret = self.secret(&signer_id, &public_key)?;
         let signature = secret.sign(hash.as_ref());
         Ok(signature)
@@ -680,35 +681,44 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 
 #[cfg(test)]
 mod tests {
+    use near_crypto::Signature;
+    use near_primitives::serialize::from_base64;
+
     use crate::SignerTrait;
 
     use super::{NEP413Payload, Signer};
 
     #[tokio::test]
     pub async fn test_nep413() {
-        let payload = NEP413Payload {
-            message: "hi".to_string(),
-            nonce: [
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                23, 24, 25, 26, 27, 28, 29, 30, 31,
-            ],
-            recipient: "myapp.com".to_string(),
-            callback_url: Some("myapp.com/callback".to_string()),
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            recipient: "example.near".to_string(),
+            // callback_url: None,
+            callback_url: Some("http://localhost:3000".to_string()),
         };
 
         let signer = Signer::from_seed_phrase(
-            "lucky barrel fall come bottom can rib join rough around subway cloth",
+            "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
             None,
         )
         .unwrap();
         let signature = signer
             .sign_message_nep413(
-                "yurtur.testnet".parse().unwrap(),
+                "round-toad.testnet".parse().unwrap(),
                 signer.get_public_key().unwrap(),
                 payload,
             )
             .await
             .unwrap();
-        println!("signature: {:?}", signature);
+
+        let expected_signature =
+            from_base64("zzZQ/GwAjrZVrTIFlvmmQbDQHllfzrr8urVWHaRt5cPfcXaCSZo35c5LDpPpTKivR6BxLyb3lcPM0FfCW5lcBQ==").unwrap();
+        let expected_signature =
+            Signature::from_parts(near_crypto::KeyType::ED25519, &expected_signature).unwrap();
+        assert_eq!(signature, expected_signature);
     }
 }
