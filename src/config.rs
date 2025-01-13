@@ -3,6 +3,24 @@ use near_jsonrpc_client::JsonRpcClient;
 use crate::errors::RetryError;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Specifies the retry strategy for RPC endpoint requests.
+pub enum RetryMethod {
+    /// Exponential backoff strategy with configurable initial delay and multiplication factor.
+    /// The delay is calculated as: `initial_sleep * factor^retry_number`
+    ExponentialBackoff {
+        /// The initial delay duration before the first retry
+        initial_sleep: std::time::Duration,
+        /// The multiplication factor for calculating subsequent delays
+        factor: u8,
+    },
+    /// Fixed delay strategy with constant sleep duration
+    Fixed {
+        /// The constant delay duration between retries
+        sleep: std::time::Duration,
+    },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// Configuration for a [NEAR RPC](https://docs.near.org/api/rpc/providers) endpoint with retry and backoff settings.
 pub struct RPCEndpoint {
     /// The URL of the RPC endpoint
@@ -11,27 +29,25 @@ pub struct RPCEndpoint {
     pub api_key: Option<crate::types::ApiKey>,
     /// Number of consecutive failures to move on to the next endpoint.
     pub retries: u8,
-    /// Whether to use exponential backoff between retries
-    ///
-    /// The formula is `d = initial_sleep * factor^retry`
-    pub exponential_backoff: bool,
-    /// Multiplier for exponential backoff calculation
-    pub factor: u8,
-    /// Base delay duration between retries
-    pub initial_sleep: std::time::Duration,
+    /// The retry method to use
+    pub retry_method: RetryMethod,
 }
 
 impl RPCEndpoint {
     /// Constructs a new RPC endpoint configuration with default settings.
+    ///
+    /// The default retry method is `ExponentialBackoff` with an initial sleep of 10ms and a factor of 2.
+    /// The delays will be 10ms, 20ms, 40ms, 80ms, 160ms.
     pub const fn new(url: url::Url) -> Self {
         Self {
             url,
             api_key: None,
             retries: 5,
-            exponential_backoff: true,
-            factor: 2,
             // 10ms, 20ms, 40ms, 80ms, 160ms
-            initial_sleep: std::time::Duration::from_millis(10),
+            retry_method: RetryMethod::ExponentialBackoff {
+                initial_sleep: std::time::Duration::from_millis(10),
+                factor: 2,
+            },
         }
     }
 
@@ -57,24 +73,18 @@ impl RPCEndpoint {
         self
     }
 
-    /// Should we use exponential backoff for the endpoint. Default is true.
-    pub const fn with_exponential_backoff(mut self, exponential_backoff: bool, factor: u8) -> Self {
-        self.exponential_backoff = exponential_backoff;
-        self.factor = factor;
-        self
-    }
-
-    /// Set initial sleep duration for the endpoint. Default is 10ms.
-    pub const fn with_initial_sleep(mut self, initial_sleep: std::time::Duration) -> Self {
-        self.initial_sleep = initial_sleep;
+    pub const fn with_retry_method(mut self, retry_method: RetryMethod) -> Self {
+        self.retry_method = retry_method;
         self
     }
 
     pub fn get_sleep_duration(&self, retry: usize) -> std::time::Duration {
-        if self.exponential_backoff {
-            self.initial_sleep * ((self.factor as u32).pow(retry as u32))
-        } else {
-            self.initial_sleep
+        match self.retry_method {
+            RetryMethod::ExponentialBackoff {
+                initial_sleep,
+                factor,
+            } => initial_sleep * ((factor as u32).pow(retry as u32)),
+            RetryMethod::Fixed { sleep } => sleep,
         }
     }
 }
@@ -117,7 +127,7 @@ pub struct NetworkConfig {
     ///
     /// Currently, unused. See [#30](https://github.com/near/near-api-rs/issues/30)
     pub fastnear_url: Option<url::Url>,
-    /// Account ID of the [staking pools factory](https://github.com/near/core-contracts/tree/master/staking-pool-factory)
+    /// Account ID of the [staking pools factory](https://github.com/NearSocial/social-db)
     pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
 }
 
