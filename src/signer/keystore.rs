@@ -19,7 +19,7 @@ pub struct KeystoreSigner {
 #[async_trait::async_trait]
 impl SignerTrait for KeystoreSigner {
     #[instrument(skip(self))]
-    fn secret(
+    fn get_secret_key(
         &self,
         signer_id: &AccountId,
         public_key: &PublicKey,

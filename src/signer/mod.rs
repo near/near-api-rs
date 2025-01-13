@@ -166,8 +166,7 @@ impl AccountKeyPair {
     }
 }
 
-/// [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) payload
-/// Input for NEP413 message signing
+/// [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) input for the signing message.
 #[derive(Debug, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct NEP413Payload {
     /// The message that wants to be transmitted.
@@ -211,7 +210,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// #[async_trait::async_trait]
 /// impl SignerTrait for CustomSigner {
-///     fn secret(
+///     fn get_secret_key(
 ///         &self,
 ///         _signer_id: &AccountId,
 ///         _public_key: &PublicKey
@@ -235,7 +234,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 /// # }
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
-/// #     fn secret(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
+/// #     fn get_secret_key(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
 /// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -266,7 +265,7 @@ pub trait SignerTrait {
         block_hash: CryptoHash,
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
-        let signer_secret_key = self.secret(&tr.signer_id, &public_key)?;
+        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key)?;
         let mut unsigned_transaction = Transaction::new_v0(
             tr.signer_id.clone(),
             public_key,
@@ -292,7 +291,7 @@ pub trait SignerTrait {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
-        let signer_secret_key = self.secret(&tr.signer_id, &public_key)?;
+        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key)?;
         let mut unsigned_transaction = Transaction::new_v0(
             tr.signer_id.clone(),
             public_key,
@@ -321,7 +320,7 @@ pub trait SignerTrait {
         let mut bytes = NEP413_413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
         borsh::to_writer(&mut bytes, &payload)?;
         let hash = hash(&bytes);
-        let secret = self.secret(&signer_id, &public_key)?;
+        let secret = self.get_secret_key(&signer_id, &public_key)?;
         let signature = secret.sign(hash.as_ref());
         Ok(signature)
     }
@@ -332,7 +331,7 @@ pub trait SignerTrait {
     ///
     /// If you can't provide a [`SecretKey`] for some reason (E.g. `Ledger``),
     /// you can fail with SignerError and override `sign_meta` and `sign`, `sign_message_nep413` methods.
-    fn secret(
+    fn get_secret_key(
         &self,
         signer_id: &AccountId,
         public_key: &PublicKey,

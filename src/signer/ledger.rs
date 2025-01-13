@@ -162,7 +162,7 @@ impl SignerTrait for LedgerSigner {
         Ok(signature)
     }
 
-    fn secret(
+    fn get_secret_key(
         &self,
         _signer_id: &crate::AccountId,
         _public_key: &PublicKey,
