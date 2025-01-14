@@ -677,7 +677,7 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 }
 
 #[cfg(test)]
-mod tests {
+mod nep_413_tests {
     use near_crypto::Signature;
     use near_primitives::serialize::from_base64;
 
@@ -685,8 +685,10 @@ mod tests {
 
     use super::{NEP413Payload, Signer};
 
+    // The mockup data is created using the sender/my-near-wallet NEP413 implementation
+    // The meteor wallet ignores the callback url on time of writing.
     #[tokio::test]
-    pub async fn test_nep413() {
+    pub async fn with_callback_url() {
         let payload: NEP413Payload = NEP413Payload {
             message: "Hello NEAR!".to_string(),
             nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
@@ -714,6 +716,41 @@ mod tests {
 
         let expected_signature =
             from_base64("zzZQ/GwAjrZVrTIFlvmmQbDQHllfzrr8urVWHaRt5cPfcXaCSZo35c5LDpPpTKivR6BxLyb3lcPM0FfCW5lcBQ==").unwrap();
+        let expected_signature =
+            Signature::from_parts(near_crypto::KeyType::ED25519, &expected_signature).unwrap();
+        assert_eq!(signature, expected_signature);
+    }
+
+    // The mockup data is created using the sender/meteor NEP413 implementation.
+    // My near wallet adds the callback url to the payload if it is not provided on time of writing.
+    #[tokio::test]
+    pub async fn without_callback_url() {
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            recipient: "example.near".to_string(),
+            callback_url: None,
+        };
+
+        let signer = Signer::from_seed_phrase(
+            "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
+            None,
+        )
+        .unwrap();
+        let signature = signer
+            .sign_message_nep413(
+                "round-toad.testnet".parse().unwrap(),
+                signer.get_public_key().unwrap(),
+                payload,
+            )
+            .await
+            .unwrap();
+
+        let expected_signature =
+            from_base64("NnJgPU1Ql7ccRTITIoOVsIfElmvH1RV7QAT4a9Vh6ShCOnjIzRwxqX54JzoQ/nK02p7VBMI2vJn48rpImIJwAw==").unwrap();
         let expected_signature =
             Signature::from_parts(near_crypto::KeyType::ED25519, &expected_signature).unwrap();
         assert_eq!(signature, expected_signature);
