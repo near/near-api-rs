@@ -34,13 +34,17 @@ use crate::{
 
 type Result<T> = core::result::Result<T, BuilderError>;
 
-/// A wrapper struct that simplifies interactions with NEAR tokens
-/// ([NEAR](https://docs.near.org/concepts/basics/tokens), [FT](https://docs.near.org/build/primitives/ft), [NFT](https://docs.near.org/build/primitives/nft)).
+// This is not too long as most of the size is a links to the docs
+#[allow(clippy::too_long_first_doc_paragraph)]
+/// A wrapper struct that simplifies interactions with
+/// [NEAR](https://docs.near.org/concepts/basics/tokens),
+/// [FT](https://docs.near.org/build/primitives/ft),
+/// [NFT](https://docs.near.org/build/primitives/nft)
 ///
 /// This struct provides convenient methods to interact with different types of tokens on NEAR Protocol:
 /// - [Native NEAR](https://docs.near.org/concepts/basics/tokens) token operations
-/// - [Fungible Token](https://docs.near.org/build/primitives/ft) (FT) standard operations
-/// - [Non-Fungible Token](https://docs.near.org/build/primitives/nft) (NFT) standard operations
+/// - [Fungible Token](https://nomicon.io/Standards/Tokens/FungibleToken/Core) (FT) standard operations
+/// - [Non-Fungible Token](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core) (NFT) standard operations
 ///
 /// ## Examples
 ///
