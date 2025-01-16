@@ -21,12 +21,14 @@ impl<T: Transactionable> TransactionWithSign<T> {
     }
 }
 
+/// A builder for constructing transactions using Actions.
 #[derive(Debug, Clone)]
 pub struct ConstructTransaction {
     pub tr: PrepopulateTransaction,
 }
 
 impl ConstructTransaction {
+    /// Prepopulates a transaction with the given signer and receiver IDs.
     pub const fn new(signer_id: AccountId, receiver_id: AccountId) -> Self {
         Self {
             tr: PrepopulateTransaction {
@@ -37,16 +39,19 @@ impl ConstructTransaction {
         }
     }
 
+    /// Adds an action to the transaction.
     pub fn add_action(mut self, action: Action) -> Self {
         self.tr.actions.push(action);
         self
     }
 
-    pub fn add_actions(mut self, action: Vec<Action>) -> Self {
-        self.tr.actions.extend(action);
+    /// Adds multiple actions to the transaction.
+    pub fn add_actions(mut self, actions: Vec<Action>) -> Self {
+        self.tr.actions.extend(actions);
         self
     }
 
+    /// Signs the transaction with the given signer.
     pub fn with_signer(self, signer: Arc<Signer>) -> ExecuteSignedTransaction {
         ExecuteSignedTransaction::new(self, signer)
     }
@@ -67,44 +72,78 @@ impl Transactionable for ConstructTransaction {
     }
 }
 
-/// Low-level transaction builder.
+/// Transaction related functionality.
 ///
-/// This struct provides a low-level interface for constructing and signing transactions.
-/// It is designed to be used in scenarios where more control over the transaction process is required.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use near_api::*;
-/// use near_primitives::{action::Action, transaction::TransferAction};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let signer = Signer::new(Signer::from_ledger())?;
-///
-/// // Construct a transaction to transfer tokens
-/// let transaction_result = Transaction::construct(
-///     "sender.near".parse()?,
-///     "receiver.near".parse()?
-/// )
-/// .add_action(Action::Transfer(
-///     TransferAction {
-///         deposit: NearToken::from_near(1).as_yoctonear(),
-///     },
-/// ))
-/// .with_signer(signer)
-/// .send_to_mainnet()
-/// .await?;
-/// # Ok(())
-/// # }
-/// ```
+/// This struct provides ability to interact with transactions.
 #[derive(Clone, Debug)]
 pub struct Transaction;
 
 impl Transaction {
+    /// Constructs a new transaction builder with the given signer and receiver IDs.
+    /// This pattern is useful for batching actions into a single transaction.
+    ///
+    /// This is the low level interface for constructing transactions.
+    /// It is designed to be used in scenarios where more control over the transaction process is required.
+    ///
+    /// # Example
+    ///
+    /// This example constructs a transaction with a two transfer actions.
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    /// use near_primitives::transaction::{Action, TransferAction};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    ///
+    /// let transaction_result = Transaction::construct(
+    ///     "sender.near".parse()?,
+    ///     "receiver.near".parse()?
+    /// )
+    /// .add_action(Action::Transfer(
+    ///     TransferAction {
+    ///         deposit: NearToken::from_near(1).as_yoctonear(),
+    ///     },
+    /// ))
+    /// .add_action(Action::Transfer(
+    ///     TransferAction {
+    ///         deposit: NearToken::from_near(1).as_yoctonear(),
+    ///     },
+    /// ))
+    /// .with_signer(signer)
+    /// .send_to_mainnet()
+    /// .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub const fn construct(signer_id: AccountId, receiver_id: AccountId) -> ConstructTransaction {
         ConstructTransaction::new(signer_id, receiver_id)
     }
 
+    /// Signs a transaction with the given signer.
+    ///
+    /// This provides ability to sign customly constructed pre-populated transactions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    /// use near_primitives::transaction::{Action, TransferAction};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// # let unsigned_tx = todo!();
+    ///
+    /// let transaction_result = Transaction::sign_transaction(
+    ///     unsigned_tx,
+    ///     signer
+    /// )
+    /// .await?
+    /// .send_to_mainnet()
+    /// .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn sign_transaction(
         unsigned_tx: near_primitives::transaction::Transaction,
         signer: Arc<Signer>,
@@ -122,4 +161,8 @@ impl Transaction {
         .presign_offline(public_key, block_hash.into(), nonce)
         .await
     }
+
+    // TODO: fetch transaction status
+    // TODO: fetch transaction receipt
+    // TODO: fetch transaction proof
 }

@@ -22,6 +22,9 @@ pub struct CreateAccountBuilder {
 }
 
 impl CreateAccountBuilder {
+    /// Create an account and fund it by your own
+    ///
+    /// You can only create an account inhereted from root account or sub-account of your own.
     pub fn fund_myself(
         self,
         signer_account_id: AccountId,
@@ -85,13 +88,14 @@ impl CreateAccountBuilder {
         }))
     }
 
-    pub fn sponsor_by_faucet_service(
-        self,
-        account_id: AccountId,
-    ) -> PublicKeyProvider<CreateAccountByFaucet, Infallible> {
+    /// Create an account sponsored by faucet service
+    ///
+    /// This is a way to create an account without having to fund it. It works only on testnet.
+    /// You can only create an account inhereted from root account (near, testnet).
+    pub fn sponsor_by_faucet_service(self) -> PublicKeyProvider<CreateAccountByFaucet, Infallible> {
         PublicKeyProvider::new(Box::new(move |public_key| {
             Ok(CreateAccountByFaucet {
-                new_account_id: account_id,
+                new_account_id: self.account_id,
                 public_key,
             })
         }))
@@ -105,11 +109,22 @@ pub struct CreateAccountByFaucet {
 }
 
 impl CreateAccountByFaucet {
+    /// Sends the account creation request to the default testnet faucet service.
     pub async fn send_to_testnet_faucet(self) -> Result<Response, FaucetError> {
         let testnet = NetworkConfig::testnet();
         self.send_to_config_faucet(&testnet).await
     }
 
+    /// Sends the account creation request to the faucet service specified in the network config.
+    /// This way you can specify your own faucet service.
+    ///
+    /// Please note, that the faucet service should receive the request in the following format:
+    /// ```json
+    /// {
+    ///     "newAccountId": "new_account_id",
+    ///     "newAccountPublicKey": "new_account_public_key"
+    /// }
+    /// ```
     pub async fn send_to_config_faucet(
         self,
         config: &NetworkConfig,
@@ -122,6 +137,15 @@ impl CreateAccountByFaucet {
         self.send_to_faucet(faucet_service_url).await
     }
 
+    /// Sends the account creation request to the faucet service specified by the URL.
+    ///
+    /// Please note, that the faucet service should receive the request in the following format:
+    /// ```json
+    /// {
+    ///     "newAccountId": "new_account_id",
+    ///     "newAccountPublicKey": "new_account_public_key"
+    /// }
+    /// ```
     pub async fn send_to_faucet(self, url: &Url) -> Result<Response, FaucetError> {
         let mut data = std::collections::HashMap::new();
         data.insert("newAccountId", self.new_account_id.to_string());

@@ -42,6 +42,43 @@ use crate::{
 pub struct Contract(pub AccountId);
 
 impl Contract {
+    /// Prepares a call to a contract function.
+    ///
+    /// This will return a builder that can be used to prepare a query or a transaction.
+    ///
+    /// ## Calling view function `get_number`
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let number: Data<u64> = Contract("some_contract.testnet".parse()?)
+    ///     .call_function("get_number", ())?
+    ///     .read_only()
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Number: {:?}", number);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Calling a state changing function `set_number`
+    /// ```rust,no_run
+    /// use near_api::*;
+    /// use serde_json::json;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// Contract("some_contract.testnet".parse()?)
+    ///     .call_function("set_number", json!({ "number": 100 }))?
+    ///     .transaction()
+    ///      // Optional
+    ///     .gas(NearGas::from_tgas(200))
+    ///     .with_signer("alice.testnet".parse()?, signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn call_function<Args>(
         &self,
         method_name: &str,
@@ -59,10 +96,63 @@ impl Contract {
         })
     }
 
+    /// Prepares a transaction to deploy a contract to the provided account.
+    ///
+    /// The code is the wasm bytecode of the contract. For more information on how to compile your contract,
+    /// please refer to the [NEAR documentation](https://docs.near.org/build/smart-contracts/quickstart).
+    ///
+    /// ## Deploying the contract
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// Contract::deploy("contract.testnet".parse()?, code)
+    ///     .without_init_call()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Deploying the contract with an init call
+    /// ```rust,no_run
+    /// use near_api::*;
+    /// use serde_json::json;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// Contract::deploy("contract.testnet".parse()?, code)
+    ///     .with_init_call("init", json!({ "number": 100 }))?
+    ///     // Optional
+    ///     .gas(NearGas::from_tgas(200))
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub const fn deploy(contract: AccountId, code: Vec<u8>) -> DeployContractBuilder {
         DeployContractBuilder::new(contract, code)
     }
 
+    /// Prepares a query to fetch the [ABI](https://github.com/near/near-abi-rs) of the contract.
+    ///
+    /// Please be aware that is not all the contracts provides the ABI.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let abi = Contract("some_contract.testnet".parse()?).abi().fetch_from_testnet().await?;
+    /// println!("ABI: {:?}", abi);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn abi(
         &self,
     ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
@@ -86,6 +176,18 @@ impl Contract {
         )
     }
 
+    /// Prepares a query to fetch the wasm code of the contract.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let wasm = Contract("some_contract.testnet".parse()?).wasm().fetch_from_testnet().await?;
+    /// println!("WASM: {:?}", wasm.data.code.len());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn wasm(&self) -> QueryBuilder<ViewCodeHandler> {
         let request = near_primitives::views::QueryRequest::ViewCode {
             account_id: self.0.clone(),
@@ -98,6 +200,23 @@ impl Contract {
         )
     }
 
+    /// Prepares a query to fetch the storage of the contract using the given prefix as a filter.
+    ///
+    /// It helpful if you are aware of the storage that you are looking for.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let storage = Contract("some_contract.testnet".parse()?)
+    ///     .view_storage_with_prefix(b"se".to_vec())
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Storage: {:?}", storage);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn view_storage_with_prefix(&self, prefix: Vec<u8>) -> QueryBuilder<ViewStateHandler> {
         let request = near_primitives::views::QueryRequest::ViewState {
             account_id: self.0.clone(),
@@ -112,10 +231,45 @@ impl Contract {
         )
     }
 
+    /// Prepares a query to fetch the storage of the contract.
+    ///
+    /// Please be aware that large storage queries might fail.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let storage = Contract("some_contract.testnet".parse()?)
+    ///     .view_storage()
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Storage: {:?}", storage);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler> {
         self.view_storage_with_prefix(vec![])
     }
 
+    /// Prepares a query to fetch the contract source metadata using [NEP-330](https://nomicon.io/Standards/SourceMetadata) standard.
+    ///
+    /// The contract source metadata is a standard interface that allows auditing and viewing source code for a deployed smart contract.
+    /// Implementation of this standard is purely optional but is recommended for developers whose contracts are open source.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let source_metadata = Contract("some_contract.testnet".parse()?)
+    ///     .contract_source_metadata()
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Source metadata: {:?}", source_metadata);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn contract_source_metadata(
         &self,
     ) -> QueryBuilder<CallResultHandler<ContractSourceMetadata>> {
@@ -136,28 +290,89 @@ impl DeployContractBuilder {
         Self { contract, code }
     }
 
+    /// Prepares a transaction to deploy a contract to the provided account without an init call.
+    ///
+    /// This will deploy the contract without calling any function.
     pub fn without_init_call(self) -> ConstructTransaction {
         Transaction::construct(self.contract.clone(), self.contract.clone()).add_action(
             Action::DeployContract(DeployContractAction { code: self.code }),
         )
     }
 
+    /// Prepares a transaction to deploy a contract to the provided account with an init call.
+    ///
+    /// This will deploy the contract and call the init function with the provided arguments as a single transaction.
     pub fn with_init_call<Args: Serialize>(
         self,
         method_name: &str,
         args: Args,
-    ) -> Result<ConstructTransaction, BuilderError> {
+    ) -> Result<DeployContractTransactBuilder, BuilderError> {
         let args = serde_json::to_vec(&args)?;
 
-        Ok(ContractTransactBuilder::new(
+        Ok(DeployContractTransactBuilder::new(
             self.contract.clone(),
             method_name.to_string(),
             args,
-            Some(Action::DeployContract(DeployContractAction {
+            self.code,
+        ))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct DeployContractTransactBuilder {
+    contract: AccountId,
+    method_name: String,
+    args: Vec<u8>,
+    code: Vec<u8>,
+    gas: Option<NearGas>,
+    deposit: Option<NearToken>,
+}
+
+impl DeployContractTransactBuilder {
+    const fn new(contract: AccountId, method_name: String, args: Vec<u8>, code: Vec<u8>) -> Self {
+        Self {
+            contract,
+            method_name,
+            args,
+            code,
+            gas: None,
+            deposit: None,
+        }
+    }
+
+    /// Specify the gas limit for the transaction. By default it is set to 100 TGas.
+    pub const fn gas(mut self, gas: NearGas) -> Self {
+        self.gas = Some(gas);
+        self
+    }
+
+    /// Specify the near deposit for the transaction. By default it is set to 0.
+    ///
+    /// Please note that the method should be [`payable`](https://docs.near.org/build/smart-contracts/anatomy/functions#payable-functions) in the contract to accept the deposit.
+    /// Otherwise the transaction will fail.
+    pub const fn deposit(mut self, deposit: NearToken) -> Self {
+        self.deposit = Some(deposit);
+        self
+    }
+
+    /// Specify the signer for the transaction. This will wrap-up the process of the preparing the transaction.
+    ///
+    /// This will return the [`ExecuteSignedTransaction`] that can be used to sign and send the transaction to the network.
+    pub fn with_signer(self, signer: Arc<Signer>) -> ExecuteSignedTransaction {
+        let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
+        let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
+
+        Transaction::construct(self.contract.clone(), self.contract)
+            .add_action(Action::DeployContract(DeployContractAction {
                 code: self.code,
-            })),
-        )
-        .with_signer_account(self.contract))
+            }))
+            .add_action(Action::FunctionCall(Box::new(FunctionCallAction {
+                method_name: self.method_name.to_owned(),
+                args: self.args,
+                gas: gas.as_gas(),
+                deposit: deposit.as_yoctonear(),
+            })))
+            .with_signer(signer)
     }
 }
 
@@ -169,6 +384,21 @@ pub struct CallFunctionBuilder {
 }
 
 impl CallFunctionBuilder {
+    /// Prepares a read-only query that doesn't require a signing a transtaction.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ())?.read_only().fetch_from_testnet().await?;
+    /// println!("Balance: {:?}", balance);
+    ///
+    /// let balance_at_block: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ())?.read_only().at(Reference::AtBlock(1000000)).fetch_from_testnet().await?;
+    /// println!("Balance at block 1000000: {:?}", balance_at_block);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn read_only<Response: Send + Sync + DeserializeOwned>(
         self,
     ) -> QueryBuilder<CallResultHandler<Response>> {
@@ -185,8 +415,11 @@ impl CallFunctionBuilder {
         )
     }
 
+    /// Prepares a transaction that will call a contract function leading to a state change.
+    ///
+    /// This will require a signer to be provided and gas to be paid.
     pub fn transaction(self) -> ContractTransactBuilder {
-        ContractTransactBuilder::new(self.contract, self.method_name, self.args, None)
+        ContractTransactBuilder::new(self.contract, self.method_name, self.args)
     }
 }
 
@@ -195,38 +428,39 @@ pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,
     args: Vec<u8>,
-    pre_action: Option<Action>,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
 
 impl ContractTransactBuilder {
-    const fn new(
-        contract: AccountId,
-        method_name: String,
-        args: Vec<u8>,
-        pre_action: Option<Action>,
-    ) -> Self {
+    const fn new(contract: AccountId, method_name: String, args: Vec<u8>) -> Self {
         Self {
             contract,
             method_name,
             args,
-            pre_action,
             gas: None,
             deposit: None,
         }
     }
 
+    /// Specify the gas limit for the transaction. By default it is set to 100 TGas.
     pub const fn gas(mut self, gas: NearGas) -> Self {
         self.gas = Some(gas);
         self
     }
 
+    /// Specify the near deposit for the transaction. By default it is set to 0.
+    ///
+    /// Please note that the method should be [`payable`](https://docs.near.org/build/smart-contracts/anatomy/functions#payable-functions) in the contract to accept the deposit.
+    /// Otherwise the transaction will fail.
     pub const fn deposit(mut self, deposit: NearToken) -> Self {
         self.deposit = Some(deposit);
         self
     }
 
+    /// Specify the signer for the transaction. This will wrap-up the process of the preparing the transaction.
+    ///
+    /// This will return the [`ExecuteSignedTransaction`] that can be used to sign and send the transaction to the network.
     pub fn with_signer(
         self,
         signer_id: AccountId,
@@ -240,17 +474,13 @@ impl ContractTransactBuilder {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
-        let tx: ConstructTransaction = if let Some(preaction) = self.pre_action {
-            Transaction::construct(signer_id, self.contract).add_action(preaction)
-        } else {
-            Transaction::construct(signer_id, self.contract)
-        };
-
-        tx.add_action(Action::FunctionCall(Box::new(FunctionCallAction {
-            method_name: self.method_name.to_owned(),
-            args: self.args,
-            gas: gas.as_gas(),
-            deposit: deposit.as_yoctonear(),
-        })))
+        Transaction::construct(signer_id, self.contract).add_action(Action::FunctionCall(Box::new(
+            FunctionCallAction {
+                method_name: self.method_name.to_owned(),
+                args: self.args,
+                gas: gas.as_gas(),
+                deposit: deposit.as_yoctonear(),
+            },
+        )))
     }
 }

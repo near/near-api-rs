@@ -1,3 +1,4 @@
+//! TODO: root level doc might be needed here. It's pretty complicated.
 use std::{marker::PhantomData, sync::Arc};
 
 use futures::future::join_all;
@@ -172,6 +173,8 @@ where
         }
     }
 
+    /// Add a query to the queried items. Sometimes you might need to query multiple items at once.
+    /// To combine the result of multiple queries into one.
     pub fn add_query(
         mut self,
         request: Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>,
@@ -180,11 +183,13 @@ where
         self
     }
 
+    /// It might be easier to use this method to add a query builder to the queried items.
     pub fn add_query_builder<T>(mut self, query_builder: RpcBuilder<T, Method, Reference>) -> Self {
         self.requests.push(query_builder.request);
         self
     }
 
+    /// Set the block reference for the queries.
     pub fn at(self, block_reference: Reference) -> Self {
         Self {
             reference: block_reference,
@@ -192,6 +197,7 @@ where
         }
     }
 
+    /// Fetch the queries from the provided network.
     #[instrument(skip(self, network), fields(request_count = self.requests.len()))]
     pub async fn fetch_from(
         self,
@@ -245,11 +251,13 @@ where
         self.handler.process_response(requests)
     }
 
+    /// Fetch the queries from the default mainnet network configuration.
     pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
     }
 
+    /// Fetch the queries from the default testnet network configuration.
     pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
@@ -282,6 +290,7 @@ where
         }
     }
 
+    /// Set the block reference for the query.
     pub fn at(self, reference: impl Into<Reference>) -> Self {
         Self {
             reference: reference.into(),
@@ -289,6 +298,7 @@ where
         }
     }
 
+    /// Fetch the query from the provided network.
     #[instrument(skip(self, network))]
     pub async fn fetch_from(
         self,
@@ -321,11 +331,13 @@ where
         self.handler.process_response(vec![query_response])
     }
 
+    /// Fetch the query from the default mainnet network configuration.
     pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
     }
 
+    /// Fetch the query from the default testnet network configuration.
     pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Method> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
