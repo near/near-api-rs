@@ -16,7 +16,7 @@ pub struct SecretKeySigner {
 #[async_trait::async_trait]
 impl SignerTrait for SecretKeySigner {
     #[instrument(skip(self))]
-    fn get_secret_key(
+    async fn get_secret_key(
         &self,
         signer_id: &crate::AccountId,
         public_key: &PublicKey,

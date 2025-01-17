@@ -130,7 +130,7 @@ impl SignerTrait for LedgerSigner {
         })
     }
 
-    #[instrument(skip(self), fields(receiver_id = %payload.recipient, message = %payload.message))]
+    #[instrument(skip(self), fields(signer_id = %_signer_id, receiver_id = %payload.recipient, message = %payload.message))]
     async fn sign_message_nep413(
         &self,
         _signer_id: crate::AccountId,
@@ -141,28 +141,24 @@ impl SignerTrait for LedgerSigner {
         let hd_path = self.hd_path.clone();
         let payload = payload.into();
 
-        let signature = tokio::task::spawn_blocking(move || {
+        let signature: Vec<u8> = tokio::task::spawn_blocking(move || {
             let signature =
                 near_ledger::sign_message_nep413(&payload, hd_path).map_err(LedgerError::from)?;
 
             Ok::<_, LedgerError>(signature)
         })
         .await
-        .map_err(LedgerError::from)
-        .map_err(SignerError::from)?;
-
-        let signature = signature.map_err(SignerError::from)?;
+        .unwrap_or_else(|tokio_join_error| Err(LedgerError::from(tokio_join_error)))?;
 
         debug!(target: LEDGER_SIGNER_TARGET, "Creating Signature object for NEP413");
         let signature =
             near_crypto::Signature::from_parts(near_crypto::KeyType::ED25519, &signature)
-                .map_err(LedgerError::from)
-                .map_err(SignerError::from)?;
+                .map_err(LedgerError::from)?;
 
         Ok(signature)
     }
 
-    fn get_secret_key(
+    async fn get_secret_key(
         &self,
         _signer_id: &crate::AccountId,
         _public_key: &PublicKey,

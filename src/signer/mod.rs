@@ -257,6 +257,7 @@ pub trait SignerTrait {
     /// The delegate action is signed with a maximum block height to ensure the delegation expiration after some point in time.
     ///
     /// The default implementation should work for most cases.
+    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
     async fn sign_meta(
         &self,
         tr: PrepopulateTransaction,
@@ -265,7 +266,7 @@ pub trait SignerTrait {
         block_hash: CryptoHash,
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
-        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key)?;
+        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key).await?;
         let mut unsigned_transaction = Transaction::new_v0(
             tr.signer_id.clone(),
             public_key,
@@ -284,6 +285,7 @@ pub trait SignerTrait {
     /// that can be sent to the `NEAR` network.
     ///
     /// The default implementation should work for most cases.
+    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
     async fn sign(
         &self,
         tr: PrepopulateTransaction,
@@ -291,7 +293,7 @@ pub trait SignerTrait {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
-        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key)?;
+        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key).await?;
         let mut unsigned_transaction = Transaction::new_v0(
             tr.signer_id.clone(),
             public_key,
@@ -310,6 +312,7 @@ pub trait SignerTrait {
     /// and offchain proof of account ownership.
     ///
     /// The default implementation should work for most cases.
+    #[instrument(skip(self), fields(signer_id = %signer_id, receiver_id = %payload.recipient, message = %payload.message))]
     async fn sign_message_nep413(
         &self,
         signer_id: AccountId,
@@ -320,7 +323,7 @@ pub trait SignerTrait {
         let mut bytes = NEP413_413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
         borsh::to_writer(&mut bytes, &payload)?;
         let hash = hash(&bytes);
-        let secret = self.get_secret_key(&signer_id, &public_key)?;
+        let secret = self.get_secret_key(&signer_id, &public_key).await?;
         let signature = secret.sign(hash.as_ref());
         Ok(signature)
     }
@@ -331,7 +334,7 @@ pub trait SignerTrait {
     ///
     /// If you can't provide a [`SecretKey`] for some reason (E.g. `Ledger``),
     /// you can fail with SignerError and override `sign_meta` and `sign`, `sign_message_nep413` methods.
-    fn get_secret_key(
+    async fn get_secret_key(
         &self,
         signer_id: &AccountId,
         public_key: &PublicKey,
@@ -457,6 +460,10 @@ impl Signer {
     pub fn from_access_keyfile(path: PathBuf) -> Result<SecretKeySigner, AccessKeyFileError> {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
         debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
+
+        if keypair.public_key != keypair.private_key.public_key() {
+            return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
+        }
 
         Ok(SecretKeySigner::new(keypair.private_key))
     }
