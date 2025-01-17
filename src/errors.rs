@@ -48,6 +48,8 @@ pub enum SignerError {
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0}")]
     FetchNonceError(#[from] QueryError<RpcQueryRequest>),
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
 
     #[cfg(feature = "ledger")]
     #[error(transparent)]
@@ -70,6 +72,8 @@ pub enum AccessKeyFileError {
     ParseError(#[from] serde_json::Error),
     #[error(transparent)]
     SecretError(#[from] SecretError),
+    #[error("Public key is not linked to the private key")]
+    PrivatePublicKeyMismatch,
 }
 
 #[cfg(feature = "keystore")]
@@ -83,6 +87,8 @@ pub enum KeyStoreError {
     ParseError(#[from] serde_json::Error),
     #[error(transparent)]
     SecretError(#[from] SecretError),
+    #[error("Task execution error: {0}")]
+    TaskExecutionError(#[from] tokio::task::JoinError),
 }
 
 #[cfg(feature = "ledger")]

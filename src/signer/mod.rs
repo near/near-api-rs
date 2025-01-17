@@ -119,13 +119,15 @@ use std::{
     },
 };
 
-use near_crypto::{ED25519SecretKey, PublicKey, SecretKey};
+use borsh::{BorshDeserialize, BorshSerialize};
+use near_crypto::{ED25519SecretKey, PublicKey, SecretKey, Signature};
 use near_primitives::{
     action::delegate::SignedDelegateAction,
+    hash::hash,
     transaction::{SignedTransaction, Transaction},
     types::{AccountId, BlockHeight, Nonce},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -135,9 +137,8 @@ use crate::{
     types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
-use self::{access_keyfile_signer::AccessKeyFileSigner, secret_key::SecretKeySigner};
+use secret_key::SecretKeySigner;
 
-pub mod access_keyfile_signer;
 #[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
@@ -152,7 +153,7 @@ pub const DEFAULT_WORD_COUNT: usize = 12;
 
 /// A struct representing a pair of public and private keys for an account.
 /// This might be useful for getting keys from a file. E.g. `~/.near-credentials`.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccountKeyPair {
     pub public_key: near_crypto::PublicKey,
     pub private_key: near_crypto::SecretKey,
@@ -165,6 +166,31 @@ impl AccountKeyPair {
     }
 }
 
+/// [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) input for the signing message.
+#[derive(Debug, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+pub struct NEP413Payload {
+    /// The message that wants to be transmitted.
+    pub message: String,
+    /// A nonce that uniquely identifies this instance of the message, denoted as a 32 bytes array.
+    pub nonce: [u8; 32],
+    /// The recipient to whom the message is destined (e.g. "alice.near" or "myapp.com").
+    pub recipient: String,
+    /// A callback URL that will be called with the signed message as a query parameter.
+    pub callback_url: Option<String>,
+}
+
+#[cfg(feature = "ledger")]
+impl From<NEP413Payload> for near_ledger::NEP413Payload {
+    fn from(payload: NEP413Payload) -> Self {
+        Self {
+            messsage: payload.message,
+            nonce: payload.nonce,
+            recipient: payload.recipient,
+            callback_url: payload.callback_url,
+        }
+    }
+}
+
 /// A trait for implementing custom signing logic.
 ///
 /// This trait provides the core functionality needed to sign transactions and delegate actions.
@@ -174,7 +200,7 @@ impl AccountKeyPair {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
+/// use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
 /// use near_crypto::{PublicKey, SecretKey};
 /// use near_primitives::transaction::Transaction;
 ///
@@ -184,22 +210,12 @@ impl AccountKeyPair {
 ///
 /// #[async_trait::async_trait]
 /// impl SignerTrait for CustomSigner {
-///     fn tx_and_secret(
+///     async fn get_secret_key(
 ///         &self,
-///         tr: PrepopulateTransaction,
-///         public_key: PublicKey,
-///         nonce: u64,
-///         block_hash: CryptoHash,
-///     ) -> Result<(Transaction, SecretKey), SignerError> {
-///         let mut transaction = Transaction::new_v0(
-///             tr.signer_id.clone(),
-///             public_key,
-///             tr.receiver_id,
-///             nonce,
-///             block_hash.into(),
-///         );
-///         *transaction.actions_mut() = tr.actions;
-///         Ok((transaction, self.secret_key.clone()))
+///         _signer_id: &AccountId,
+///         _public_key: &PublicKey
+///     ) -> Result<SecretKey, SignerError> {
+///         Ok(self.secret_key.clone())
 ///     }
 ///
 ///     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
@@ -210,7 +226,7 @@ impl AccountKeyPair {
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
+/// # use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
 /// # use near_crypto::{PublicKey, SecretKey};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
@@ -218,8 +234,7 @@ impl AccountKeyPair {
 /// # }
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
-/// #     fn tx_and_secret(&self, _: PrepopulateTransaction, _: PublicKey, _: u64, _: CryptoHash,
-/// #     ) -> Result<(near_primitives::transaction::Transaction, SecretKey), SignerError> { unimplemented!() }
+/// #     async fn get_secret_key(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
 /// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -242,6 +257,7 @@ pub trait SignerTrait {
     /// The delegate action is signed with a maximum block height to ensure the delegation expiration after some point in time.
     ///
     /// The default implementation should work for most cases.
+    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
     async fn sign_meta(
         &self,
         tr: PrepopulateTransaction,
@@ -250,8 +266,15 @@ pub trait SignerTrait {
         block_hash: CryptoHash,
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
-        let (unsigned_transaction, signer_secret_key) =
-            self.tx_and_secret(tr, public_key, nonce, block_hash)?;
+        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key).await?;
+        let mut unsigned_transaction = Transaction::new_v0(
+            tr.signer_id.clone(),
+            public_key,
+            tr.receiver_id,
+            nonce,
+            block_hash.into(),
+        );
+        *unsigned_transaction.actions_mut() = tr.actions;
 
         get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
     }
@@ -262,6 +285,7 @@ pub trait SignerTrait {
     /// that can be sent to the `NEAR` network.
     ///
     /// The default implementation should work for most cases.
+    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
     async fn sign(
         &self,
         tr: PrepopulateTransaction,
@@ -269,26 +293,52 @@ pub trait SignerTrait {
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
-        let (unsigned_transaction, signer_secret_key) =
-            self.tx_and_secret(tr, public_key, nonce, block_hash)?;
+        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key).await?;
+        let mut unsigned_transaction = Transaction::new_v0(
+            tr.signer_id.clone(),
+            public_key,
+            tr.receiver_id,
+            nonce,
+            block_hash.into(),
+        );
+        *unsigned_transaction.actions_mut() = tr.actions;
+
         let signature = signer_secret_key.sign(unsigned_transaction.get_hash_and_size().0.as_ref());
 
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
-    /// Creates an unsigned transaction and returns it along with the secret key.
-    /// This is a `helper` method that should be implemented by the signer or fail with SignerError.
+    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is widely used for the [authentication](https://docs.near.org/build/web3-apps/backend/)
+    /// and offchain proof of account ownership.
+    ///
+    /// The default implementation should work for most cases.
+    #[instrument(skip(self), fields(signer_id = %signer_id, receiver_id = %payload.recipient, message = %payload.message))]
+    async fn sign_message_nep413(
+        &self,
+        signer_id: AccountId,
+        public_key: PublicKey,
+        payload: NEP413Payload,
+    ) -> Result<Signature, SignerError> {
+        const NEP413_413_SIGN_MESSAGE_PREFIX: u32 = (1u32 << 31u32) + 413u32;
+        let mut bytes = NEP413_413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
+        borsh::to_writer(&mut bytes, &payload)?;
+        let hash = hash(&bytes);
+        let secret = self.get_secret_key(&signer_id, &public_key).await?;
+        let signature = secret.sign(hash.as_ref());
+        Ok(signature)
+    }
+
+    /// Returns the secret key associated with this signer.
+    /// This is a `helper` method that should be implemented by the signer or fail with [`SignerError`].
     /// As long as this method works, the default implementation of the [sign_meta](`SignerTrait::sign_meta`) and [sign](`SignerTrait::sign`) methods should work.
     ///
-    /// If you can't provide a SecretKey for some reason (E.g. `Ledger``),
-    /// you can fail with SignerError and override `sign_meta` and `sign` methods.
-    fn tx_and_secret(
+    /// If you can't provide a [`SecretKey`] for some reason (E.g. `Ledger``),
+    /// you can fail with SignerError and override `sign_meta` and `sign`, `sign_message_nep413` methods.
+    async fn get_secret_key(
         &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> Result<(Transaction, SecretKey), SignerError>;
+        signer_id: &AccountId,
+        public_key: &PublicKey,
+    ) -> Result<SecretKey, SignerError>;
 
     /// Returns the public key associated with this signer.
     ///
@@ -406,9 +456,16 @@ impl Signer {
         Ok(SecretKeySigner::new(secret_key))
     }
 
-    /// Creates a [AccessKeyFileSigner](`AccessKeyFileSigner`) using a path to the access key file.
-    pub fn from_access_keyfile(path: PathBuf) -> Result<AccessKeyFileSigner, AccessKeyFileError> {
-        AccessKeyFileSigner::new(path)
+    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) using a path to the access key file.
+    pub fn from_access_keyfile(path: PathBuf) -> Result<SecretKeySigner, AccessKeyFileError> {
+        let keypair = AccountKeyPair::load_access_key_file(&path)?;
+        debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
+
+        if keypair.public_key != keypair.private_key.public_key() {
+            return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
+        }
+
+        Ok(SecretKeySigner::new(keypair.private_key))
     }
 
     /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using default HD path.
@@ -624,4 +681,85 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
         &seed_phrase,
         None,
     )
+}
+
+#[cfg(test)]
+mod nep_413_tests {
+    use near_crypto::Signature;
+    use near_primitives::serialize::from_base64;
+
+    use crate::SignerTrait;
+
+    use super::{NEP413Payload, Signer};
+
+    // The mockup data is created using the sender/my-near-wallet NEP413 implementation
+    // The meteor wallet ignores the callback url on time of writing.
+    #[tokio::test]
+    pub async fn with_callback_url() {
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            recipient: "example.near".to_string(),
+            // callback_url: None,
+            callback_url: Some("http://localhost:3000".to_string()),
+        };
+
+        let signer = Signer::from_seed_phrase(
+            "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
+            None,
+        )
+        .unwrap();
+        let signature = signer
+            .sign_message_nep413(
+                "round-toad.testnet".parse().unwrap(),
+                signer.get_public_key().unwrap(),
+                payload,
+            )
+            .await
+            .unwrap();
+
+        let expected_signature =
+            from_base64("zzZQ/GwAjrZVrTIFlvmmQbDQHllfzrr8urVWHaRt5cPfcXaCSZo35c5LDpPpTKivR6BxLyb3lcPM0FfCW5lcBQ==").unwrap();
+        let expected_signature =
+            Signature::from_parts(near_crypto::KeyType::ED25519, &expected_signature).unwrap();
+        assert_eq!(signature, expected_signature);
+    }
+
+    // The mockup data is created using the sender/meteor NEP413 implementation.
+    // My near wallet adds the callback url to the payload if it is not provided on time of writing.
+    #[tokio::test]
+    pub async fn without_callback_url() {
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            recipient: "example.near".to_string(),
+            callback_url: None,
+        };
+
+        let signer = Signer::from_seed_phrase(
+            "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
+            None,
+        )
+        .unwrap();
+        let signature = signer
+            .sign_message_nep413(
+                "round-toad.testnet".parse().unwrap(),
+                signer.get_public_key().unwrap(),
+                payload,
+            )
+            .await
+            .unwrap();
+
+        let expected_signature =
+            from_base64("NnJgPU1Ql7ccRTITIoOVsIfElmvH1RV7QAT4a9Vh6ShCOnjIzRwxqX54JzoQ/nK02p7VBMI2vJn48rpImIJwAw==").unwrap();
+        let expected_signature =
+            Signature::from_parts(near_crypto::KeyType::ED25519, &expected_signature).unwrap();
+        assert_eq!(signature, expected_signature);
+    }
 }
