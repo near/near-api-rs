@@ -210,7 +210,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// #[async_trait::async_trait]
 /// impl SignerTrait for CustomSigner {
-///     fn get_secret_key(
+///     async fn get_secret_key(
 ///         &self,
 ///         _signer_id: &AccountId,
 ///         _public_key: &PublicKey
@@ -234,7 +234,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 /// # }
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
-/// #     fn get_secret_key(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
+/// #     async fn get_secret_key(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
 /// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
