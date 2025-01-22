@@ -1,15 +1,11 @@
+use futures::future::join_all;
 use near_crypto::{PublicKey, SecretKey};
-use near_primitives::{
-    transaction::Transaction,
-    types::{AccountId, Nonce},
-    views::AccessKeyPermissionView,
-};
+use near_primitives::{types::AccountId, views::AccessKeyPermissionView};
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
     errors::{KeyStoreError, SignerError},
-    types::{transactions::PrepopulateTransaction, CryptoHash},
 };
 
 use super::{AccountKeyPair, SignerTrait};
@@ -23,38 +19,31 @@ pub struct KeystoreSigner {
 
 #[async_trait::async_trait]
 impl SignerTrait for KeystoreSigner {
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
-    fn tx_and_secret(
+    #[instrument(skip(self))]
+    async fn get_secret_key(
         &self,
-        tr: PrepopulateTransaction,
-        public_key: PublicKey,
-        nonce: Nonce,
-        block_hash: CryptoHash,
-    ) -> Result<(Transaction, SecretKey), SignerError> {
+        signer_id: &AccountId,
+        public_key: &PublicKey,
+    ) -> Result<SecretKey, SignerError> {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Searching for matching public key");
         self.potential_pubkeys
             .iter()
-            .find(|key| *key == &public_key)
+            .find(|key| *key == public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?;
 
         info!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key");
         // TODO: fix this. Well the search is a bit suboptimal, but it's not a big deal for now
-        let secret = Self::get_secret_key(&tr.signer_id, &public_key, "mainnet")
-            .or_else(|_| Self::get_secret_key(&tr.signer_id, &public_key, "testnet"))
-            .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
+        let secret =
+            if let Ok(secret) = Self::get_secret_key(signer_id, public_key, "mainnet").await {
+                secret
+            } else {
+                Self::get_secret_key(signer_id, public_key, "testnet")
+                    .await
+                    .map_err(|_| SignerError::SecretKeyIsNotAvailable)?
+            };
 
-        debug!(target: KEYSTORE_SIGNER_TARGET, "Creating transaction");
-        let mut transaction = Transaction::new_v0(
-            tr.signer_id.clone(),
-            public_key,
-            tr.receiver_id,
-            nonce,
-            block_hash.into(),
-        );
-        *transaction.actions_mut() = tr.actions;
-
-        info!(target: KEYSTORE_SIGNER_TARGET, "Transaction and secret key prepared successfully");
-        Ok((transaction, secret.private_key))
+        info!(target: KEYSTORE_SIGNER_TARGET, "Secret key prepared successfully");
+        Ok(secret.private_key)
     }
 
     #[instrument(skip(self))]
@@ -87,16 +76,16 @@ impl KeystoreSigner {
             .await?;
 
         debug!(target: KEYSTORE_SIGNER_TARGET, "Filtering and collecting potential public keys");
-        let potential_pubkeys: Vec<PublicKey> = account_keys
+        let potential_pubkeys = account_keys
             .keys
-            .into_iter()
+            .iter()
             // TODO: support functional access keys
             .filter(|key| key.access_key.permission == AccessKeyPermissionView::FullAccess)
-            .flat_map(|key| {
-                Self::get_secret_key(&account_id, &key.public_key, &network.network_name)
-                    .map(|keypair| keypair.public_key)
-                    .ok()
-            })
+            .map(|key| Self::get_secret_key(&account_id, &key.public_key, &network.network_name));
+        let potential_pubkeys: Vec<PublicKey> = join_all(potential_pubkeys)
+            .await
+            .into_iter()
+            .flat_map(|result| result.map(|keypair| keypair.public_key).ok())
             .collect();
 
         info!(target: KEYSTORE_SIGNER_TARGET, "KeystoreSigner created with {} potential public keys", potential_pubkeys.len());
@@ -104,7 +93,7 @@ impl KeystoreSigner {
     }
 
     #[instrument(skip(public_key), fields(account_id = %account_id, network_name = %network_name))]
-    fn get_secret_key(
+    async fn get_secret_key(
         account_id: &AccountId,
         public_key: &PublicKey,
         network_name: &str,
@@ -112,10 +101,17 @@ impl KeystoreSigner {
         trace!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key from keyring");
         let service_name =
             std::borrow::Cow::Owned(format!("near-{}-{}", network_name, account_id.as_str()));
+        let user = format!("{}:{}", account_id, public_key);
 
-        let password =
-            keyring::Entry::new(&service_name, &format!("{}:{}", account_id, public_key))?
-                .get_password()?;
+        // This can be a blocking operation (for example, if the keyring is locked in the OS and user needs to unlock it),
+        // so we need to spawn a new task to get the password
+        let password = tokio::task::spawn_blocking(move || {
+            let password = keyring::Entry::new(&service_name, &user)?.get_password()?;
+
+            Ok::<_, KeyStoreError>(password)
+        })
+        .await
+        .unwrap_or_else(|tokio_join_error| Err(KeyStoreError::from(tokio_join_error)))?;
 
         debug!(target: KEYSTORE_SIGNER_TARGET, "Deserializing account key pair");
         Ok(serde_json::from_str(&password)?)
