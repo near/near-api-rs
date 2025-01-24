@@ -183,7 +183,7 @@ pub struct NEP413Payload {
 impl From<NEP413Payload> for near_ledger::NEP413Payload {
     fn from(payload: NEP413Payload) -> Self {
         Self {
-            // Typo in near_ledger
+            // TODO: fix after https://github.com/khorolets/near-ledger-rs/pull/25 is merged
             //cspell:disable
             messsage: payload.message,
             //cspell:enable
