@@ -36,5 +36,9 @@
         "millinear",
     ],
     "ignoreWords": [],
+    "ignoreRegExpList": [
+        // Base58 encoded public key/secret key
+        "\"ed25519:[-A-Za-z0-9+/]*={0,3}\"",
+    ],
     "import": []
 }
