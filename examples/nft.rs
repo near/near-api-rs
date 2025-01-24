@@ -8,6 +8,7 @@ async fn main() {
     let network = near_workspaces::sandbox().await.unwrap();
     let nft = network.dev_create_account().await.unwrap();
     let account = network.dev_create_account().await.unwrap();
+    let account2 = network.dev_create_account().await.unwrap();
     let network = NetworkConfig::from(network);
 
     let nft_signer = Signer::new(Signer::from_workspace(&nft)).unwrap();
@@ -65,7 +66,7 @@ async fn main() {
     println!("Account has {}", tokens.data.first().unwrap().token_id);
 
     Tokens::account(account.id().clone())
-        .send_to(nft.id().clone())
+        .send_to(account2.id().clone())
         .nft(nft.id().clone(), "1".to_string())
         .unwrap()
         .with_signer(nft_signer.clone())
@@ -83,7 +84,7 @@ async fn main() {
 
     assert!(tokens.data.is_empty());
 
-    let tokens = Tokens::account(nft.id().clone())
+    let tokens = Tokens::account(account2.id().clone())
         .nft_assets(nft.id().clone())
         .unwrap()
         .fetch_from(&network)
@@ -91,5 +92,5 @@ async fn main() {
         .unwrap();
 
     assert_eq!(tokens.data.len(), 1);
-    println!("nft has {}", tokens.data.first().unwrap().token_id);
+    println!("account 2 has {}", tokens.data.first().unwrap().token_id);
 }

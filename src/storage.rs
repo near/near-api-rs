@@ -10,11 +10,11 @@ use crate::{
     types::storage::StorageBalance,
 };
 
-/// A wrapper struct that simplifies interactions with NEAR storage management standard.
+///A wrapper struct that simplifies interactions with the [Storage Management](https://nomicon.io/Standards/StorageManagement) standard
 ///
-/// Contracts on NEAR Protocol often implement a [standard interface](https://nomicon.io/Standards/StorageManagement) for managing storage deposits,
+/// Contracts on NEAR Protocol often implement a [NEP-145](https://nomicon.io/Standards/StorageManagement) for managing storage deposits,
 /// which are required for storing data on the blockchain. This struct provides convenient methods
-/// to interact with these storage-related functions.
+/// to interact with these storage-related functions on the contract.
 ///
 /// # Example
 /// ```
@@ -44,6 +44,21 @@ impl StorageDeposit {
         Self(contract_id)
     }
 
+    /// Prepares a new contract query (`storage_balance_of`) for fetching the storage balance (Option<[StorageBalance]>) of the account on the contract.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance = StorageDeposit::on_contract("contract.testnet".parse()?)
+    ///     .view_account_storage("alice.testnet".parse()?)?
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Storage balance: {:?}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn view_account_storage(
         &self,
         account_id: AccountId,
@@ -52,12 +67,27 @@ impl StorageDeposit {
             .call_function(
                 "storage_balance_of",
                 json!({
-                    "account_id": account_id,
+                "account_id": account_id,
                 }),
             )?
             .read_only())
     }
 
+    /// Prepares a new transaction contract call (`storage_deposit`) for depositing storage on the contract.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tx: near_primitives::views::FinalExecutionOutcomeView = StorageDeposit::on_contract("contract.testnet".parse()?)
+    ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))?
+    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn deposit(
         &self,
         receiver_account_id: AccountId,
@@ -74,6 +104,21 @@ impl StorageDeposit {
             .deposit(amount))
     }
 
+    /// Prepares a new transaction contract call (`storage_withdraw`) for withdrawing storage from the contract.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tx: near_primitives::views::FinalExecutionOutcomeView = StorageDeposit::on_contract("contract.testnet".parse()?)
+    ///     .withdraw("alice.testnet".parse()?, NearToken::from_near(1))?
+    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn withdraw(
         &self,
         account_id: AccountId,

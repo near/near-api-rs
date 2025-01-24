@@ -4,7 +4,8 @@
 //! - [Account management and creation](Account)
 //! - [Contract deployment and interaction with it](Contract)
 //! - [Token operations](Tokens) ([`NEAR`](https://docs.near.org/concepts/basics/tokens), [`FT`](https://docs.near.org/build/primitives/ft), [`NFT`](https://docs.near.org/build/primitives/nft))
-//! - [Storage management and staking operations](Staking)
+//! - [Storage management](StorageDeposit)
+//! - [Staking operations](Staking)
 //! - [Custom transaction building and signing](Transaction)
 //! - [Querying the chain data](Chain)
 //! - [Several ways to sign the transaction](signer)
@@ -71,7 +72,7 @@ pub use crate::{
     config::{NetworkConfig, RPCEndpoint, RetryMethod},
     contract::Contract,
     signer::{Signer, SignerTrait},
-    stake::Staking,
+    stake::{Delegation, Staking},
     storage::StorageDeposit,
     tokens::Tokens,
     transactions::Transaction,
@@ -82,5 +83,8 @@ pub use crate::{
     },
 };
 
+pub use near_primitives;
+
 pub use near_account_id::AccountId;
+pub use near_gas::NearGas;
 pub use near_token::NearToken;

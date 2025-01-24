@@ -3,8 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::DecimalNumberParsingError;
 
+/// Static instance of [FTBalance] for USDT token with correct decimals and symbol.
 pub const USDT_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDT");
+/// Static instance of [FTBalance] for USDC token with correct decimals and symbol.
 pub const USDC_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDC");
+/// Static instance of [FTBalance] for wNEAR token with correct decimals and symbol.
 pub const W_NEAR_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(24, "wNEAR");
 
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
