@@ -83,3 +83,9 @@ jobs:
       run: cargo check --verbose
     - name: Run tests with unstable features
       run: cargo test --verbose
+  spellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: streetsidesoftware/cspell-action@v6
+
