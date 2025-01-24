@@ -95,7 +95,7 @@ pub enum KeyStoreError {
 #[derive(thiserror::Error, Debug)]
 pub enum LedgerError {
     #[error(
-        "Buffer overflow on Ledger device occured. \
+        "Buffer overflow on Ledger device occurred. \
 Transaction is too large for signature. \
 This is resolved in https://github.com/dj8yfo/app-near-rs . \
 The status is tracked in `About` section."
@@ -128,7 +128,7 @@ impl From<near_ledger::NEARLedgerError> for LedgerError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SecretBuilderkError<E: std::fmt::Debug> {
+pub enum SecretBuilderError<E: std::fmt::Debug> {
     #[error("Public key is not available")]
     PublicKeyIsNotAvailable,
     #[error(transparent)]
@@ -156,8 +156,8 @@ pub enum AccountCreationError {
     #[error("Linkdrop is not defined in the network config")]
     LinkdropIsNotDefined,
 
-    #[error("Account should be created as a subaccount of the signer or linkdrop account")]
-    AccountShouldBeSubaccountOfSignerOrLinkdrop,
+    #[error("Account should be created as a sub-account of the signer or linkdrop account")]
+    AccountShouldBeSubAccountOfSignerOrLinkdrop,
 }
 
 #[derive(thiserror::Error, Debug)]

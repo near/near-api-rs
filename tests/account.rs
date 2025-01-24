@@ -81,7 +81,7 @@ async fn transfer_funds() {
         .await
         .unwrap();
 
-    // it's acctually 49.99 because of the fee
+    // it's actually 49.99 because of the fee
     assert_eq!(alice_balance.liquid.as_near(), 49);
     assert_eq!(bob_balance.liquid.as_near(), 150);
 }

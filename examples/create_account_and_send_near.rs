@@ -37,7 +37,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let new_acccount_balance = Tokens::account(account.id().clone())
+    let new_account_balance = Tokens::account(account.id().clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -48,7 +48,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Balance: {}", new_acccount_balance.liquid);
+    println!("Balance: {}", new_account_balance.liquid);
     // Expect to see 2 NEAR in Bob's account. 1 NEAR from create_account and 1 NEAR from send_near
     println!("Bob balance: {}", bob_balance.liquid);
 }

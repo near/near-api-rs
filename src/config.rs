@@ -192,7 +192,7 @@ impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkCo
 }
 
 #[derive(Debug)]
-/// Represents the possible outcomes of a retryable operation.
+/// Represents the possible outcomes of a retry-able operation.
 pub enum RetryResponse<R, E> {
     /// Operation succeeded with result R
     Ok(R),
@@ -214,7 +214,7 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
 /// Retry a task with exponential backoff and failover.
 ///
 /// # Arguments
-/// * `network` - The network configuration to use for the retryable operation.
+/// * `network` - The network configuration to use for the retry-able operation.
 /// * `task` - The task to retry.
 pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
