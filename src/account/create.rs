@@ -182,7 +182,7 @@ impl Transactionable for CreateAccountFundMyselfTx {
         match &network.linkdrop_account_id {
             Some(linkdrop) => {
                 if &self.prepopulated.receiver_id != linkdrop {
-                    Err(AccountCreationError::AccountShouldBeSubaccountOfSignerOrLinkdrop)?;
+                    Err(AccountCreationError::AccountShouldBeSubAccountOfSignerOrLinkdrop)?;
                 }
             }
             None => Err(AccountCreationError::LinkdropIsNotDefined)?,

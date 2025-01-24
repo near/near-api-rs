@@ -28,7 +28,7 @@ pub struct ConstructTransaction {
 }
 
 impl ConstructTransaction {
-    /// Prepopulates a transaction with the given signer and receiver IDs.
+    /// Pre-populates a transaction with the given signer and receiver IDs.
     pub const fn new(signer_id: AccountId, receiver_id: AccountId) -> Self {
         Self {
             tr: PrepopulateTransaction {
@@ -122,7 +122,7 @@ impl Transaction {
 
     /// Signs a transaction with the given signer.
     ///
-    /// This provides ability to sign customly constructed pre-populated transactions.
+    /// This provides ability to sign custom constructed pre-populated transactions.
     ///
     /// # Examples
     ///

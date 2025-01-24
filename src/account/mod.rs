@@ -198,7 +198,7 @@ impl Account {
         ConstructTransaction::new(self.0.clone(), self.0.clone()).add_actions(actions)
     }
 
-    /// Deletes the account with the given beneficiary ID. The account balance will be transfered to the beneficiary.
+    /// Deletes the account with the given beneficiary ID. The account balance will be transferred to the beneficiary.
     ///
     /// Please note that this action is irreversible. Also, you have to understand that another person could potentially
     /// re-create the account with the same name and pretend to be you on other websites that use your account ID as a unique identifier.
@@ -287,7 +287,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account::create_account("subaccount.bob.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account::create_account("sub.bob.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?
     ///     .with_signer(bob_signer)

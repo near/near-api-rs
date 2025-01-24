@@ -17,16 +17,16 @@ pub const fn near_data_to_near_token(data: crate::Data<u128>) -> crate::NearToke
 ///
 /// If the whole part of the number has a value more than the `u64` maximum value, it will return the error `DecimalNumberParsingError::LongWhole`.
 pub fn parse_decimal_number(s: &str, pref_const: u128) -> Result<u128, DecimalNumberParsingError> {
-    let (int, fract) = if let Some((whole, fractional)) = s.trim().split_once('.') {
+    let (int, fraction) = if let Some((whole, fractional)) = s.trim().split_once('.') {
         let int: u128 = whole
             .parse()
             .map_err(|_| DecimalNumberParsingError::InvalidNumber(s.to_owned()))?;
-        let mut fract: u128 = fractional
+        let mut fraction: u128 = fractional
             .parse()
             .map_err(|_| DecimalNumberParsingError::InvalidNumber(s.to_owned()))?;
         let len = u32::try_from(fractional.len())
             .map_err(|_| DecimalNumberParsingError::InvalidNumber(s.to_owned()))?;
-        fract = fract
+        fraction = fraction
             .checked_mul(
                 pref_const
                     .checked_div(10u128.checked_pow(len).ok_or_else(|| {
@@ -38,14 +38,14 @@ pub fn parse_decimal_number(s: &str, pref_const: u128) -> Result<u128, DecimalNu
                     })?,
             )
             .ok_or_else(|| DecimalNumberParsingError::LongFractional(fractional.to_owned()))?;
-        (int, fract)
+        (int, fraction)
     } else {
         let int: u128 = s
             .parse()
             .map_err(|_| DecimalNumberParsingError::InvalidNumber(s.to_owned()))?;
         (int, 0)
     };
-    let result = fract
+    let result = fraction
         .checked_add(
             int.checked_mul(pref_const)
                 .ok_or_else(|| DecimalNumberParsingError::LongWhole(int.to_string()))?,
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn test_long_fract() {
+    fn test_long_fraction() {
         let data = "1.23456";
         let prefix = 10000u128;
         assert_eq!(
@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn invalidnumber_whole() {
+    fn invalid_number_whole() {
         let num = "1h4.7859";
         let prefix: u128 = 10000;
         assert_eq!(
@@ -205,7 +205,7 @@ mod tests {
         );
     }
     #[test]
-    fn invalidnumber_fract() {
+    fn invalid_number_fraction() {
         let num = "14.785h9";
         let prefix: u128 = 10000;
         assert_eq!(
@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn max_long_fract() {
+    fn max_long_fraction() {
         let max_data = 10u128.pow(17) + 1;
         let data = "1.".to_string() + max_data.to_string().as_str();
         let prefix = 10u128.pow(17);
@@ -230,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_u128_errortest() {
+    fn parse_u128_error_test() {
         let test_data = u128::MAX.to_string();
         let gas = parse_decimal_number(&test_data, 10u128.pow(9));
         assert_eq!(

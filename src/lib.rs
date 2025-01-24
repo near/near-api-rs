@@ -56,7 +56,7 @@ mod storage;
 mod tokens;
 mod transactions;
 // TODO: to be honest, there is almost nothing in this file
-// we should maybe intergrate with them more tightly
+// we should maybe integrate with them more tightly
 // for now, i comment it out
 // mod fastnear;
 

@@ -430,7 +430,7 @@ impl SendToBuilder {
 }
 
 /// The structs validates the decimals correctness on runtime level before
-/// sending the ft tokens as well as deposits 100milliNear of the deposit if
+/// sending the ft tokens as well as deposits 100 milliNear of the deposit if
 /// the receiver doesn't have any allocated storage in the provided FT contract
 #[derive(Clone, Debug)]
 pub struct FTTransactionable {

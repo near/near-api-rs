@@ -107,7 +107,7 @@
 //! See [functions](#functions) section for details
 //!
 //! # Custom signer
-//! The user can instantiate [`Signer`] with a custom signing logic by utilising the [`SignerTrait`] trait.
+//! The user can instantiate [`Signer`] with a custom signing logic by utilizing the [`SignerTrait`] trait.
 
 use std::{
     collections::HashMap,
@@ -183,7 +183,10 @@ pub struct NEP413Payload {
 impl From<NEP413Payload> for near_ledger::NEP413Payload {
     fn from(payload: NEP413Payload) -> Self {
         Self {
+            // Typo in near_ledger
+            //cspell:disable
             messsage: payload.message,
+            //cspell:enable
             nonce: payload.nonce,
             recipient: payload.recipient,
             callback_url: payload.callback_url,
@@ -309,7 +312,7 @@ pub trait SignerTrait {
     }
 
     /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is widely used for the [authentication](https://docs.near.org/build/web3-apps/backend/)
-    /// and offchain proof of account ownership.
+    /// and off-chain proof of account ownership.
     ///
     /// The default implementation should work for most cases.
     #[instrument(skip(self), fields(signer_id = %signer_id, receiver_id = %payload.recipient, message = %payload.message))]
