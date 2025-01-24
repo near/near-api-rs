@@ -1,0 +1,16 @@
+{
+    "version": "0.2",
+    "ignorePaths": [],
+    "dictionaryDefinitions": [],
+    "dictionaries": [],
+    "words": [
+        "libudev",
+        "libsystemd",
+        "clippy",
+        "RUSTDOCFLAGS",
+        "RUSTFLAGS",
+        "Swatinem"
+    ],
+    "ignoreWords": [],
+    "import": []
+}
