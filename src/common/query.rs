@@ -1,4 +1,4 @@
-//! TODO: root level doc might be needed here. It's pretty complicated.
+// TODO: root level doc might be needed here. It's pretty complicated.
 use std::{marker::PhantomData, sync::Arc};
 
 use futures::future::join_all;
@@ -147,14 +147,14 @@ pub type MultiQueryBuilder<T> = MultiRpcBuilder<T, RpcQueryRequest, BlockReferen
 pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochReference>;
 pub type BlockQueryBuilder<T> = RpcBuilder<T, RpcBlockRequest, BlockReference>;
 
-pub struct MultiRpcBuilder<ResponseHandler, Method, Reference>
+pub struct MultiRpcBuilder<Handler, Method, Reference>
 where
     Reference: Send + Sync,
-    ResponseHandler: Send + Sync,
+    Handler: Send + Sync,
 {
     reference: Reference,
     requests: Vec<Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>>,
-    handler: ResponseHandler,
+    handler: Handler,
 }
 
 impl<Handler, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
@@ -190,9 +190,9 @@ where
     }
 
     /// Set the block reference for the queries.
-    pub fn at(self, block_reference: Reference) -> Self {
+    pub fn at(self, reference: impl Into<Reference>) -> Self {
         Self {
-            reference: block_reference,
+            reference: reference.into(),
             ..self
         }
     }

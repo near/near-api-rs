@@ -34,7 +34,7 @@ mod create;
 pub struct Account(pub AccountId);
 
 impl Account {
-    /// Returns the account information for the given account ID.
+    /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_primitives::views::AccountView)> with the account information for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -57,7 +57,7 @@ impl Account {
         )
     }
 
-    /// Returns the access key information for the given account public key.
+    /// Prepares a query to fetch the [Data](crate::Data)<[AccessKeyView](near_primitives::views::AccessKeyView)> with the access key information for the given account public key.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -86,7 +86,7 @@ impl Account {
         )
     }
 
-    /// Returns the list of access keys for the given account ID.
+    /// Prepares a query to fetch the [AccessKeyList](near_primitives::views::AccessKeyList) list of access keys for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -120,7 +120,7 @@ impl Account {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let pk = PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?;
-    /// Account("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
     ///     .add_key(AccessKeyPermission::FullAccess, pk)
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -152,7 +152,7 @@ impl Account {
     /// use near_crypto::PublicKey;
     /// use std::str::FromStr;
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Account("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
     ///     .delete_key(PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?)
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -177,7 +177,7 @@ impl Account {
     /// use std::str::FromStr;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Account("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
     ///     .delete_keys(vec![PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?])
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -201,7 +201,8 @@ impl Account {
     /// Deletes the account with the given beneficiary ID. The account balance will be transfered to the beneficiary.
     ///
     /// Please note that this action is irreversible. Also, you have to understand that another person could potentially
-    /// get access to the named account and pretend to be the owner of the account on other websites.
+    /// re-create the account with the same name and pretend to be you on other websites that use your account ID as a unique identifier.
+    /// (near.social, devhub proposal, etc)
     ///
     /// Do not use it unless you understand the consequences.
     ///
@@ -210,7 +211,7 @@ impl Account {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Account("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
     ///     .delete_account_with_beneficiary("bob.testnet".parse()?)
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -231,21 +232,17 @@ impl Account {
 
     /// Creates a new account builder for the given account ID.
     ///
-    /// Please note that you can create an account inhereted from root account (near, testnet) or sub-account only.
-    /// You can't create an account that is sub-account of other account.
-    ///
-    /// E.g you are `alice.testnet`, you can't create `subaccount.bob.testnet`, but you can create `subaccount.alice.testnet`.
-    ///
     /// ## Creating account sponsored by faucet service
     ///
     /// This is a way to create an account without having to fund it. It works only on testnet.
+    /// The account should be created as a sub-account of the [testnet](https://testnet.nearblocks.io/address/testnet) account
     ///
     /// ```rust,no_run
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
-    /// let account = Account::create_account("alice.testnet".parse()?)
+    /// let result: reqwest::Response = Account::create_account("alice.testnet".parse()?)
     ///     .sponsor_by_faucet_service()
     ///     .public_key(secret.public_key())?
     ///     .send_to_testnet_faucet()
@@ -256,7 +253,11 @@ impl Account {
     /// # }
     /// ```
     ///
-    /// ## Creating account inhereted from root account funding by your own
+    /// ## Creating sub-account of the linkdrop root account funded by your own NEAR and signed by your account
+    ///
+    /// There is a few linkdrop root accounts that you can use to create sub-accounts.
+    /// * For mainnet, you can use the [near](https://explorer.near.org/accounts/near) account.
+    /// * For testnet, you can use the [testnet](https://testnet.nearblocks.io/address/testnet) account.
     ///
     /// ```rust,no_run
     /// use near_api::*;
@@ -264,7 +265,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
-    /// let account = Account::create_account("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account::create_account("alice.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?
     ///     .with_signer(bob_signer)
@@ -274,14 +275,19 @@ impl Account {
     /// # }
     /// ```
     ///
-    /// ## Creating sub-account funded by your own
+    /// ## Creating sub-account of your own account funded by your NEAR
+    ///
+    /// You can create only one level deep of sub-accounts.
+    ///
+    /// E.g you are `alice.testnet`, you can't create `sub.sub.alice.testnet`, but you can create `sub.alice.testnet`.
+    /// Though, 'sub.alice.testnet' can create sub-accounts of its own.
     /// ```rust,no_run
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
-    /// let account = Account::create_account("subaccount.bob.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account::create_account("subaccount.bob.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?
     ///     .with_signer(bob_signer)

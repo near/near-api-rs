@@ -12,20 +12,13 @@ use crate::{
             QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc,
             ValidatorQueryBuilder, ViewStateHandler,
         },
-        utils::is_critical_query_error,
+        utils::{is_critical_query_error, near_data_to_near_token},
     },
     contract::Contract,
     errors::{BuilderError, QueryCreationError, QueryError},
     transactions::ConstructTransaction,
-    types::{
-        stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
-        Data,
-    },
+    types::stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
 };
-
-const fn near_data_to_near_token(data: Data<u128>) -> NearToken {
-    NearToken::from_yoctonear(data.data)
-}
 
 type Result<T> = core::result::Result<T, BuilderError>;
 
@@ -37,7 +30,7 @@ type Result<T> = core::result::Result<T, BuilderError>;
 pub struct Delegation(pub AccountId);
 
 impl Delegation {
-    /// Prepares a new contract query (`get_account_staked_balance`) for fetching the staked balance of the account on the staking pool.
+    /// Prepares a new contract query (`get_account_staked_balance`) for fetching the staked balance ([NearToken]) of the account on the staking pool.
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -77,7 +70,7 @@ impl Delegation {
         ))
     }
 
-    /// Prepares a new contract query (`get_account_unstaked_balance`) for fetching the unstaked(free, not used for staking) balance of the account on the staking pool.
+    /// Prepares a new contract query (`get_account_unstaked_balance`) for fetching the unstaked(free, not used for staking) balance ([NearToken]) of the account on the staking pool.
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -117,7 +110,7 @@ impl Delegation {
         ))
     }
 
-    /// Prepares a new contract query (`get_account_total_balance`) for fetching the total balance of the account (free + staked) on the staking pool.
+    /// Prepares a new contract query (`get_account_total_balance`) for fetching the total balance ([NearToken]) of the account (free + staked) on the staking pool.
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -157,7 +150,7 @@ impl Delegation {
         ))
     }
 
-    /// Returns a full information about the staked balance of the account on the staking pool.
+    /// Returns a full information about the staked balance ([UserStakeBalance]) of the account on the staking pool.
     ///
     /// This is a complex query that requires 3 calls (get_account_staked_balance, get_account_unstaked_balance, get_account_total_balance) to the staking pool contract.
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
@@ -270,7 +263,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .deposit("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -290,7 +283,9 @@ impl Delegation {
     /// Prepares a new transaction contract call (`deposit_and_stake`) for depositing funds into the staking pool and staking them.
     ///
     /// Please note that this call will deposit your account tokens into the contract, so you will not be able to use them for other purposes.
-    /// Also, after you have staked your funds, if you decide to withdraw them, you might need to wait for the lockup period to end.
+    /// Also, after you have staked your funds, if you decide to withdraw them, you might need to wait for the two lockup period to end.
+    /// * Mandatory lockup before able to unstake
+    /// * Optional lockup before able to withdraw (depends on the pool configuration)
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -299,7 +294,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .deposit_and_stake("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -324,7 +319,9 @@ impl Delegation {
     ///
     /// Please note that this call will use your unstaked balance. This means that you have to have enough balance already deposited into the contract.
     /// This won't use your native account tokens, but just reallocate your balance inside the contract.
-    /// Please also be aware that once you have staked your funds, you might not be able to withdraw them immediately.
+    /// Please also be aware that once you have staked your funds, you might not be able to withdraw them until the lockup periods end.
+    /// * Mandatory lockup before able to unstake
+    /// * Optional lockup before able to withdraw (depends on the pool configuration)
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -333,7 +330,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .stake("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -355,7 +352,9 @@ impl Delegation {
 
     /// Prepares a new transaction contract call (`stake_all`) for staking all available unstaked balance into the staking pool.
     ///
-    /// Please note that once you have staked your funds, you might not be able to withdraw them immediately.
+    /// Please note that once you have staked your funds, you might not be able to withdraw them until the lockup periods end.
+    /// * Mandatory lockup before able to unstake
+    /// * Optional lockup before able to withdraw (depends on the pool configuration)
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -391,7 +390,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .unstake("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -422,7 +421,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .unstake_all("pool.testnet".parse()?)?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -449,7 +448,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .withdraw("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -480,7 +479,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Staking::delegation("alice.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
     ///     .withdraw_all("pool.testnet".parse()?)?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -517,7 +516,7 @@ impl Delegation {
 pub struct Staking {}
 
 impl Staking {
-    /// Returns a list of active staking pools by querying the staking pools factory contract.
+    /// Returns a list of active staking pools ([std::collections::BTreeSet]<[AccountId]>]) by querying the staking pools factory contract.
     ///
     /// Please note that it might fail on the mainnet as the staking pool factory is super huge.
     ///
@@ -548,7 +547,7 @@ impl Staking {
         )
     }
 
-    /// Returns a list of validators and their stake for the current epoch.
+    /// Returns a list of validators and their stake ([near_primitives::views::EpochValidatorInfo]) for the current epoch.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -568,7 +567,7 @@ impl Staking {
         )
     }
 
-    /// Returns a map of validators and their stake for the current epoch.
+    /// Returns a map of validators and their stake ([BTreeMap<AccountId, NearToken>]) for the current epoch.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -616,7 +615,7 @@ impl Staking {
         )
     }
 
-    /// Prepares a new contract query (`get_reward_fee_fraction`) for fetching the reward fee fraction of the staking pool.
+    /// Prepares a new contract query (`get_reward_fee_fraction`) for fetching the reward fee fraction of the staking pool ([Data](crate::Data)<[RewardFeeFraction]>).
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -640,7 +639,7 @@ impl Staking {
             .read_only()
     }
 
-    /// Prepares a new contract query (`get_number_of_accounts`) for fetching the number of delegators of the staking pool.
+    /// Prepares a new contract query (`get_number_of_accounts`) for fetching the number of delegators of the staking pool ([Data](crate::Data)<[u64]>).
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -663,7 +662,7 @@ impl Staking {
             .read_only()
     }
 
-    /// Prepares a new contract query (`get_total_staked_balance`) for fetching the total stake of the staking pool.
+    /// Prepares a new contract query (`get_total_staked_balance`) for fetching the total stake of the staking pool ([NearToken]).
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -698,7 +697,7 @@ impl Staking {
         )
     }
 
-    /// Returns a full information about the staking pool.
+    /// Returns a full information about the staking pool ([StakingPoolInfo]).
     ///
     /// This is a complex query that requires 3 calls (get_reward_fee_fraction, get_number_of_accounts, get_total_staked_balance) to the staking pool contract.
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)

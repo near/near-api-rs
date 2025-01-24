@@ -27,7 +27,7 @@ use crate::{
 pub struct Chain;
 
 impl Chain {
-    /// Set ups a query to fetch the current block number
+    /// Set ups a query to fetch the [BlockHeight] of the current block
     ///
     /// ## Fetching the latest block number
     ///
@@ -63,7 +63,7 @@ impl Chain {
         )
     }
 
-    /// Set ups a query to fetch the current block hash
+    /// Set ups a query to fetch the [CryptoHash] of the block
     ///
     /// ## Fetching the latest block hash
     ///
@@ -99,7 +99,7 @@ impl Chain {
         )
     }
 
-    /// Set ups a query to fetch the current block
+    /// Set ups a query to fetch the [BlockView]
     ///
     /// ## Fetching the latest block
     ///

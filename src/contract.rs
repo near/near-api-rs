@@ -68,7 +68,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// Contract("some_contract.testnet".parse()?)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract("some_contract.testnet".parse()?)
     ///     .call_function("set_number", json!({ "number": 100 }))?
     ///     .transaction()
     ///      // Optional
@@ -108,7 +108,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// Contract::deploy("contract.testnet".parse()?, code)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?, code)
     ///     .without_init_call()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
@@ -125,7 +125,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// Contract::deploy("contract.testnet".parse()?, code)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?, code)
     ///     .with_init_call("init", json!({ "number": 100 }))?
     ///     // Optional
     ///     .gas(NearGas::from_tgas(200))
@@ -139,9 +139,9 @@ impl Contract {
         DeployContractBuilder::new(contract, code)
     }
 
-    /// Prepares a query to fetch the [ABI](https://github.com/near/near-abi-rs) of the contract.
+    /// Prepares a query to fetch the [ABI](near_abi::AbiRoot) of the contract using the following [standard](https://github.com/near/near-abi-rs).
     ///
-    /// Please be aware that is not all the contracts provides the ABI.
+    /// Please be aware that not all the contracts provide the ABI.
     ///
     /// # Example
     /// ```rust,no_run
@@ -176,7 +176,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the wasm code of the contract.
+    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_primitives::views::ContractCodeView)>) of the contract.
     ///
     /// # Example
     /// ```rust,no_run
@@ -200,7 +200,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract using the given prefix as a filter.
+    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_primitives::views::ViewStateResult)>) using the given prefix as a filter.
     ///
     /// It helpful if you are aware of the storage that you are looking for.
     ///
@@ -231,7 +231,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract.
+    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_primitives::views::ViewStateResult)>).
     ///
     /// Please be aware that large storage queries might fail.
     ///
@@ -252,7 +252,7 @@ impl Contract {
         self.view_storage_with_prefix(vec![])
     }
 
-    /// Prepares a query to fetch the contract source metadata using [NEP-330](https://nomicon.io/Standards/SourceMetadata) standard.
+    /// Prepares a query to fetch the contract source metadata([Data]<[ContractSourceMetadata]>) using [NEP-330](https://nomicon.io/Standards/SourceMetadata) standard.
     ///
     /// The contract source metadata is a standard interface that allows auditing and viewing source code for a deployed smart contract.
     /// Implementation of this standard is purely optional but is recommended for developers whose contracts are open source.
@@ -355,7 +355,7 @@ impl DeployContractTransactBuilder {
         self
     }
 
-    /// Specify the signer for the transaction. This will wrap-up the process of the preparing the transaction.
+    /// Specify the signer for the transaction. This will wrap-up the process of the preparing transaction.
     ///
     /// This will return the [`ExecuteSignedTransaction`] that can be used to sign and send the transaction to the network.
     pub fn with_signer(self, signer: Arc<Signer>) -> ExecuteSignedTransaction {
@@ -384,7 +384,7 @@ pub struct CallFunctionBuilder {
 }
 
 impl CallFunctionBuilder {
-    /// Prepares a read-only query that doesn't require a signing a transtaction.
+    /// Prepares a read-only query that doesn't require a signing transaction.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -458,7 +458,7 @@ impl ContractTransactBuilder {
         self
     }
 
-    /// Specify the signer for the transaction. This will wrap-up the process of the preparing the transaction.
+    /// Specify the signer for the transaction. This will wrap-up the process of the preparing transaction.
     ///
     /// This will return the [`ExecuteSignedTransaction`] that can be used to sign and send the transaction to the network.
     pub fn with_signer(

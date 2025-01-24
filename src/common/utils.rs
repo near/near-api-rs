@@ -2,6 +2,11 @@
 
 use crate::errors::DecimalNumberParsingError;
 
+/// Converts [crate::Data]<[u128]>] to [crate::NearToken].
+pub const fn near_data_to_near_token(data: crate::Data<u128>) -> crate::NearToken {
+    crate::NearToken::from_yoctonear(data.data)
+}
+
 /// Parsing decimal numbers from `&str` type in `u128`.
 /// Function also takes a value of metric prefix in u128 type.
 /// `parse_str` use the `u128` type, and have the same max and min values.

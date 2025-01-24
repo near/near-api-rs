@@ -107,6 +107,8 @@ impl ExecuteSignedTransaction {
 
     /// Signs the transaction offline without fetching the nonce or block hash from the network.
     ///
+    /// The transaction won't be broadcasted to the network and just stored signed in the [Self::tr] struct variable.
+    ///
     /// This is useful if you already have the nonce and block hash, or if you want to sign the transaction
     /// offline. Please note that incorrect nonce will lead to transaction failure.
     pub async fn presign_offline(
@@ -129,7 +131,9 @@ impl ExecuteSignedTransaction {
         Ok(self)
     }
 
-    /// Signs the transaction with the custom network.
+    /// Signs the transaction with the custom network configuration but doesn't broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// This is useful if you want to sign with non-default network configuration (e.g, custom RPC URL, sandbox).
     /// The provided call will fetch the nonce and block hash from the given network.
@@ -152,7 +156,9 @@ impl ExecuteSignedTransaction {
         Ok(self.presign_offline(signer_key, hash, nonce).await?)
     }
 
-    /// Signs the transaction with the default mainnet configuration.
+    /// Signs the transaction with the default mainnet configuration. Does not broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash from the network.
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteTransactionError> {
@@ -160,7 +166,9 @@ impl ExecuteSignedTransaction {
         self.presign_with(&network).await
     }
 
-    /// Signs the transaction with the default testnet configuration.
+    /// Signs the transaction with the default testnet configuration. Does not broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash from the network.
     pub async fn presign_with_testnet(self) -> Result<Self, ExecuteTransactionError> {
@@ -171,7 +179,7 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the custom provided network.
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
-    /// Please note that if the transaction is not presigned, it will be presigned with the network's nonce and block hash.
+    /// Please note that if the transaction is not presigned, it will be signed with the network's nonce and block hash.
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
@@ -221,7 +229,7 @@ impl ExecuteSignedTransaction {
 
     /// Sends the transaction to the default mainnet configuration.
     ///
-    /// Please note that this will presign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
+    /// Please note that this will sign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
     pub async fn send_to_mainnet(
         self,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
@@ -231,7 +239,7 @@ impl ExecuteSignedTransaction {
 
     /// Sends the transaction to the default testnet configuration.
     ///
-    /// Please note that this will presign the transaction with the testnet's nonce and block hash if it's not presigned yet.
+    /// Please note that this will sign the transaction with the testnet's nonce and block hash if it's not presigned yet.
     pub async fn send_to_testnet(
         self,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
@@ -307,7 +315,9 @@ impl ExecuteMetaTransaction {
         self
     }
 
-    /// Signs the transaction offline without fetching the nonce or block hash from the network.
+    /// Signs the transaction offline without fetching the nonce or block hash from the network. Does not broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// This is useful if you already have the nonce and block hash, or if you want to sign the transaction
     /// offline. Please note that incorrect nonce will lead to transaction failure and incorrect block height
@@ -345,7 +355,9 @@ impl ExecuteMetaTransaction {
         Ok(self)
     }
 
-    /// Signs the transaction with the custom network.
+    /// Signs the transaction with the custom network configuration but doesn't broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// This is useful if you want to sign with non-default network configuration (e.g, custom RPC URL, sandbox).
     pub async fn presign_with(
@@ -375,7 +387,9 @@ impl ExecuteMetaTransaction {
             .await
     }
 
-    /// Signs the transaction with the default mainnet configuration.
+    /// Signs the transaction with the default mainnet configuration but doesn't broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash, block height from the network.
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
@@ -383,7 +397,9 @@ impl ExecuteMetaTransaction {
         self.presign_with(&network).await
     }
 
-    /// Signs the transaction with the default testnet configuration.
+    /// Signs the transaction with the default testnet configuration but doesn't broadcast it.
+    ///
+    /// Signed transaction is stored in the [Self::tr] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash, block height from the network.
     pub async fn presign_with_testnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
@@ -394,7 +410,7 @@ impl ExecuteMetaTransaction {
     /// Sends the transaction to the custom provided network.
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
-    /// Please note that if the transaction is not presigned, it will be presigned with the network's nonce and block hash.
+    /// Please note that if the transaction is not presigned, it will be sign with the network's nonce and block hash.
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
@@ -444,7 +460,7 @@ impl ExecuteMetaTransaction {
 
     /// Sends the transaction to the default mainnet configuration.
     ///
-    /// Please note that this will presign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
+    /// Please note that this will sign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
     pub async fn send_to_mainnet(self) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
@@ -452,7 +468,7 @@ impl ExecuteMetaTransaction {
 
     /// Sends the transaction to the default testnet configuration.
     ///
-    /// Please note that this will presign the transaction with the testnet's nonce and block hash if it's not presigned yet.
+    /// Please note that this will sign the transaction with the testnet's nonce and block hash if it's not presigned yet.
     pub async fn send_to_testnet(self) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await

@@ -22,9 +22,9 @@ pub struct CreateAccountBuilder {
 }
 
 impl CreateAccountBuilder {
-    /// Create an account and fund it by your own
+    /// Create an NEAR account and fund it by your own
     ///
-    /// You can only create an account inhereted from root account or sub-account of your own.
+    /// You can only create an sub-account of your own account or sub-account of the linkdrop account ([near](https://nearblocks.io/address/near) on mainnet , [testnet](https://testnet.nearblocks.io/address/testnet) on testnet)
     pub fn fund_myself(
         self,
         signer_account_id: AccountId,
@@ -91,7 +91,7 @@ impl CreateAccountBuilder {
     /// Create an account sponsored by faucet service
     ///
     /// This is a way to create an account without having to fund it. It works only on testnet.
-    /// You can only create an account inhereted from root account (near, testnet).
+    /// You can only create an sub-account of the [testnet](https://testnet.nearblocks.io/address/testnet) account
     pub fn sponsor_by_faucet_service(self) -> PublicKeyProvider<CreateAccountByFaucet, Infallible> {
         PublicKeyProvider::new(Box::new(move |public_key| {
             Ok(CreateAccountByFaucet {
@@ -110,6 +110,8 @@ pub struct CreateAccountByFaucet {
 
 impl CreateAccountByFaucet {
     /// Sends the account creation request to the default testnet faucet service.
+    ///
+    /// The account will be created as a sub-account of the [testnet](https://testnet.nearblocks.io/address/testnet) account
     pub async fn send_to_testnet_faucet(self) -> Result<Response, FaucetError> {
         let testnet = NetworkConfig::testnet();
         self.send_to_config_faucet(&testnet).await
@@ -118,7 +120,7 @@ impl CreateAccountByFaucet {
     /// Sends the account creation request to the faucet service specified in the network config.
     /// This way you can specify your own faucet service.
     ///
-    /// Please note, that the faucet service should receive the request in the following format:
+    /// The function sends the request in the following format:
     /// ```json
     /// {
     ///     "newAccountId": "new_account_id",
@@ -139,7 +141,7 @@ impl CreateAccountByFaucet {
 
     /// Sends the account creation request to the faucet service specified by the URL.
     ///
-    /// Please note, that the faucet service should receive the request in the following format:
+    /// The function sends the request in the following format:
     /// ```json
     /// {
     ///     "newAccountId": "new_account_id",

@@ -96,7 +96,7 @@ impl Transaction {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
     ///
-    /// let transaction_result = Transaction::construct(
+    /// let transaction_result: near_primitives::views::FinalExecutionOutcomeView = Transaction::construct(
     ///     "sender.near".parse()?,
     ///     "receiver.near".parse()?
     /// )
@@ -134,7 +134,7 @@ impl Transaction {
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// # let unsigned_tx = todo!();
     ///
-    /// let transaction_result = Transaction::sign_transaction(
+    /// let transaction_result: near_primitives::views::FinalExecutionOutcomeView = Transaction::sign_transaction(
     ///     unsigned_tx,
     ///     signer
     /// )

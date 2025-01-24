@@ -83,6 +83,8 @@ pub use crate::{
     },
 };
 
+pub use near_primitives;
+
 pub use near_account_id::AccountId;
 pub use near_gas::NearGas;
 pub use near_token::NearToken;
