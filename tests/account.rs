@@ -26,15 +26,15 @@ async fn create_and_delete_account() {
         .await
         .unwrap();
 
-    assert_eq!(balance_before_del.liquid.as_near(), 1);
+    assert_eq!(balance_before_del.total.as_near(), 1);
 
-    dbg!(Account(account.id().clone())
+    Account(account.id().clone())
         .delete_account_with_beneficiary(new_account.clone())
         .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
         .await
-        .unwrap())
-    .assert_success();
+        .unwrap()
+        .assert_success();
 
     Tokens::account(account.id().clone())
         .near_balance()
@@ -50,7 +50,7 @@ async fn create_and_delete_account() {
         .fetch_from(&network)
         .await
         .unwrap();
-    assert!(dbg!(balance_after_del).liquid > dbg!(balance_before_del).liquid);
+    assert!(balance_after_del.total > balance_before_del.total);
 }
 
 #[tokio::test]
@@ -82,8 +82,8 @@ async fn transfer_funds() {
         .unwrap();
 
     // it's actually 49.99 because of the fee
-    assert_eq!(alice_balance.liquid.as_near(), 49);
-    assert_eq!(bob_balance.liquid.as_near(), 150);
+    assert_eq!(alice_balance.total.as_near(), 49);
+    assert_eq!(bob_balance.total.as_near(), 150);
 }
 
 #[tokio::test]

@@ -10,6 +10,38 @@ pub const USDC_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(6, "USDC
 /// Static instance of [FTBalance] for wNEAR token with correct decimals and symbol.
 pub const W_NEAR_BALANCE: FTBalance = FTBalance::with_decimals_and_symbol(24, "wNEAR");
 
+/// A helper type that represents the fungible token balance with a given precision.
+///
+/// The type is created to simplify the usage of fungible tokens in similar way as the [NearToken] type does.
+///
+/// The symbol is used only for display purposes.
+///
+/// # Examples
+///
+/// ## Defining 2.5 USDT
+/// ```rust
+/// use near_api::USDT_BALANCE;
+///
+/// let usdt_balance = USDT_BALANCE.with_float_str("2.5").unwrap();
+///
+/// assert_eq!(usdt_balance.amount(), 2_500_000);
+/// ```
+///
+/// ## Defining 3 wNEAR using yoctoNEAR
+/// ```rust
+/// use near_api::{W_NEAR_BALANCE, NearToken};
+///
+/// let wnear_balance = W_NEAR_BALANCE.with_amount(3 * 10u128.pow(24));
+///
+/// assert_eq!(wnear_balance.amount(), NearToken::from_near(3).as_yoctonear());
+/// ```
+///
+/// ## Defining 3 wETH using 18 decimals
+/// ```rust
+/// use near_api::FTBalance;
+///
+/// let weth_balance = FTBalance::with_decimals_and_symbol(18, "wETH").with_whole_amount(3);
+/// ```
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct FTBalance {
     balance: u128,
@@ -18,6 +50,9 @@ pub struct FTBalance {
 }
 
 impl FTBalance {
+    /// Creates a new [FTBalance] with a given precision.
+    ///
+    /// The balance is initialized to 0.
     pub const fn with_decimals(decimals: u8) -> Self {
         Self {
             balance: 0,
@@ -26,6 +61,9 @@ impl FTBalance {
         }
     }
 
+    /// Creates a new [FTBalance] with a given precision and symbol.
+    ///
+    /// The balance is initialized to 0.
     pub const fn with_decimals_and_symbol(decimals: u8, symbol: &'static str) -> Self {
         Self {
             balance: 0,
@@ -34,6 +72,9 @@ impl FTBalance {
         }
     }
 
+    /// Stores the given amount without any transformations.
+    ///
+    /// The [NearToken] alternative is [NearToken::from_yoctonear].
     pub const fn with_amount(&self, amount: u128) -> Self {
         Self {
             balance: amount,
@@ -42,6 +83,9 @@ impl FTBalance {
         }
     }
 
+    /// Stores the number as an integer token value utilizing the given precision.
+    ///
+    /// The [NearToken] alternative is [NearToken::from_near].
     pub const fn with_whole_amount(&self, amount: u128) -> Self {
         Self {
             balance: amount * 10u128.pow(self.decimals as u32),
@@ -50,19 +94,38 @@ impl FTBalance {
         }
     }
 
+    /// Parses float string and stores the value in defined precision.
+    ///
+    /// # Examples
+    ///
+    /// ## Defining 2.5 USDT
+    /// ```rust
+    /// use near_api::USDT_BALANCE;
+    ///
+    /// let usdt_balance = USDT_BALANCE.with_float_str("2.515").unwrap();
+    ///
+    /// assert_eq!(usdt_balance.amount(), 2_515_000);
+    /// ```
     pub fn with_float_str(&self, float_str: &str) -> Result<Self, DecimalNumberParsingError> {
         crate::common::utils::parse_decimal_number(float_str, 10u128.pow(self.decimals as u32))
             .map(|amount| self.with_amount(amount))
     }
 
+    /// Returns the amount without any transformations.
+    ///
+    /// The [NearToken] alternative is [NearToken::as_yoctonear].
     pub const fn amount(&self) -> u128 {
         self.balance
     }
 
+    /// Returns the amount as a whole number in the defined precision.
+    ///
+    /// The [NearToken] alternative is [NearToken::as_near].
     pub const fn to_whole(&self) -> u128 {
         self.balance / 10u128.pow(self.decimals as u32)
     }
 
+    /// Returns the number of decimals used by the token.
     pub const fn decimals(&self) -> u8 {
         self.decimals
     }
@@ -88,10 +151,18 @@ impl std::fmt::Display for FTBalance {
     }
 }
 
+/// Account balance on the NEAR blockchain.
+///
+/// This balance doesn't include staked NEAR tokens or storage
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct UserBalance {
-    pub liquid: NearToken,
-    pub locked: NearToken,
+    /// The total amount of NEAR tokens in the account.
+    ///
+    /// Please note that this is the total amount of NEAR tokens in the account, not the amount available for use.
+    pub total: NearToken,
+    /// The amount of NEAR tokens locked in the account for storage usage.
+    pub storage_locked: NearToken,
+    /// The storage usage by the account in bytes.
     pub storage_usage: u64,
 }
 

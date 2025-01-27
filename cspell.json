@@ -40,13 +40,22 @@
         "zstd",
         "codeowners",
         "akorchyn",
-        "frol"
+        "frol",
+        "ipfs",
+        "nep"
     ],
-    "ignoreWords": [],
+    "ignoreWords": [
+        "bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq",
+        "nep141",
+        "nep330",
+        "nep461",
+        "signer_id"
+    ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key
         "\"ed25519:[-A-Za-z0-9+/]*={0,3}\"",
-        "Email"
+        "Email",
+        "cid"
     ],
     "import": []
 }

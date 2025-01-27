@@ -32,6 +32,8 @@ use crate::{
     NetworkConfig, StorageDeposit,
 };
 
+const STORAGE_COST: NearToken = NearToken::from_yoctonear(10_000_000_000_000_000_000u128);
+
 type Result<T> = core::result::Result<T, BuilderError>;
 
 // This is not too long as most of the size is a links to the docs
@@ -102,7 +104,7 @@ type Result<T> = core::result::Result<T, BuilderError>;
 ///
 /// // Check NEAR balance
 /// let balance = alice_account.near_balance().fetch_from_testnet().await?;
-/// println!("NEAR balance: {}", balance.liquid);
+/// println!("NEAR balance: {}", balance.total);
 ///
 /// // Send NEAR
 /// alice_account.send_to("bob.testnet".parse()?)
@@ -150,12 +152,15 @@ impl Tokens {
                 AccountViewHandler,
                 Box::new(|account: Data<AccountView>| {
                     let account = account.data;
-                    let liquid = NearToken::from_yoctonear(account.amount);
-                    let locked = NearToken::from_yoctonear(account.locked);
+                    let total = NearToken::from_yoctonear(account.amount);
+                    // TODO: locked returns 0 always replace after the fix
+                    let storage_locked = NearToken::from_yoctonear(
+                        account.storage_usage as u128 * STORAGE_COST.as_yoctonear(),
+                    );
                     let storage_usage = account.storage_usage;
                     UserBalance {
-                        liquid,
-                        locked,
+                        total,
+                        storage_locked,
                         storage_usage,
                     }
                 }),

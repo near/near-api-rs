@@ -1,7 +1,9 @@
 use near_primitives::{borsh, borsh::BorshDeserialize};
 
+/// A wrapper around `SignedDelegateAction` that allows for easy serialization and deserialization as base64 string
 #[derive(Debug, Clone)]
 pub struct SignedDelegateActionAsBase64 {
+    /// The inner signed delegate action
     pub inner: near_primitives::action::delegate::SignedDelegateAction,
 }
 
