@@ -82,7 +82,7 @@ fn from_base58(s: &str) -> Result<Vec<u8>, bs58::decode::Error> {
 
 /// A type that represents a hash of the data.
 ///
-/// This type is copy of the [near_primitives::hash::CryptoHash](near_primitives::hash::CryptoHash)
+/// This type is copy of the [near_primitives::hash::CryptoHash]
 /// as part of the [decoupling initiative](https://github.com/near/near-api-rs/issues/5)
 #[derive(
     Copy,

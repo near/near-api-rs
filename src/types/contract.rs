@@ -16,7 +16,7 @@ pub struct ContractSourceMetadata {
     /// Optional URL to source code repository or IPFS CID
     ///
     /// Examples:
-    /// - GitHub URL: "https://github.com/near-examples/nft-tutorial"
+    /// - GitHub URL: "<https://github.com/near-examples/nft-tutorial>"
     /// - IPFS CID: "bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq"
     pub link: Option<String>,
 
