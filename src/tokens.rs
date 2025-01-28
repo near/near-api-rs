@@ -153,15 +153,16 @@ impl Tokens {
                 Box::new(|account: Data<AccountView>| {
                     let account = account.data;
                     let total = NearToken::from_yoctonear(account.amount);
-                    // TODO: locked returns 0 always replace after the fix
                     let storage_locked = NearToken::from_yoctonear(
                         account.storage_usage as u128 * STORAGE_COST.as_yoctonear(),
                     );
+                    let locked = NearToken::from_yoctonear(account.locked);
                     let storage_usage = account.storage_usage;
                     UserBalance {
                         total,
                         storage_locked,
                         storage_usage,
+                        locked,
                     }
                 }),
             ),

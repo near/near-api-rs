@@ -164,6 +164,12 @@ pub struct UserBalance {
     pub storage_locked: NearToken,
     /// The storage usage by the account in bytes.
     pub storage_usage: u64,
+    /// The amount of NEAR tokens staked on a protocol level.
+    /// Applicable for staking pools only in 99.99% of the cases.
+    ///
+    /// Please note that this is not related to your delegations into the staking pools.
+    /// To get your stake info into some pool, use [crate::Delegation]
+    pub locked: NearToken,
 }
 
 #[cfg(test)]
