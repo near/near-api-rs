@@ -15,7 +15,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Balance: {}", balance.liquid);
+    println!("Balance: {}", balance.total);
 
     let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
@@ -48,7 +48,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Balance: {}", new_account_balance.liquid);
+    println!("Balance: {}", new_account_balance.total);
     // Expect to see 2 NEAR in Bob's account. 1 NEAR from create_account and 1 NEAR from send_near
-    println!("Bob balance: {}", bob_balance.liquid);
+    println!("Bob balance: {}", bob_balance.total);
 }

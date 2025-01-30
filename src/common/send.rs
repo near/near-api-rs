@@ -18,12 +18,13 @@ use crate::{
         ValidationError,
     },
     signer::Signer,
-    types::{transactions::PrepopulateTransaction, CryptoHash},
+    types::{
+        signed_delegate_action::SignedDelegateActionAsBase64, transactions::PrepopulateTransaction,
+        CryptoHash,
+    },
 };
 
-use super::{
-    signed_delegate_action::SignedDelegateActionAsBase64, META_TRANSACTION_VALID_FOR_DEFAULT,
-};
+use super::META_TRANSACTION_VALID_FOR_DEFAULT;
 
 const TX_EXECUTOR_TARGET: &str = "near_api::tx::executor";
 const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";

@@ -3,7 +3,9 @@
 use crate::types::CryptoHash;
 use near_primitives::types::{BlockHeight, EpochId};
 
-/// Finality of a transaction or block in which transaction is included in. For more info
+/// A reference to a specific block. This type is used to specify the block for most queries.
+///
+/// It represents the finality of a transaction or block in which transaction is included in. For more info
 /// go to the [NEAR finality](https://docs.near.org/docs/concepts/transaction#finality) docs.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
@@ -38,14 +40,15 @@ impl From<Reference> for near_primitives::types::BlockReference {
     }
 }
 
+/// A reference to a specific epoch. This type is used to specify the epoch for some queries.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum EpochReference {
     /// Reference to a specific Epoch Id
     AtEpoch(CryptoHash),
-    /// Reference to a specific block.
+    /// Reference to an epoch at a specific block height.
     AtBlock(BlockHeight),
-    /// Reference to a specific block hash.
+    /// Reference to an epoch at a specific block hash.
     AtBlockHash(CryptoHash),
     /// Latest epoch on the node
     Latest,

@@ -128,6 +128,14 @@ impl From<near_ledger::NEARLedgerError> for LedgerError {
 }
 
 #[derive(thiserror::Error, Debug)]
+pub enum SignedDelegateActionError {
+    #[error("Parsing of signed delegate action failed due to base64 sequence being invalid")]
+    Base64DecodingError,
+    #[error("Delegate action could not be deserialized from borsh: {0}")]
+    BorshError(#[from] std::io::Error),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum SecretBuilderError<E: std::fmt::Debug> {
     #[error("Public key is not available")]
     PublicKeyIsNotAvailable,

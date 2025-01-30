@@ -1,18 +1,19 @@
-use near_primitives::types::AccountId;
+use near_primitives::types::{AccountId, BlockReference};
 use near_token::NearToken;
 use serde_json::json;
 
 use crate::{
-    common::query::{CallResultHandler, QueryBuilder},
+    common::query::{CallResultHandler, PostprocessHandler, QueryBuilder, SimpleQuery},
     contract::{Contract, ContractTransactBuilder},
     errors::BuilderError,
     transactions::ConstructTransaction,
-    types::storage::StorageBalance,
+    types::storage::{StorageBalance, StorageBalanceInternal},
+    Data,
 };
 
-///A wrapper struct that simplifies interactions with the [Storage Management](https://nomicon.io/Standards/StorageManagement) standard
+///A wrapper struct that simplifies interactions with the [Storage Management](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) standard
 ///
-/// Contracts on NEAR Protocol often implement a [NEP-145](https://nomicon.io/Standards/StorageManagement) for managing storage deposits,
+/// Contracts on NEAR Protocol often implement a [NEP-145](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) for managing storage deposits,
 /// which are required for storing data on the blockchain. This struct provides convenient methods
 /// to interact with these storage-related functions on the contract.
 ///
@@ -59,18 +60,46 @@ impl StorageDeposit {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::complexity)]
     pub fn view_account_storage(
         &self,
         account_id: AccountId,
-    ) -> Result<QueryBuilder<CallResultHandler<Option<StorageBalance>>>, BuilderError> {
-        Ok(Contract(self.0.clone())
-            .call_function(
-                "storage_balance_of",
-                json!({
-                "account_id": account_id,
+    ) -> Result<
+        QueryBuilder<
+            PostprocessHandler<
+                Data<Option<StorageBalance>>,
+                CallResultHandler<Option<StorageBalanceInternal>>,
+            >,
+        >,
+        BuilderError,
+    > {
+        let args = serde_json::to_vec(&json!({
+            "account_id": account_id,
+        }))?;
+        let request = near_primitives::views::QueryRequest::CallFunction {
+            account_id: self.0.clone(),
+            method_name: "storage_balance_of".to_owned(),
+            args: near_primitives::types::FunctionArgs::from(args),
+        };
+
+        Ok(QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            PostprocessHandler::new(
+                CallResultHandler::default(),
+                Box::new(|storage: Data<Option<StorageBalanceInternal>>| Data {
+                    data: storage.data.map(|data| StorageBalance {
+                        available: data.available,
+                        total: data.total,
+                        locked: NearToken::from_yoctonear(
+                            data.total.as_yoctonear() - data.available.as_yoctonear(),
+                        ),
+                    }),
+                    block_height: storage.block_height,
+                    block_hash: storage.block_hash,
                 }),
-            )?
-            .read_only())
+            ),
+        ))
     }
 
     /// Prepares a new transaction contract call (`storage_deposit`) for depositing storage on the contract.

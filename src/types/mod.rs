@@ -7,11 +7,14 @@ use crate::errors::CryptoHashError;
 
 pub mod contract;
 pub mod reference;
+pub mod signed_delegate_action;
 pub mod stake;
 pub mod storage;
 pub mod tokens;
 pub mod transactions;
 
+/// A wrapper around a generic query result that includes the block height and block hash
+/// at which the query was executed
 #[derive(
     Debug,
     Clone,
@@ -21,13 +24,31 @@ pub mod transactions;
     borsh::BorshSerialize,
 )]
 pub struct Data<T> {
+    /// The data returned by the query
     pub data: T,
+    /// The block height at which the query was executed
     pub block_height: BlockHeight,
+    /// The block hash at which the query was executed
     pub block_hash: CryptoHash,
 }
 
+/// A wrapper around [near_jsonrpc_client::auth::ApiKey]
+///
+/// This type is used to authenticate requests to the RPC node
+///
+/// ## Creating an API key
+///
+/// ```
+/// use near_api::types::ApiKey;
+/// use std::str::FromStr;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let api_key = ApiKey::from_str("your_api_key")?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Eq, Hash, Clone, Debug, PartialEq)]
-pub struct ApiKey(pub near_jsonrpc_client::auth::ApiKey);
+pub struct ApiKey(near_jsonrpc_client::auth::ApiKey);
 
 impl From<ApiKey> for near_jsonrpc_client::auth::ApiKey {
     fn from(api_key: ApiKey) -> Self {
@@ -73,8 +94,10 @@ fn from_base58(s: &str) -> Result<Vec<u8>, bs58::decode::Error> {
     bs58::decode(s).into_vec()
 }
 
-// type taken from near_primitives::hash::CryptoHash.
-/// CryptoHash is type for storing the hash of a specific block.
+/// A type that represents a hash of the data.
+///
+/// This type is copy of the [near_primitives::hash::CryptoHash]
+/// as part of the [decoupling initiative](https://github.com/near/near-api-rs/issues/5)
 #[derive(
     Copy,
     Clone,

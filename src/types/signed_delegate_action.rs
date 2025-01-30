@@ -1,19 +1,24 @@
-use near_primitives::{borsh, borsh::BorshDeserialize};
+use near_primitives::borsh;
 
+use crate::errors::SignedDelegateActionError;
+
+/// A wrapper around [near_primitives::action::delegate::SignedDelegateAction] that allows for easy serialization and deserialization as base64 string
+///
+/// The type implements [std::str::FromStr] and [std::fmt::Display] to serialize and deserialize the type as base64 string
 #[derive(Debug, Clone)]
 pub struct SignedDelegateActionAsBase64 {
+    /// The inner signed delegate action
     pub inner: near_primitives::action::delegate::SignedDelegateAction,
 }
 
 impl std::str::FromStr for SignedDelegateActionAsBase64 {
-    type Err = String;
+    type Err = SignedDelegateActionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            inner: near_primitives::action::delegate::SignedDelegateAction::try_from_slice(
+            inner: borsh::from_slice(
                 &near_primitives::serialize::from_base64(s)
-                .map_err(|err| format!("parsing of signed delegate action failed due to base64 sequence being invalid: {}", err))?,
-            )
-            .map_err(|err| format!("delegate action could not be deserialized from borsh: {}", err))?,
+                    .map_err(|_| SignedDelegateActionError::Base64DecodingError)?,
+            )?,
         })
     }
 }
