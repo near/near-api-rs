@@ -97,7 +97,7 @@ pub struct Standard {
     /// ## Examples:
     ///
     /// ```rust,no_run
-    /// # let standard: String =
+    /// # let version: String =
     /// // for initial release
     /// "1.0.0".into()
     /// # ;
