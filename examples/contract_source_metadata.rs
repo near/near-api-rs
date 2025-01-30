@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use near_api::*;
+use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +17,6 @@ async fn main() {
             expected_json_metadata,
             serde_json::to_string_pretty(&source_metadata.data).expect("no ser err")
         );
-
     }
 }
 

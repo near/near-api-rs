@@ -257,8 +257,8 @@ impl Contract {
     /// The contract source metadata is a standard interface that allows auditing and viewing source code for a deployed smart contract.
     /// Implementation of this standard is purely optional but is recommended for developers whose contracts are open source.
     ///
-    /// # Examples 
-    /// 
+    /// # Examples
+    ///
     /// ```rust,no_run
     /// use near_api::*;
     ///

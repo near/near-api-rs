@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// The struct provides information about deployed contract's source code and supported standards.
 ///
 /// Contract source metadata follows [**NEP-330 standard**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md) for smart contract verification
-/// 
+///
 /// See documentation of [`crate::Contract::contract_source_metadata`] on how to query this for a contract via this crate
 // `rustdoc` clearly lacks functionality of automatic backlinks within a single crate
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
@@ -14,12 +14,12 @@ pub struct ContractSourceMetadata {
     /// **NOTE**:
     /// As of **NEP-330** standard version **1.2.0**
     /// this field may or may not be consistent with [`Self::link`] and with [`BuildInfo::source_code_snapshot`], but only [`BuildInfo::source_code_snapshot`] defines source code for formal reproducibility verification, and [`Self::link`] and [`Self::version`] do not
-    /// 
+    ///
     /// ## Examples:
-    /// 
+    ///
     /// ```rust,no_run
     /// # let version: Option<String> =
-    /// // Semantic version 
+    /// // Semantic version
     /// Some("1.0.0".into())
     /// # ;
     /// ```
@@ -33,16 +33,16 @@ pub struct ContractSourceMetadata {
     /// this field may or may not be consistent with [`Self::version`] and with [`BuildInfo::source_code_snapshot`], but only [`BuildInfo::source_code_snapshot`] defines source code for formal reproducibility verification, and [`Self::link`] and [`Self::version`] do not
     ///
     /// ## Examples:
-    /// 
+    ///
     /// ```rust,no_run
     /// # let link: Option<String> =
-    /// // GitHub URL 
+    /// // GitHub URL
     /// Some("https://github.com/near-examples/nft-tutorial".into())
     /// # ;
     /// ```
     /// ```rust,no_run
     /// # let link: Option<String> =
-    /// // GitHub URL 
+    /// // GitHub URL
     /// Some("https://github.com/org/repo/tree/8d8a8a0fe86a1d8eb3bce45f04ab1a65fecf5a1b".into())
     /// # ;
     /// ```
@@ -51,9 +51,9 @@ pub struct ContractSourceMetadata {
     /// List of supported NEAR standards (NEPs) with their versions
     ///
     /// This field is an addition of **1.1.0** **NEP-330** revision
-    /// 
+    ///
     /// ## Examples:
-    /// 
+    ///
     /// This field will always include NEP-330 itself:
     /// ```rust,no_run
     /// # use near_api::types::contract::Standard;
@@ -72,7 +72,7 @@ pub struct ContractSourceMetadata {
     pub standards: Vec<Standard>,
 
     /// Optional details that are required for formal contract WASM build reproducibility verification
-    /// 
+    ///
     /// This field is an addition of **1.2.0** **NEP-330** revision
     pub build_info: Option<BuildInfo>,
 }
@@ -83,7 +83,7 @@ pub struct Standard {
     /// Standard name in lowercase NEP format
     ///
     /// ## Examples:
-    /// 
+    ///
     /// ```rust,no_run
     /// # let standard: String =
     /// // for fungible tokens
