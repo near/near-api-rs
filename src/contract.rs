@@ -403,6 +403,20 @@ impl CallFunctionBuilder {
         )
     }
 
+    /// Prepares a read-only query that doesn't require a signing transaction, and post-processes the response.
+    ///
+    /// This is useful if you want to convert one type to another.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance: NearToken = Contract("some_contract.testnet".parse()?).call_function("get_balance", ())?.read_only_with_postprocess(|balance: Data<u128>| NearToken::from_yoctonear(balance.data)).fetch_from_testnet().await?;
+    /// println!("Balance: {}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn read_only_with_postprocess<MappedType, Response: Send + Sync + DeserializeOwned>(
         self,
         postprocess: impl Fn(Data<Response>) -> MappedType + Send + Sync + 'static,
