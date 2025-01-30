@@ -9,7 +9,7 @@ use crate::{
     common::{
         query::{
             CallResultHandler, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
-            QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleQuery, SimpleValidatorRpc,
+            QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleValidatorRpc,
             ValidatorQueryBuilder, ViewStateHandler,
         },
         utils::{is_critical_query_error, near_data_to_near_token},
@@ -51,23 +51,14 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
-        let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0.clone(),
-        }))?;
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: pool,
-            method_name: "get_account_staked_balance".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
-
-        Ok(QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(near_data_to_near_token),
-            ),
-        ))
+        Ok(Contract(pool)
+            .call_function(
+                "get_account_staked_balance",
+                serde_json::json!({
+                    "account_id": self.0.clone(),
+                }),
+            )?
+            .read_only_with_postprocess(near_data_to_near_token))
     }
 
     /// Prepares a new contract query (`get_account_unstaked_balance`) for fetching the unstaked(free, not used for staking) balance ([NearToken]) of the account on the staking pool.
@@ -91,23 +82,14 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
-        let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0.clone(),
-        }))?;
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: pool,
-            method_name: "get_account_unstaked_balance".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
-
-        Ok(QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(near_data_to_near_token),
-            ),
-        ))
+        Ok(Contract(pool)
+            .call_function(
+                "get_account_unstaked_balance",
+                serde_json::json!({
+                    "account_id": self.0.clone(),
+                }),
+            )?
+            .read_only_with_postprocess(near_data_to_near_token))
     }
 
     /// Prepares a new contract query (`get_account_total_balance`) for fetching the total balance ([NearToken]) of the account (free + staked) on the staking pool.
@@ -131,23 +113,14 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
-        let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0.clone(),
-        }))?;
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: pool,
-            method_name: "get_account_total_balance".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
-
-        Ok(QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(near_data_to_near_token),
-            ),
-        ))
+        Ok(Contract(pool)
+            .call_function(
+                "get_account_total_balance",
+                serde_json::json!({
+                    "account_id": self.0.clone(),
+                }),
+            )?
+            .read_only_with_postprocess(near_data_to_near_token))
     }
 
     /// Returns a full information about the staked balance ([UserStakeBalance]) of the account on the staking pool.
@@ -234,21 +207,14 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> Result<QueryBuilder<CallResultHandler<bool>>> {
-        let args = serde_json::to_vec(&serde_json::json!({
-            "account_id": self.0.clone(),
-        }))?;
-
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: pool,
-            method_name: "is_account_unstaked_balance_available".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
-
-        Ok(QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            CallResultHandler::default(),
-        ))
+        Ok(Contract(pool)
+            .call_function(
+                "is_account_unstaked_balance_available",
+                serde_json::json!({
+                    "account_id": self.0.clone(),
+                }),
+            )?
+            .read_only())
     }
 
     /// Prepares a new transaction contract call (`deposit`) for depositing funds into the staking pool.
@@ -681,20 +647,10 @@ impl Staking {
     pub fn staking_pool_total_stake(
         pool: AccountId,
     ) -> QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: pool,
-            method_name: "get_total_staked_balance".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(vec![]),
-        };
-
-        QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(near_data_to_near_token),
-            ),
-        )
+        Contract(pool)
+            .call_function("get_total_staked_balance", ())
+            .expect("arguments are not expected")
+            .read_only_with_postprocess(near_data_to_near_token)
     }
 
     /// Returns a full information about the staking pool ([StakingPoolInfo]).

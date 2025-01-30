@@ -157,23 +157,11 @@ impl Contract {
         &self,
     ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
     {
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: self.0.clone(),
-            method_name: "__contract_abi".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(vec![]),
-        };
-
-        QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(|data: Data<Vec<u8>>| {
-                    serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice())
-                        .ok()
-                }),
-            ),
-        )
+        self.call_function("__contract_abi", ())
+            .expect("arguments are always serializable")
+            .read_only_with_postprocess(|data: Data<Vec<u8>>| {
+                serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice()).ok()
+            })
     }
 
     /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_primitives::views::ContractCodeView)>) of the contract.
@@ -417,8 +405,8 @@ impl CallFunctionBuilder {
 
     pub fn read_only_with_postprocess<MappedType, Response: Send + Sync + DeserializeOwned>(
         self,
-        postprocess: impl Fn(Response) -> MappedType + Send + Sync + 'static,
-    ) -> QueryBuilder<PostprocessHandler<Data<MappedType>, CallResultHandler<Response>>> {
+        postprocess: impl Fn(Data<Response>) -> MappedType + Send + Sync + 'static,
+    ) -> QueryBuilder<PostprocessHandler<MappedType, CallResultHandler<Response>>> {
         let request = near_primitives::views::QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
@@ -430,11 +418,7 @@ impl CallFunctionBuilder {
             BlockReference::latest(),
             PostprocessHandler::new(
                 CallResultHandler(PhantomData),
-                Box::new(move |data: Data<Response>| Data {
-                    data: postprocess(data.data),
-                    block_height: data.block_height,
-                    block_hash: data.block_hash,
-                }),
+                Box::new(move |data: Data<Response>| postprocess(data)),
             ),
         )
     }
