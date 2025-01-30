@@ -415,6 +415,30 @@ impl CallFunctionBuilder {
         )
     }
 
+    pub fn read_only_with_postprocess<MappedType, Response: Send + Sync + DeserializeOwned>(
+        self,
+        postprocess: impl Fn(Response) -> MappedType + Send + Sync + 'static,
+    ) -> QueryBuilder<PostprocessHandler<Data<MappedType>, CallResultHandler<Response>>> {
+        let request = near_primitives::views::QueryRequest::CallFunction {
+            account_id: self.contract,
+            method_name: self.method_name,
+            args: near_primitives::types::FunctionArgs::from(self.args),
+        };
+
+        QueryBuilder::new(
+            SimpleQuery { request },
+            BlockReference::latest(),
+            PostprocessHandler::new(
+                CallResultHandler(PhantomData),
+                Box::new(move |data: Data<Response>| Data {
+                    data: postprocess(data.data),
+                    block_height: data.block_height,
+                    block_hash: data.block_hash,
+                }),
+            ),
+        )
+    }
+
     /// Prepares a transaction that will call a contract function leading to a state change.
     ///
     /// This will require a signer to be provided and gas to be paid.
