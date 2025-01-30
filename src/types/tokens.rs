@@ -217,7 +217,7 @@ pub struct UserBalance {
     /// This is why, the [NEP-27](https://github.com/near/core-contracts/tree/master/staking-pool) defines a Staking Pool smart contract
     /// that allows other users to delegate tokens to the validator.
     ///
-    /// Even though, the user can stake and become validator itself, it's highly unlickly and this field will be 0
+    /// Even though, the user can stake and become validator itself, it's highly unlikely and this field will be 0
     /// for almost all the users, and not 0 for StakingPool contracts.
     ///
     /// Please note that this is not related to your delegations into the staking pools.
