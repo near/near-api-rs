@@ -252,7 +252,7 @@ impl Contract {
         self.view_storage_with_prefix(vec![])
     }
 
-    /// Prepares a query to fetch the contract source metadata([Data]<[ContractSourceMetadata]>) using [NEP-330](https://nomicon.io/Standards/SourceMetadata) standard.
+    /// Prepares a query to fetch the contract source metadata([Data]<[ContractSourceMetadata]>) using [NEP-330](https://github.com/near/NEPs/blob/master/neps/nep-0330.md) standard.
     ///
     /// The contract source metadata is a standard interface that allows auditing and viewing source code for a deployed smart contract.
     /// Implementation of this standard is purely optional but is recommended for developers whose contracts are open source.

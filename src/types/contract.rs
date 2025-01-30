@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// The struct provides information about deployed contract's source code and supported standards.
 ///
-/// Contract source metadata follows [NEP-330 standard](https://nomicon.io/Standards/SourceMetadata) for smart contract verification
+/// Contract source metadata follows [NEP-330 standard](https://github.com/near/NEPs/blob/master/neps/nep-0330.md) for smart contract verification
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct ContractSourceMetadata {
     /// Optional version identifier, typically a commit hash or semantic version
@@ -27,7 +27,7 @@ pub struct ContractSourceMetadata {
     pub standards: Vec<Standard>,
 }
 
-/// NEAR Standard implementation descriptor following [NEP-330](https://nomicon.io/Standards/SourceMetadata)    
+/// NEAR Standard implementation descriptor following [NEP-330](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)    
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct Standard {
     /// Standard name in lowercase NEP format

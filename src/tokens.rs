@@ -25,14 +25,12 @@ use crate::{
     errors::{BuilderError, FTValidatorError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::{
-        tokens::{FTBalance, UserBalance},
+        tokens::{FTBalance, UserBalance, STORAGE_COST_PER_BYTE},
         transactions::PrepopulateTransaction,
         Data,
     },
     NetworkConfig, StorageDeposit,
 };
-
-const STORAGE_COST: NearToken = NearToken::from_yoctonear(10_000_000_000_000_000_000u128);
 
 type Result<T> = core::result::Result<T, BuilderError>;
 
@@ -45,8 +43,8 @@ type Result<T> = core::result::Result<T, BuilderError>;
 ///
 /// This struct provides convenient methods to interact with different types of tokens on NEAR Protocol:
 /// - [Native NEAR](https://docs.near.org/concepts/basics/tokens) token operations
-/// - Fungible Token - [Documentation and examples](https://nomicon.io/Standards/Tokens/FungibleToken/Core), [NEP-141](https://nomicon.io/Standards/Tokens/FungibleToken/Core)    
-/// - Non-Fungible Token - [Documentation and examples](https://docs.near.org/build/primitives/nft), [NEP-171](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core)
+/// - Fungible Token - [Documentation and examples](https://docs.near.org/build/primitives/ft), [NEP-141](https://github.com/near/NEPs/blob/master/neps/nep-0141.md)    
+/// - Non-Fungible Token - [Documentation and examples](https://docs.near.org/build/primitives/nft), [NEP-171](https://github.com/near/NEPs/blob/master/neps/nep-0171.md)
 ///
 /// ## Examples
 ///
@@ -154,7 +152,7 @@ impl Tokens {
                     let account = account.data;
                     let total = NearToken::from_yoctonear(account.amount);
                     let storage_locked = NearToken::from_yoctonear(
-                        account.storage_usage as u128 * STORAGE_COST.as_yoctonear(),
+                        account.storage_usage as u128 * STORAGE_COST_PER_BYTE.as_yoctonear(),
                     );
                     let locked = NearToken::from_yoctonear(account.locked);
                     let storage_usage = account.storage_usage;

@@ -33,8 +33,22 @@ pub struct Data<T> {
 }
 
 /// A wrapper around [near_jsonrpc_client::auth::ApiKey]
+///
+/// This type is used to authenticate requests to the RPC node
+///
+/// ## Creating an API key
+///
+/// ```
+/// use near_api::types::ApiKey;
+/// use std::str::FromStr;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let api_key = ApiKey::from_str("your_api_key")?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Eq, Hash, Clone, Debug, PartialEq)]
-pub struct ApiKey(pub near_jsonrpc_client::auth::ApiKey);
+pub struct ApiKey(near_jsonrpc_client::auth::ApiKey);
 
 impl From<ApiKey> for near_jsonrpc_client::auth::ApiKey {
     fn from(api_key: ApiKey) -> Self {

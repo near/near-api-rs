@@ -20,6 +20,8 @@ pub struct StakingPoolInfo {
 ///
 /// This represents the percentage of the reward that is taken by the pool contract.
 /// The type is a part of the [StakingPool](https://github.com/near/core-contracts/tree/master/staking-pool) interface
+///
+/// The fraction is equal to numerator/denominator, e.g. 3/1000 = 0.3%
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct RewardFeeFraction {
     /// The numerator of the fraction.
