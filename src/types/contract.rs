@@ -11,10 +11,6 @@ use serde::{Deserialize, Serialize};
 pub struct ContractSourceMetadata {
     /// Optional version identifier, typically a semantic version
     ///
-    /// **NOTE**:
-    /// As of **NEP-330** standard version **1.2.0**
-    /// this field may or may not be consistent with [`Self::link`] and with [`BuildInfo::source_code_snapshot`], but only [`BuildInfo::source_code_snapshot`] defines source code for formal reproducibility verification, and [`Self::link`] and [`Self::version`] do not
-    ///
     /// ## Examples:
     ///
     /// ```rust,no_run
@@ -27,10 +23,6 @@ pub struct ContractSourceMetadata {
 
     // cSpell::ignore bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq
     /// Optional URL to source code repository/tree
-    ///
-    /// **NOTE**:
-    /// As of **NEP-330** standard version **1.2.0**
-    /// this field may or may not be consistent with [`Self::version`] and with [`BuildInfo::source_code_snapshot`], but only [`BuildInfo::source_code_snapshot`] defines source code for formal reproducibility verification, and [`Self::link`] and [`Self::version`] do not
     ///
     /// ## Examples:
     ///
@@ -109,6 +101,8 @@ mod build_info {
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
+    /// Defines all required details for formal WASM build reproducibility verification
+    /// according to [**NEP-330 standard**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
     pub struct BuildInfo {
         /// Reference to a reproducible build environment docker image
         ///
