@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// The struct provides information about deployed contract's source code and supported standards.
 ///
-/// Contract source metadata follows [**NEP-330 standard**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md) for smart contract verification
+/// Contract source metadata follows [**NEP-330 standard**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md) for smart contracts
 ///
 /// See documentation of [`crate::Contract::contract_source_metadata`] on how to query this for a contract via this crate
 // `rustdoc` clearly lacks functionality of automatic backlinks within a single crate
