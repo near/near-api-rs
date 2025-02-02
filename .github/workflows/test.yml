@@ -13,7 +13,7 @@ env:
 
 jobs:
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
       run: cargo clippy --all-targets -- -D clippy::all -D clippy::nursery
 
   cargo-fmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
       run: cargo fmt --check
 
   cargo-doc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
