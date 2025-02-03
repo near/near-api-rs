@@ -147,6 +147,14 @@ pub type MultiQueryBuilder<T> = MultiRpcBuilder<T, RpcQueryRequest, BlockReferen
 pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochReference>;
 pub type BlockQueryBuilder<T> = RpcBuilder<T, RpcBlockRequest, BlockReference>;
 
+/// A builder for querying multiple items at once.
+///
+/// Sometimes to construct some complex type, you would need to query multiple items at once, and combine them into one.
+/// This is where this builder comes in handy. Almost everytime you would want to use [Self::map] method to combine the responses into your desired type.
+///
+/// Here is a list of examples on how to use this:
+/// - [Tokens::ft_balance](crate::tokens::Tokens::ft_balance)
+/// - [StakingPool::staking_pool_info](crate::stake::Staking::staking_pool_info)
 pub struct MultiRpcBuilder<Handler, Method, Reference>
 where
     Reference: Send + Sync,
@@ -170,6 +178,22 @@ where
             reference,
             requests: vec![],
             handler,
+        }
+    }
+
+    /// Map response of the queries to another type. The `map` function is executed after the queries are fetched.
+    ///
+    /// The response is a tuple of the responses of the queries.
+    ///
+    /// See [Tokens::ft_balance](crate::tokens::Tokens::ft_balance) implementation for an example on how to use this.
+    pub fn map<MappedType>(
+        self,
+        map: impl Fn(Handler::Response) -> MappedType + Send + Sync + 'static,
+    ) -> MultiRpcBuilder<PostprocessHandler<MappedType, Handler>, Method, Reference> {
+        MultiRpcBuilder {
+            handler: PostprocessHandler::new(self.handler, map),
+            requests: self.requests,
+            reference: self.reference,
         }
     }
 
@@ -295,6 +319,36 @@ where
         Self {
             reference: reference.into(),
             ..self
+        }
+    }
+
+    /// Post-process the response of the query.
+    ///
+    /// This is useful if you want to convert one type to another.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    ///         .call_function("get_balance", ())?
+    ///         .read_only()
+    ///         .map(|balance: Data<u128>| NearToken::from_yoctonear(balance.data))
+    ///         .fetch_from_testnet()
+    ///         .await?;
+    /// println!("Balance: {}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn map<MappedType>(
+        self,
+        map: impl Fn(Handler::Response) -> MappedType + Send + Sync + 'static,
+    ) -> RpcBuilder<PostprocessHandler<MappedType, Handler>, Method, Reference> {
+        RpcBuilder {
+            handler: PostprocessHandler::new(self.handler, map),
+            request: self.request,
+            reference: self.reference,
         }
     }
 

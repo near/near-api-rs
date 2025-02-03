@@ -58,7 +58,8 @@ impl Delegation {
                     "account_id": self.0.clone(),
                 }),
             )?
-            .read_only_with_postprocess(near_data_to_near_token))
+            .read_only()
+            .map(near_data_to_near_token))
     }
 
     /// Prepares a new contract query (`get_account_unstaked_balance`) for fetching the unstaked(free, not used for staking) balance ([NearToken]) of the account on the staking pool.
@@ -89,7 +90,8 @@ impl Delegation {
                     "account_id": self.0.clone(),
                 }),
             )?
-            .read_only_with_postprocess(near_data_to_near_token))
+            .read_only()
+            .map(near_data_to_near_token))
     }
 
     /// Prepares a new contract query (`get_account_total_balance`) for fetching the total balance ([NearToken]) of the account (free + staked) on the staking pool.
@@ -120,7 +122,8 @@ impl Delegation {
                     "account_id": self.0.clone(),
                 }),
             )?
-            .read_only_with_postprocess(near_data_to_near_token))
+            .read_only()
+            .map(near_data_to_near_token))
     }
 
     /// Returns a full information about the staked balance ([UserStakeBalance]) of the account on the staking pool.
@@ -157,13 +160,17 @@ impl Delegation {
             >,
         >,
     > {
-        let postprocess = PostprocessHandler::new(
-            MultiQueryHandler::new((
-                CallResultHandler::default(),
-                CallResultHandler::default(),
-                CallResultHandler::default(),
-            )),
-            |(staked, unstaked, total)| {
+        let postprocess = MultiQueryHandler::new((
+            CallResultHandler::default(),
+            CallResultHandler::default(),
+            CallResultHandler::default(),
+        ));
+
+        let multiquery = MultiQueryBuilder::new(postprocess, BlockReference::latest())
+            .add_query_builder(self.view_staked_balance(pool.clone())?)
+            .add_query_builder(self.view_unstaked_balance(pool.clone())?)
+            .add_query_builder(self.view_total_balance(pool)?)
+            .map(|(staked, unstaked, total)| {
                 let staked = near_data_to_near_token(staked);
                 let unstaked = near_data_to_near_token(unstaked);
                 let total = near_data_to_near_token(total);
@@ -173,14 +180,7 @@ impl Delegation {
                     unstaked,
                     total,
                 }
-            },
-        );
-
-        let multiquery = MultiQueryBuilder::new(postprocess, BlockReference::latest())
-            .add_query_builder(self.view_staked_balance(pool.clone())?)
-            .add_query_builder(self.view_staked_balance(pool.clone())?)
-            .add_query_builder(self.view_total_balance(pool)?);
-
+            });
         Ok(multiquery)
     }
 
@@ -502,15 +502,16 @@ impl Staking {
         QueryBuilder::new(
             ActiveStakingPoolQuery,
             BlockReference::latest(),
-            PostprocessHandler::new(ViewStateHandler, |query_result| {
-                query_result
-                    .data
-                    .values
-                    .into_iter()
-                    .filter_map(|item| borsh::from_slice(&item.value).ok())
-                    .collect()
-            }),
+            ViewStateHandler,
         )
+        .map(|query_result| {
+            query_result
+                .data
+                .values
+                .into_iter()
+                .filter_map(|item| borsh::from_slice(&item.value).ok())
+                .collect()
+        })
     }
 
     /// Returns a list of validators and their stake ([near_primitives::views::EpochValidatorInfo]) for the current epoch.
@@ -551,34 +552,35 @@ impl Staking {
         ValidatorQueryBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,
-            PostprocessHandler::new(RpcValidatorHandler, |validator_response| {
-                validator_response
-                    .current_proposals
-                    .into_iter()
-                    .map(|validator_stake_view| {
-                        let validator_stake = validator_stake_view.into_validator_stake();
-                        validator_stake.account_and_stake()
-                    })
-                    .chain(validator_response.current_validators.into_iter().map(
-                        |current_epoch_validator_info| {
-                            (
-                                current_epoch_validator_info.account_id,
-                                current_epoch_validator_info.stake,
-                            )
-                        },
-                    ))
-                    .chain(validator_response.next_validators.into_iter().map(
-                        |next_epoch_validator_info| {
-                            (
-                                next_epoch_validator_info.account_id,
-                                next_epoch_validator_info.stake,
-                            )
-                        },
-                    ))
-                    .map(|(account_id, stake)| (account_id, NearToken::from_yoctonear(stake)))
-                    .collect()
-            }),
+            RpcValidatorHandler,
         )
+        .map(|validator_response| {
+            validator_response
+                .current_proposals
+                .into_iter()
+                .map(|validator_stake_view| {
+                    let validator_stake = validator_stake_view.into_validator_stake();
+                    validator_stake.account_and_stake()
+                })
+                .chain(validator_response.current_validators.into_iter().map(
+                    |current_epoch_validator_info| {
+                        (
+                            current_epoch_validator_info.account_id,
+                            current_epoch_validator_info.stake,
+                        )
+                    },
+                ))
+                .chain(validator_response.next_validators.into_iter().map(
+                    |next_epoch_validator_info| {
+                        (
+                            next_epoch_validator_info.account_id,
+                            next_epoch_validator_info.stake,
+                        )
+                    },
+                ))
+                .map(|(account_id, stake)| (account_id, NearToken::from_yoctonear(stake)))
+                .collect()
+        })
     }
 
     /// Prepares a new contract query (`get_reward_fee_fraction`) for fetching the reward fee fraction of the staking pool ([Data](crate::Data)<[RewardFeeFraction]>).
@@ -650,7 +652,8 @@ impl Staking {
         Contract(pool)
             .call_function("get_total_staked_balance", ())
             .expect("arguments are not expected")
-            .read_only_with_postprocess(near_data_to_near_token)
+            .read_only()
+            .map(near_data_to_near_token)
     }
 
     /// Returns a full information about the staking pool ([StakingPoolInfo]).
@@ -684,13 +687,17 @@ impl Staking {
         >,
     > {
         let pool_clone = pool.clone();
-        let postprocess = PostprocessHandler::new(
-            MultiQueryHandler::new((
-                CallResultHandler::default(),
-                CallResultHandler::default(),
-                CallResultHandler::default(),
-            )),
-            move |(reward_fee, delegators, total_stake)| {
+        let handler = MultiQueryHandler::new((
+            CallResultHandler::default(),
+            CallResultHandler::default(),
+            CallResultHandler::default(),
+        ));
+
+        MultiQueryBuilder::new(handler, BlockReference::latest())
+            .add_query_builder(Self::staking_pool_reward_fee(pool.clone()))
+            .add_query_builder(Self::staking_pool_delegators(pool.clone()))
+            .add_query_builder(Self::staking_pool_total_stake(pool))
+            .map(move |(reward_fee, delegators, total_stake)| {
                 let total = near_data_to_near_token(total_stake);
 
                 StakingPoolInfo {
@@ -700,13 +707,7 @@ impl Staking {
                     delegators: Some(delegators.data),
                     stake: total,
                 }
-            },
-        );
-
-        MultiQueryBuilder::new(postprocess, BlockReference::latest())
-            .add_query_builder(Self::staking_pool_reward_fee(pool.clone()))
-            .add_query_builder(Self::staking_pool_delegators(pool.clone()))
-            .add_query_builder(Self::staking_pool_total_stake(pool))
+            })
     }
 
     /// Returns a new [`Delegation`] struct for interacting with the staking pool on behalf of the account.

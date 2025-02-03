@@ -79,7 +79,8 @@ impl StorageDeposit {
                     "account_id": account_id,
                 }),
             )?
-            .read_only_with_postprocess(|storage: Data<Option<StorageBalanceInternal>>| Data {
+            .read_only()
+            .map(|storage: Data<Option<StorageBalanceInternal>>| Data {
                 data: storage.data.map(|data| StorageBalance {
                     available: data.available,
                     total: data.total,

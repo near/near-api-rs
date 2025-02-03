@@ -159,7 +159,8 @@ impl Contract {
     {
         self.call_function("__contract_abi", ())
             .expect("arguments are always serializable")
-            .read_only_with_postprocess(|data: Data<Vec<u8>>| {
+            .read_only()
+            .map(|data: Data<Vec<u8>>| {
                 serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice()).ok()
             })
     }
@@ -400,40 +401,6 @@ impl CallFunctionBuilder {
             SimpleQuery { request },
             BlockReference::latest(),
             CallResultHandler(PhantomData),
-        )
-    }
-
-    /// Prepares a read-only query that doesn't require a signing transaction, and post-processes the response.
-    ///
-    /// This is useful if you want to convert one type to another.
-    ///
-    /// ## Example
-    /// ```rust,no_run
-    /// use near_api::*;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let balance: NearToken = Contract("some_contract.testnet".parse()?).call_function("get_balance", ())?.read_only_with_postprocess(|balance: Data<u128>| NearToken::from_yoctonear(balance.data)).fetch_from_testnet().await?;
-    /// println!("Balance: {}", balance);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn read_only_with_postprocess<MappedType, Response: Send + Sync + DeserializeOwned>(
-        self,
-        postprocess: impl Fn(Data<Response>) -> MappedType + Send + Sync + 'static,
-    ) -> QueryBuilder<PostprocessHandler<MappedType, CallResultHandler<Response>>> {
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: self.contract,
-            method_name: self.method_name,
-            args: near_primitives::types::FunctionArgs::from(self.args),
-        };
-
-        QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler(PhantomData),
-                Box::new(move |data: Data<Response>| postprocess(data)),
-            ),
         )
     }
 
