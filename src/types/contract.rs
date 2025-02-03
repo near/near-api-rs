@@ -19,6 +19,12 @@ pub struct ContractSourceMetadata {
     /// Some("1.0.0".into())
     /// # ;
     /// ```
+    /// ```rust,no_run
+    /// # let version: Option<String> =
+    /// // Git commit
+    /// Some("39f2d2646f2f60e18ab53337501370dc02a5661c".into())
+    /// # ;
+    /// ```
     pub version: Option<String>,
 
     // cSpell::ignore bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq
@@ -29,13 +35,19 @@ pub struct ContractSourceMetadata {
     /// ```rust,no_run
     /// # let link: Option<String> =
     /// // GitHub URL
-    /// Some("https://github.com/near-examples/nft-tutorial".into())
+    /// Some("https://github.com/org/repo/tree/8d8a8a0fe86a1d8eb3bce45f04ab1a65fecf5a1b".into())
     /// # ;
     /// ```
     /// ```rust,no_run
     /// # let link: Option<String> =
     /// // GitHub URL
-    /// Some("https://github.com/org/repo/tree/8d8a8a0fe86a1d8eb3bce45f04ab1a65fecf5a1b".into())
+    /// Some("https://github.com/near-examples/nft-tutorial".into())
+    /// # ;
+    /// ```
+    /// ```rust,no_run
+    /// # let link: Option<String> =
+    /// // IPFS CID
+    /// Some("bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq".into())
     /// # ;
     /// ```
     pub link: Option<String>,
@@ -102,7 +114,7 @@ mod build_info {
 
     #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
     /// Defines all required details for formal WASM build reproducibility verification
-    /// according to [**NEP-330 standard**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
+    /// according to [**NEP-330 standard 1.2.0 revision**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
     pub struct BuildInfo {
         /// Reference to a reproducible build environment docker image
         ///
