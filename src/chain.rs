@@ -84,7 +84,7 @@ impl Chain {
             .map(|data| data.header.hash.into())
     }
 
-    /// Set ups a query to fetch the [BlockView]
+    /// Set ups a query to fetch the [BlockView][near_primitives::views::BlockView]
     ///
     /// ## Fetching the latest block
     ///

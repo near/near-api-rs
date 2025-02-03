@@ -150,7 +150,7 @@ pub type BlockQueryBuilder<T> = RpcBuilder<T, RpcBlockRequest, BlockReference>;
 /// A builder for querying multiple items at once.
 ///
 /// Sometimes to construct some complex type, you would need to query multiple items at once, and combine them into one.
-/// This is where this builder comes in handy. Almost everytime you would want to use [Self::map] method to combine the responses into your desired type.
+/// This is where this builder comes in handy. Almost every time, you would want to use [Self::map] method to combine the responses into your desired type.
 ///
 /// Here is a list of examples on how to use this:
 /// - [Tokens::ft_balance](crate::tokens::Tokens::ft_balance)
