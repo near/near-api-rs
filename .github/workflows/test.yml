@@ -13,18 +13,18 @@ env:
 
 jobs:
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
     - name: Install libudev (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get -y install libudev-dev libsystemd-dev
+      run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - name: Run clippy
       run: cargo clippy --all-targets -- -D clippy::all -D clippy::nursery
 
   cargo-fmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -32,13 +32,13 @@ jobs:
       run: cargo fmt --check
 
   cargo-doc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
     - name: Install libudev (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get -y install libudev-dev libsystemd-dev
+      run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - name: run cargo doc
       run: RUSTDOCFLAGS="-D warnings" cargo doc
 
@@ -62,6 +62,7 @@ jobs:
   test:
     needs: cargo-fmt
     strategy:
+      fail-fast: false
       matrix:
         platform: [ubuntu-latest, macos-latest]
         toolchain: [stable]
@@ -78,7 +79,7 @@ jobs:
     - uses: Swatinem/rust-cache@v1
     - name: Install libudev (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get -y install libudev-dev libsystemd-dev
+      run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - name: Check with stable features
       run: cargo check --verbose
     - name: Run tests with unstable features

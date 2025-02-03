@@ -11,7 +11,7 @@ edition = "2021"
 repository = "https://github.com/near/near-api-rs"
 description = "Rust library to interact with NEAR Protocol via RPC API"
 
-exclude = ["resources", "examples", "tests"]
+exclude = ["resources", "tests"]
 
 [package.metadata.docs.rs]
 all-features = true
