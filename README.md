@@ -17,7 +17,7 @@ Currently, the library provides:
 * Storage deposit management
 * Stake management
 * Ability to create custom transactions
-* Several ways to sign transactions (SecretKey, Seedphrase, File, Ledger, Secure keychain).
+* Several ways to sign transactions (secret key, seed phrase, file, ledger, secure keychain).
 * Account key pool support to sign the transaction with different user keys to avoid nonce issues.
 
 The project requires **Rust 1.81+** for compiling with the `keystore` feature enabled. However, it can still be compiled and used without the `keystore` feature on older versions of Rust.
