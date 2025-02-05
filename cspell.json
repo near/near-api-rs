@@ -44,7 +44,9 @@
         "ipfs",
         "nep",
         "cid",
-        "wnear"
+        "wnear",
+        "backlinks",
+        "sourcescan"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key
