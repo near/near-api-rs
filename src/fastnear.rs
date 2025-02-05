@@ -35,7 +35,7 @@ impl<T, PostProcessed> FastNearBuilder<T, PostProcessed>
 where
     T: DeserializeOwned + Send + Sync,
 {
-    pub fn with_postprocess<F>(query: String, func: F) -> Self
+    pub fn map<F>(query: String, func: F) -> Self
     where
         F: Fn(T) -> PostProcessed + Send + Sync + 'static,
     {
@@ -67,7 +67,7 @@ impl FastNear {
         &self,
         account_id: &AccountId,
     ) -> Result<FastNearBuilder<StakingResponse, BTreeSet<AccountId>>, FastNearError> {
-        let query_builder = FastNearBuilder::with_postprocess(
+        let query_builder = FastNearBuilder::map(
             format!("v1/account/{}/staking", account_id),
             |response: StakingResponse| {
                 response
