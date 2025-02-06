@@ -90,3 +90,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: streetsidesoftware/cspell-action@v6
 
+  check_rust_backward_compatibility_1.81:
+    needs: cargo-fmt
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.81
+          default: true
+    - name: Install libudev (Linux only)
+      run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
+    - name: Run cargo build
+      run: cargo +1.81 build --release --all-features
