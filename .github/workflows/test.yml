@@ -61,6 +61,8 @@ jobs:
 
   get_msrv:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.rust_msrv.outputs.version }}
     steps:
     - uses: actions/checkout@v4
     - name: Get MSRV
@@ -78,7 +80,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
         toolchain:
           - stable
-          - ${{ needs.rust_msrv.outputs.version }}
+          - ${{ needs.get_msrv.outputs.version }}
     runs-on: ${{ matrix.platform }}
     name: CI with ${{ matrix.toolchain }}
     steps:
