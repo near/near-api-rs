@@ -83,6 +83,11 @@ pub use crate::{
     },
 };
 
+pub mod advanced {
+    pub use crate::common::query::*;
+    pub use crate::common::send::*;
+}
+
 pub use near_primitives;
 
 pub use near_account_id::AccountId;

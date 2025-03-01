@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use near_contract_standards::{
     fungible_token::metadata::FungibleTokenMetadata,
     non_fungible_token::{metadata::NFTContractMetadata, Token},
@@ -27,7 +25,7 @@ use crate::{
         tokens::{FTBalance, UserBalance, STORAGE_COST_PER_BYTE},
         transactions::PrepopulateTransaction,
     },
-    NetworkConfig, StorageDeposit,
+    Data, NetworkConfig, StorageDeposit,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -278,12 +276,11 @@ impl Tokens {
             >,
         >,
     > {
-        let postprocess = MultiQueryHandler::new((
-            CallResultHandler(PhantomData::<FungibleTokenMetadata>),
-            CallResultHandler(PhantomData::<U128>),
+        let handler = MultiQueryHandler::new((
+            CallResultHandler::<FungibleTokenMetadata>::new(),
+            CallResultHandler::default(),
         ));
-
-        let query_builder = MultiQueryBuilder::new(postprocess, BlockReference::latest())
+        let multiquery = MultiQueryBuilder::new(handler, BlockReference::latest())
             .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
             .add_query_builder(
                 Contract(ft_contract)
@@ -295,11 +292,12 @@ impl Tokens {
                     )?
                     .read_only::<()>(),
             )
-            .map(|(metadata, amount)| {
-                FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
-            });
-
-        Ok(query_builder)
+            .map(
+                |(metadata, amount): (Data<FungibleTokenMetadata>, Data<U128>)| {
+                    FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
+                },
+            );
+        Ok(multiquery)
     }
 
     /// Prepares a new transaction builder for sending tokens to another account.

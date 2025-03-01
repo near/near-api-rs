@@ -40,7 +40,7 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - name: run cargo doc
-      run: RUSTDOCFLAGS="-D warnings" cargo doc
+      run: RUSTDOCFLAGS="-D warnings" cargo doc --all-features --document-private-items
 
   check-windows:
     needs: cargo-fmt

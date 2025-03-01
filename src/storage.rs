@@ -80,16 +80,16 @@ impl StorageDeposit {
                 }),
             )?
             .read_only()
-            .map(|storage: Data<Option<StorageBalanceInternal>>| Data {
-                data: storage.data.map(|data| StorageBalance {
-                    available: data.available,
-                    total: data.total,
-                    locked: NearToken::from_yoctonear(
-                        data.total.as_yoctonear() - data.available.as_yoctonear(),
-                    ),
-                }),
-                block_height: storage.block_height,
-                block_hash: storage.block_hash,
+            .map(|storage: Data<Option<StorageBalanceInternal>>| {
+                storage.map(|option_storage| {
+                    option_storage.map(|data| StorageBalance {
+                        available: data.available,
+                        total: data.total,
+                        locked: NearToken::from_yoctonear(
+                            data.total.as_yoctonear() - data.available.as_yoctonear(),
+                        ),
+                    })
+                })
             }))
     }
 

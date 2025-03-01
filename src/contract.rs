@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use near_gas::NearGas;
 
@@ -405,7 +405,7 @@ impl CallFunctionBuilder {
         QueryBuilder::new(
             SimpleQuery { request },
             BlockReference::latest(),
-            CallResultHandler(PhantomData),
+            CallResultHandler::<Response>::new(),
         )
     }
 

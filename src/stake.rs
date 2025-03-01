@@ -160,11 +160,7 @@ impl Delegation {
             >,
         >,
     > {
-        let postprocess = MultiQueryHandler::new((
-            CallResultHandler::default(),
-            CallResultHandler::default(),
-            CallResultHandler::default(),
-        ));
+        let postprocess = MultiQueryHandler::default();
 
         let multiquery = MultiQueryBuilder::new(postprocess, BlockReference::latest())
             .add_query_builder(self.view_staked_balance(pool.clone())?)
