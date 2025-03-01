@@ -1,7 +1,4 @@
-use near_primitives::{
-    types::{BlockHeight, BlockReference},
-    views::BlockView,
-};
+use near_primitives::types::{BlockHeight, BlockReference};
 
 use crate::{
     common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler, SimpleBlockRpc},
@@ -53,14 +50,8 @@ impl Chain {
     /// # }
     /// ```
     pub fn block_number() -> BlockQueryBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
-        BlockQueryBuilder::new(
-            SimpleBlockRpc,
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                RpcBlockHandler,
-                Box::new(|data: BlockView| data.header.height),
-            ),
-        )
+        BlockQueryBuilder::new(SimpleBlockRpc, BlockReference::latest(), RpcBlockHandler)
+            .map(|data| data.header.height)
     }
 
     /// Set ups a query to fetch the [CryptoHash] of the block
@@ -89,17 +80,11 @@ impl Chain {
     /// # }
     /// ```
     pub fn block_hash() -> BlockQueryBuilder<PostprocessHandler<CryptoHash, RpcBlockHandler>> {
-        BlockQueryBuilder::new(
-            SimpleBlockRpc,
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                RpcBlockHandler,
-                Box::new(|data: BlockView| data.header.hash.into()),
-            ),
-        )
+        BlockQueryBuilder::new(SimpleBlockRpc, BlockReference::latest(), RpcBlockHandler)
+            .map(|data| data.header.hash.into())
     }
 
-    /// Set ups a query to fetch the [BlockView]
+    /// Set ups a query to fetch the [BlockView][near_primitives::views::BlockView]
     ///
     /// ## Fetching the latest block
     ///

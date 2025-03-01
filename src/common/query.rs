@@ -147,6 +147,17 @@ pub type MultiQueryBuilder<T> = MultiRpcBuilder<T, RpcQueryRequest, BlockReferen
 pub type ValidatorQueryBuilder<T> = RpcBuilder<T, RpcValidatorRequest, EpochReference>;
 pub type BlockQueryBuilder<T> = RpcBuilder<T, RpcBlockRequest, BlockReference>;
 
+/// A builder for querying multiple items at once.
+///
+/// Sometimes to construct some complex type, you would need to query multiple items at once, and combine them into one.
+/// This is where this builder comes in handy. Almost every time, you would want to use [Self::map] method to combine the responses into your desired type.
+///
+/// Currently, `MultiQueryHandler` supports tuples of sizes 2 and 3.
+/// For single responses, use `QueryBuilder` instead.
+///
+/// Here is a list of examples on how to use this:
+/// - [Tokens::ft_balance](crate::tokens::Tokens::ft_balance)
+/// - [StakingPool::staking_pool_info](crate::stake::Staking::staking_pool_info)
 pub struct MultiRpcBuilder<Handler, Method, Reference>
 where
     Reference: Send + Sync,
@@ -155,6 +166,20 @@ where
     reference: Reference,
     requests: Vec<Arc<dyn QueryCreator<Method, RpcReference = Reference> + Send + Sync>>,
     handler: Handler,
+}
+
+impl<Handler, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
+where
+    Reference: Send + Sync,
+    Handler: Default + Send + Sync,
+{
+    pub fn with_reference(reference: impl Into<Reference>) -> Self {
+        Self {
+            reference: reference.into(),
+            requests: vec![],
+            handler: Default::default(),
+        }
+    }
 }
 
 impl<Handler, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
@@ -170,6 +195,50 @@ where
             reference,
             requests: vec![],
             handler,
+        }
+    }
+
+    /// Map response of the queries to another type. The `map` function is executed after the queries are fetched.
+    ///
+    /// The `Handler::Response` is the type returned by the handler's `process_response` method.
+    ///
+    /// For single responses, use `QueryBuilder` instead.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::advanced::{MultiQueryHandler, CallResultHandler, MultiRpcBuilder};
+    /// use near_api::types::Data;
+    /// use std::marker::PhantomData;
+    /// use near_primitives::types::BlockReference;
+    ///
+    /// // Create a handler for multiple query responses and specify the types of the responses
+    /// let handler = MultiQueryHandler::new((
+    ///     CallResultHandler::<String>::new(),
+    ///     CallResultHandler::<u128>::new(),
+    /// ));
+    ///
+    /// // Create the builder with the handler
+    /// let builder = MultiRpcBuilder::new(handler, BlockReference::latest());
+    ///
+    /// // Add queries to the builder
+    /// builder.add_query(todo!());
+    ///
+    /// // Map the tuple of responses to a combined type
+    /// let mapped_builder = builder.map(|(response1, response2): (Data<String>, Data<u128>)| {
+    ///     // Process the combined data
+    ///     format!("{}: {}", response1.data, response2.data)
+    /// });
+    /// ```
+    ///
+    /// See [Tokens::ft_balance](crate::tokens::Tokens::ft_balance) implementation for a real-world example.
+    pub fn map<MappedType>(
+        self,
+        map: impl Fn(Handler::Response) -> MappedType + Send + Sync + 'static,
+    ) -> MultiRpcBuilder<PostprocessHandler<MappedType, Handler>, Method, Reference> {
+        MultiRpcBuilder {
+            handler: PostprocessHandler::new(self.handler, map),
+            requests: self.requests,
+            reference: self.reference,
         }
     }
 
@@ -298,6 +367,36 @@ where
         }
     }
 
+    /// Post-process the response of the query.
+    ///
+    /// This is useful if you want to convert one type to another.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    ///         .call_function("get_balance", ())?
+    ///         .read_only()
+    ///         .map(|balance: Data<u128>| NearToken::from_yoctonear(balance.data))
+    ///         .fetch_from_testnet()
+    ///         .await?;
+    /// println!("Balance: {}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn map<MappedType>(
+        self,
+        map: impl Fn(Handler::Response) -> MappedType + Send + Sync + 'static,
+    ) -> RpcBuilder<PostprocessHandler<MappedType, Handler>, Method, Reference> {
+        RpcBuilder {
+            handler: PostprocessHandler::new(self.handler, map),
+            request: self.request,
+            reference: self.reference,
+        }
+    }
+
     /// Fetch the query from the provided network.
     #[instrument(skip(self, network))]
     pub async fn fetch_from(
@@ -412,6 +511,13 @@ impl<Handlers> MultiQueryHandler<Handlers> {
         Self { handlers }
     }
 }
+
+impl<Handlers: Default> Default for MultiQueryHandler<Handlers> {
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
 pub struct PostprocessHandler<PostProcessed, Handler: ResponseHandler>
 where
     <Handler::Method as RpcMethod>::Error: std::fmt::Display + std::fmt::Debug,
@@ -461,7 +567,13 @@ where
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct CallResultHandler<Response: Send + Sync>(pub PhantomData<Response>);
+pub struct CallResultHandler<Response: Send + Sync>(PhantomData<Response>);
+
+impl<Response: Send + Sync> CallResultHandler<Response> {
+    pub const fn new() -> Self {
+        Self(PhantomData::<Response>)
+    }
+}
 
 impl<Response> ResponseHandler for CallResultHandler<Response>
 where

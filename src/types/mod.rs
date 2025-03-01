@@ -32,6 +32,16 @@ pub struct Data<T> {
     pub block_hash: CryptoHash,
 }
 
+impl<T> Data<T> {
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Data<U> {
+        Data {
+            data: f(self.data),
+            block_height: self.block_height,
+            block_hash: self.block_hash,
+        }
+    }
+}
+
 /// A wrapper around [near_jsonrpc_client::auth::ApiKey]
 ///
 /// This type is used to authenticate requests to the RPC node

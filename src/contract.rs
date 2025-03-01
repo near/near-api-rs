@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use near_gas::NearGas;
 
@@ -157,23 +157,12 @@ impl Contract {
         &self,
     ) -> QueryBuilder<PostprocessHandler<Option<near_abi::AbiRoot>, CallResultHandler<Vec<u8>>>>
     {
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: self.0.clone(),
-            method_name: "__contract_abi".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(vec![]),
-        };
-
-        QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(|data: Data<Vec<u8>>| {
-                    serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice())
-                        .ok()
-                }),
-            ),
-        )
+        self.call_function("__contract_abi", ())
+            .expect("arguments are always serializable")
+            .read_only()
+            .map(|data: Data<Vec<u8>>| {
+                serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice()).ok()
+            })
     }
 
     /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_primitives::views::ContractCodeView)>) of the contract.
@@ -416,7 +405,7 @@ impl CallFunctionBuilder {
         QueryBuilder::new(
             SimpleQuery { request },
             BlockReference::latest(),
-            CallResultHandler(PhantomData),
+            CallResultHandler::<Response>::new(),
         )
     }
 

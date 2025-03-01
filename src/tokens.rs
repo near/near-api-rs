@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use near_contract_standards::{
     fungible_token::metadata::FungibleTokenMetadata,
     non_fungible_token::{metadata::NFTContractMetadata, Token},
@@ -7,7 +5,6 @@ use near_contract_standards::{
 use near_primitives::{
     action::{Action, TransferAction},
     types::{AccountId, BlockReference},
-    views::AccountView,
 };
 use near_sdk::json_types::U128;
 use near_token::NearToken;
@@ -27,9 +24,8 @@ use crate::{
     types::{
         tokens::{FTBalance, UserBalance, STORAGE_COST_PER_BYTE},
         transactions::PrepopulateTransaction,
-        Data,
     },
-    NetworkConfig, StorageDeposit,
+    Data, NetworkConfig, StorageDeposit,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -146,25 +142,23 @@ impl Tokens {
         QueryBuilder::new(
             SimpleQuery { request },
             BlockReference::latest(),
-            PostprocessHandler::new(
-                AccountViewHandler,
-                Box::new(|account: Data<AccountView>| {
-                    let account = account.data;
-                    let total = NearToken::from_yoctonear(account.amount);
-                    let storage_locked = NearToken::from_yoctonear(
-                        account.storage_usage as u128 * STORAGE_COST_PER_BYTE.as_yoctonear(),
-                    );
-                    let locked = NearToken::from_yoctonear(account.locked);
-                    let storage_usage = account.storage_usage;
-                    UserBalance {
-                        total,
-                        storage_locked,
-                        storage_usage,
-                        locked,
-                    }
-                }),
-            ),
+            AccountViewHandler,
         )
+        .map(|account| {
+            let account = account.data;
+            let total = NearToken::from_yoctonear(account.amount);
+            let storage_locked = NearToken::from_yoctonear(
+                account.storage_usage as u128 * STORAGE_COST_PER_BYTE.as_yoctonear(),
+            );
+            let locked = NearToken::from_yoctonear(account.locked);
+            let storage_usage = account.storage_usage;
+            UserBalance {
+                total,
+                storage_locked,
+                storage_usage,
+                locked,
+            }
+        })
     }
 
     /// Prepares a new contract query (`nft_metadata`) for fetching the NFT metadata ([NFTContractMetadata]).
@@ -282,17 +276,11 @@ impl Tokens {
             >,
         >,
     > {
-        let postprocess = PostprocessHandler::new(
-            MultiQueryHandler::new((
-                CallResultHandler(PhantomData::<FungibleTokenMetadata>),
-                CallResultHandler(PhantomData::<U128>),
-            )),
-            |(metadata, amount)| {
-                FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
-            },
-        );
-
-        let query_builder = MultiQueryBuilder::new(postprocess, BlockReference::latest())
+        let handler = MultiQueryHandler::new((
+            CallResultHandler::<FungibleTokenMetadata>::new(),
+            CallResultHandler::default(),
+        ));
+        let multiquery = MultiQueryBuilder::new(handler, BlockReference::latest())
             .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
             .add_query_builder(
                 Contract(ft_contract)
@@ -303,9 +291,13 @@ impl Tokens {
                         }),
                     )?
                     .read_only::<()>(),
+            )
+            .map(
+                |(metadata, amount): (Data<FungibleTokenMetadata>, Data<U128>)| {
+                    FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
+                },
             );
-
-        Ok(query_builder)
+        Ok(multiquery)
     }
 
     /// Prepares a new transaction builder for sending tokens to another account.

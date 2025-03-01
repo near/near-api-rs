@@ -1,14 +1,13 @@
-use near_primitives::types::{AccountId, BlockReference};
 use near_token::NearToken;
 use serde_json::json;
 
 use crate::{
-    common::query::{CallResultHandler, PostprocessHandler, QueryBuilder, SimpleQuery},
+    common::query::{CallResultHandler, PostprocessHandler, QueryBuilder},
     contract::{Contract, ContractTransactBuilder},
     errors::BuilderError,
     transactions::ConstructTransaction,
     types::storage::{StorageBalance, StorageBalanceInternal},
-    Data,
+    AccountId, Data,
 };
 
 ///A wrapper struct that simplifies interactions with the [Storage Management](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) standard
@@ -73,33 +72,25 @@ impl StorageDeposit {
         >,
         BuilderError,
     > {
-        let args = serde_json::to_vec(&json!({
-            "account_id": account_id,
-        }))?;
-        let request = near_primitives::views::QueryRequest::CallFunction {
-            account_id: self.0.clone(),
-            method_name: "storage_balance_of".to_owned(),
-            args: near_primitives::types::FunctionArgs::from(args),
-        };
-
-        Ok(QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
-            PostprocessHandler::new(
-                CallResultHandler::default(),
-                Box::new(|storage: Data<Option<StorageBalanceInternal>>| Data {
-                    data: storage.data.map(|data| StorageBalance {
+        Ok(Contract(self.0.clone())
+            .call_function(
+                "storage_balance_of",
+                json!({
+                    "account_id": account_id,
+                }),
+            )?
+            .read_only()
+            .map(|storage: Data<Option<StorageBalanceInternal>>| {
+                storage.map(|option_storage| {
+                    option_storage.map(|data| StorageBalance {
                         available: data.available,
                         total: data.total,
                         locked: NearToken::from_yoctonear(
                             data.total.as_yoctonear() - data.available.as_yoctonear(),
                         ),
-                    }),
-                    block_height: storage.block_height,
-                    block_hash: storage.block_hash,
-                }),
-            ),
-        ))
+                    })
+                })
+            }))
     }
 
     /// Prepares a new transaction contract call (`storage_deposit`) for depositing storage on the contract.
