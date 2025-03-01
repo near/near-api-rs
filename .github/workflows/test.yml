@@ -64,8 +64,8 @@ jobs:
     steps:
     - name: Get MSRV
       run: |
-        RUST_MSRV="$(cat cargo-near/Cargo.toml | sed -n 's/rust-version *= *"\(.*\)"/\1/p')"
-        echo "RUST_MSRV=$RUST_MSRV" >> $GITHUB_OUTPUT
+        RUST_MSRV="$(cat Cargo.toml | sed -n 's/rust-version *= *"\(.*\)"/\1/p')"
+        echo "RUST_MSRV=$RUST_MSRV" >> $GITHUB_ENV
 
   test:
     needs: [cargo-fmt, get_msrv]
