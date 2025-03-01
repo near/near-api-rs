@@ -83,6 +83,10 @@ jobs:
     name: CI with ${{ matrix.toolchain }}
     steps:
     - uses: actions/checkout@v4
+    - name: debug
+      run: | 
+        echo "needs.get_msrv.outputs: ${{ needs.get_msrv.outputs }}"
+        echo "needs.get_msrv.outputs.RUST_MSRV: ${{ needs.get_msrv.outputs.RUST_MSRV }}"
     - name: "${{ matrix.toolchain }}"
       uses: actions-rs/toolchain@v1
       with:
