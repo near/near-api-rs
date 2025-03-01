@@ -62,9 +62,11 @@ jobs:
   get_msrv:
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v4
     - name: Get MSRV
       run: |
         RUST_MSRV="$(cat Cargo.toml | sed -n 's/rust-version *= *"\(.*\)"/\1/p')"
+        echo "Found MSRV: $RUST_MSRV"
         echo "RUST_MSRV=$RUST_MSRV" >> $GITHUB_ENV
 
   test:
