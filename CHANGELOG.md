@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/near/near-api-rs/compare/v0.4.0...v0.5.0) - 2025-03-01
+
+### Added
+
+- added `map` method to query builders (#45)
+- *(types::contract)* add `BuildInfo` field to `ContractSourceMetadata` (#46)
+- [**breaking**] NEP-413 support (#37)
+
+### Other
+
+- added rust backward compatibility job, updated project readme (#48)
+- [**breaking**] documented types (#44)
+- added cargo words to supported dictionary (#43)
+- [**breaking**] added spellcheck (#42)
+- [**breaking**] documented all the builders. API changes (#39)
+- documented network config  (#35)
+
 ## [0.4.0](https://github.com/near/near-api-rs/compare/v0.3.0...v0.4.0) - 2024-12-19
 
 ### Added
