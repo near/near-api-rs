@@ -48,7 +48,9 @@
         "backlinks",
         "sourcescan",
         "msrv",
-        "nearcore"
+        "nearcore",
+        "dtolnay",
+        "Ieni"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key

@@ -349,8 +349,7 @@ impl ExecuteMetaTransaction {
                 block_hash,
                 max_block_height,
             )
-            .await
-            .map_err(MetaSignError::from)?;
+            .await?;
 
         self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
         Ok(self)

@@ -64,10 +64,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Get MSRV
+      id: RUST_MSRV
       run: |
         RUST_MSRV="$(cat Cargo.toml | sed -n 's/rust-version *= *"\(.*\)"/\1/p')"
         echo "Found MSRV: $RUST_MSRV"
-        echo "RUST_MSRV=$RUST_MSRV" >> $GITHUB_OUTPUT
+        echo "RUST_MSRV=\"$RUST_MSRV\"" >> "$GITHUB_OUTPUT"
 
   test:
     needs: [cargo-fmt, get_msrv]
