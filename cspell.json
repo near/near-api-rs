@@ -46,7 +46,11 @@
         "cid",
         "wnear",
         "backlinks",
-        "sourcescan"
+        "sourcescan",
+        "msrv",
+        "nearcore",
+        "dtolnay",
+        "Ieni"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key
