@@ -22,7 +22,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Install libudev (Linux only)
-        run: sudo apt-get -y install libudev-dev libsystemd-dev
+        run: sudo apt update && sudo apt-get -y install libudev-dev libsystemd-dev
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@v0.5
         env:
