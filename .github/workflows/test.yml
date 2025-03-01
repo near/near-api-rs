@@ -59,15 +59,25 @@ jobs:
     - name: Run cargo check
       run: cargo check --no-default-features
 
+  get_msrv:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get MSRV
+      run: |
+        RUST_MSRV="$(cat cargo-near/Cargo.toml | sed -n 's/rust-version *= *"\(.*\)"/\1/p')"
+        echo "RUST_MSRV=$RUST_MSRV" >> $GITHUB_OUTPUT
+
   test:
-    needs: cargo-fmt
+    needs: [cargo-fmt, get_msrv]
     strategy:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, macos-latest]
-        toolchain: [stable]
+        toolchain:
+          - stable
+          - ${{ needs.get_msrv.outputs.RUST_MSRV }}
     runs-on: ${{ matrix.platform }}
-
+    name: CI with ${{ matrix.toolchain }}
     steps:
     - uses: actions/checkout@v4
     - name: "${{ matrix.toolchain }}"
@@ -81,27 +91,11 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - name: Check with stable features
-      run: cargo check --verbose
-    - name: Run tests with unstable features
-      run: cargo test --verbose
+      run: cargo check --examples --all-features
+    - name: Run tests
+      run: cargo test
   spellcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: streetsidesoftware/cspell-action@v6
-
-  check_rust_backward_compatibility_1_81:
-    needs: cargo-fmt
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: 1.81
-        default: true
-    - name: Install libudev (Linux only)
-      run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
-    - name: Run cargo build
-      run: cargo +1.81 build --release --all-features

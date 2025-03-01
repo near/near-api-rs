@@ -1,7 +1,6 @@
 # near-api
 <p>
     <a href="https://docs.rs/near-api"><img src="https://docs.rs/near-api/badge.svg?style=flat-square" alt="Reference Documentation" /></a>
-    <a href="https://blog.rust-lang.org/2024/09/05/Rust-1.81.0.html"><img src="https://img.shields.io/badge/rustc-1.81+-lightgray.svg?style=flat-square" alt="MSRV" /></a>
     <a href="https://crates.io/crates/near-api"><img src="https://img.shields.io/crates/v/near-api.svg?style=flat-square" alt="Crates.io version" /></a>
     <a href="https://crates.io/crates/near-api"><img src="https://img.shields.io/crates/d/near-api.svg?style=flat-square" alt="Download" /></a>
     <a href="https://near.chat"><img src="https://img.shields.io/discord/490367152054992913?style=flat-square&label=discord&color=lightgreen" alt="Join the community on Discord" /></a>
@@ -20,7 +19,7 @@ Currently, the library provides:
 * Several ways to sign transactions (secret key, seed phrase, file, ledger, secure keychain).
 * Account key pool support to sign the transaction with different user keys to avoid nonce issues.
 
-The project requires **Rust 1.81+** for compiling with the `keystore` feature enabled. However, it can still be compiled and used without the `keystore` feature on older versions of Rust.
+The minimum required version for full feature support is located in the [rust-version](./Cargo.toml#L4) field of the `Cargo.toml` file. However, it can still be compiled and used without the `keystore` feature on older versions of Rust.
 
 ## Features
 
