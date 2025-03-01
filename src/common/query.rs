@@ -168,7 +168,7 @@ where
     handler: Handler,
 }
 
-impl<Handler: Default, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
+impl<Handler, Method, Reference> MultiRpcBuilder<Handler, Method, Reference>
 where
     Reference: Send + Sync,
     Handler: Default + Send + Sync,
@@ -570,7 +570,7 @@ where
 pub struct CallResultHandler<Response: Send + Sync>(PhantomData<Response>);
 
 impl<Response: Send + Sync> CallResultHandler<Response> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self(PhantomData::<Response>)
     }
 }
