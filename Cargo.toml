@@ -41,12 +41,12 @@ thiserror = "2"
 
 near-ledger = { version = "0.8.1", optional = true }
 
-near-crypto = "0.28.0"
-near-primitives = "0.28"
-near-jsonrpc-client = "0.15"
-near-jsonrpc-primitives = "0.28"
-near-contract-standards = "5.7"
-near-sdk = "5.7"
+near-crypto = "0.29.0"
+near-primitives = "0.29"
+near-jsonrpc-client = "0.16"
+near-jsonrpc-primitives = "0.29"
+near-contract-standards = "5.9"
+near-sdk = "5.9"
 
 near-account-id = "1.0.0"
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
@@ -62,7 +62,7 @@ keyring = { version = "3.2", features = [
     "vendored",
 ], optional = true }
 
-near-workspaces = { version = "0.16.0", optional = true }
+near-workspaces = { version = "0.18.0", optional = true }
 
 
 [features]

@@ -20,6 +20,7 @@ jobs:
     - name: Install libudev (Linux only)
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
+    - uses: Swatinem/rust-cache@v2
     - name: Run clippy
       run: cargo clippy --all-targets -- -D clippy::all -D clippy::nursery
 
@@ -48,6 +49,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
     - name: Run cargo check
       run: cargo check --release
 
@@ -56,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
     - name: Run cargo check
       run: cargo check --no-default-features
 
@@ -91,7 +94,7 @@ jobs:
         profile: minimal
         toolchain: ${{ matrix.toolchain }}
         default: true
-    - uses: Swatinem/rust-cache@v1
+    - uses: Swatinem/rust-cache@v2
     - name: Install libudev (Linux only)
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
