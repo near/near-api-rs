@@ -588,7 +588,7 @@ fn get_signed_delegate_action(
         delegate_action.sender_id.clone(),
         private_key,
     );
-    let signature = signable.sign(&near_crypto::Signer::InMemory(signer));
+    let signature = signable.sign(&signer);
 
     Ok(near_primitives::action::delegate::SignedDelegateAction {
         delegate_action,
