@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/near/near-api-rs/compare/v0.5.0...v0.5.1) - 2025-03-21
+
+### Added
+
+- add issues & prs to devtools project ([#52](https://github.com/near/near-api-rs/pull/52))
+
 ## [0.5.0](https://github.com/near/near-api-rs/compare/v0.4.0...v0.5.0) - 2025-03-16
 
 ### Added
