@@ -168,5 +168,19 @@ mod build_info {
         /// # ;
         /// ```
         pub source_code_snapshot: String,
+        /// A path within the build environment, where the result WASM binary has been put
+        /// during build.
+        /// This should be a subpath of `/home/near/code`
+        ///
+        /// This field is an addition of **1.3.0** **NEP-330** revision
+        ///
+        /// ## Examples:
+        ///
+        /// ```rust,no_run
+        /// # let output_wasm_path: Option<String> =
+        /// Some("/home/near/code/target/near/simple_package.wasm".into())
+        /// # ;
+        /// ```
+        pub output_wasm_path: Option<String>,
     }
 }
