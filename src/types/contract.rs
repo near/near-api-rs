@@ -114,7 +114,7 @@ mod build_info {
 
     #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
     /// Defines all required details for formal WASM build reproducibility verification
-    /// according to [**NEP-330 standard 1.2.0 revision**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
+    /// according to [**NEP-330 standard 1.3.0 revision**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
     pub struct BuildInfo {
         /// Reference to a reproducible build environment docker image
         ///
