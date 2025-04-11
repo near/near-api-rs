@@ -162,18 +162,15 @@ impl NetworkConfig {
 
     #[cfg(feature = "testing")]
     pub fn sandbox(rpc_endpoint: url::Url) -> Self {
-        let timeout_secs = std::env::var("NEAR_RPC_TIMEOUT_SECS").map_or(10, |secs| {
-            secs.parse::<u8>()
-                .expect("Failed to parse provided NEAR_RPC_TIMEOUT_SECS as u8")
-        });
-
         Self {
             network_name: "sandbox".to_string(),
+
+            // 10 secs in total with retries every 500ms
             rpc_endpoints: vec![RPCEndpoint::new(rpc_endpoint)
                 .with_retry_method(RetryMethod::Fixed {
                     sleep: std::time::Duration::from_millis(500),
                 })
-                .with_retries(timeout_secs * 2)],
+                .with_retries(20)],
             linkdrop_account_id: None,
             near_social_db_contract_account_id: None,
             faucet_url: None,
