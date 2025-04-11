@@ -11,22 +11,20 @@ async fn main() {
     let token_signer = Signer::new(Signer::from_workspace(&token)).unwrap();
 
     // Deploying token contract
-    Contract::deploy(
-        token.id().clone(),
-        include_bytes!("../resources/fungible_token.wasm").to_vec(),
-    )
-    .with_init_call(
-        "new_default_meta",
-        json!({
-            "owner_id": token.id().to_string(),
-            "total_supply": "1000000000000000000000000000"
-        }),
-    )
-    .unwrap()
-    .with_signer(token_signer.clone())
-    .send_to(&network)
-    .await
-    .unwrap();
+    Contract::deploy(token.id().clone())
+        .with_code(include_bytes!("../resources/fungible_token.wasm").to_vec())
+        .with_init_call(
+            "new_default_meta",
+            json!({
+                    "owner_id": token.id().to_string(),
+                "total_supply": "1000000000000000000000000000"
+            }),
+        )
+        .unwrap()
+        .with_signer(token_signer.clone())
+        .send_to(&network)
+        .await
+        .unwrap();
 
     // Verifying that user has 1000 tokens
     let tokens = Tokens::account(token.id().clone())

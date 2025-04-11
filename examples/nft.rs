@@ -14,21 +14,19 @@ async fn main() {
     let nft_signer = Signer::new(Signer::from_workspace(&nft)).unwrap();
 
     // Deploying token contract
-    Contract::deploy(
-        nft.id().clone(),
-        include_bytes!("../resources/nft.wasm").to_vec(),
-    )
-    .with_init_call(
-        "new_default_meta",
-        json!({
-            "owner_id": nft.id().to_string(),
-        }),
-    )
-    .unwrap()
-    .with_signer(nft_signer.clone())
-    .send_to(&network)
-    .await
-    .unwrap();
+    Contract::deploy(nft.id().clone())
+        .with_code(include_bytes!("../resources/nft.wasm").to_vec())
+        .with_init_call(
+            "new_default_meta",
+            json!({
+                "owner_id": nft.id().to_string(),
+            }),
+        )
+        .unwrap()
+        .with_signer(nft_signer.clone())
+        .send_to(&network)
+        .await
+        .unwrap();
 
     let contract = Contract(nft.id().clone());
 
