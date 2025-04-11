@@ -51,6 +51,7 @@ const SECOND_METADATA: &str = r#"{
       "--locked"
     ],
     "contract_path": "",
-    "source_code_snapshot": "git+https://github.com/dj8yfo/quiet_glen?rev=8d8a8a0fe86a1d8eb3bce45f04ab1a65fecf5a1b"
+    "source_code_snapshot": "git+https://github.com/dj8yfo/quiet_glen?rev=8d8a8a0fe86a1d8eb3bce45f04ab1a65fecf5a1b",
+    "output_wasm_path": null
   }
 }"#;

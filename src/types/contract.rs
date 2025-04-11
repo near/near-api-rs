@@ -114,7 +114,7 @@ mod build_info {
 
     #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
     /// Defines all required details for formal WASM build reproducibility verification
-    /// according to [**NEP-330 standard 1.2.0 revision**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
+    /// according to [**NEP-330 standard 1.3.0 revision**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
     pub struct BuildInfo {
         /// Reference to a reproducible build environment docker image
         ///
@@ -168,5 +168,19 @@ mod build_info {
         /// # ;
         /// ```
         pub source_code_snapshot: String,
+        /// A path within the build environment, where the result WASM binary has been put
+        /// during build.
+        /// This should be a subpath of `/home/near/code`
+        ///
+        /// This field is an addition of **1.3.0** **NEP-330** revision
+        ///
+        /// ## Examples:
+        ///
+        /// ```rust,no_run
+        /// # let output_wasm_path: Option<String> =
+        /// Some("/home/near/code/target/near/simple_package.wasm".into())
+        /// # ;
+        /// ```
+        pub output_wasm_path: Option<String>,
     }
 }
