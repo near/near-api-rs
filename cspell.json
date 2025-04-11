@@ -50,7 +50,8 @@
         "msrv",
         "nearcore",
         "dtolnay",
-        "Ieni"
+        "Ieni",
+        "subaccount"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key

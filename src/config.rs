@@ -162,12 +162,10 @@ impl NetworkConfig {
 
     #[cfg(feature = "testing")]
     pub fn sandbox(rpc_endpoint: url::Url) -> Self {
-        let timeout_secs = match std::env::var("NEAR_RPC_TIMEOUT_SECS") {
-            Ok(secs) => secs
-                .parse::<u8>()
-                .expect("Failed to parse provided NEAR_RPC_TIMEOUT_SECS"),
-            Err(_) => 10,
-        };
+        let timeout_secs = std::env::var("NEAR_RPC_TIMEOUT_SECS").map_or(10, |secs| {
+            secs.parse::<u8>()
+                .expect("Failed to parse provided NEAR_RPC_TIMEOUT_SECS as u8")
+        });
 
         Self {
             network_name: "sandbox".to_string(),

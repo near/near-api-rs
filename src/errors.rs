@@ -3,7 +3,6 @@ use near_jsonrpc_client::{
     methods::{query::RpcQueryRequest, tx::RpcTransactionError, RpcMethod},
 };
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
-use near_primitives::errors::TxExecutionError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -333,7 +332,7 @@ pub enum SandboxError {
     TransactionExecutionError(#[from] ExecuteTransactionError),
 
     #[error("Transaction failed: {0}")]
-    TransactionFailed(#[from] TxExecutionError),
+    TransactionFailed(#[from] near_primitives::errors::TxExecutionError),
 
     #[error("Configuration error: {0}")]
     ConfigError(String),

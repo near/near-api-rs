@@ -1,4 +1,5 @@
 //! Network specific configurations used to modify behavior inside a chain.
+//!
 //! This is so far only useable with sandbox networks since it would require
 //! direct access to a node to change the config. Each network like mainnet
 //! and testnet already have pre-configured settings; meanwhile sandbox can
