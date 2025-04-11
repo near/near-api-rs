@@ -29,7 +29,7 @@ async fn main() {
     )
     .unwrap()
     .with_signer(nft_signer.clone())
-    .send_to(&network)
+    .send_to(network)
     .await
     .unwrap();
 
@@ -53,7 +53,7 @@ async fn main() {
         .transaction()
         .deposit(NearToken::from_millinear(100))
         .with_signer(nft_id.clone(), nft_signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
@@ -61,7 +61,7 @@ async fn main() {
     let tokens = Tokens::account(account_id.clone())
         .nft_assets(nft_id.clone())
         .unwrap()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -73,7 +73,7 @@ async fn main() {
         .nft(nft_id.clone(), "1".to_string())
         .unwrap()
         .with_signer(nft_signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
@@ -81,7 +81,7 @@ async fn main() {
     let tokens = Tokens::account(account_id.clone())
         .nft_assets(nft_id.clone())
         .unwrap()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -90,7 +90,7 @@ async fn main() {
     let tokens = Tokens::account(account2_id.clone())
         .nft_assets(nft_id.clone())
         .unwrap()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 

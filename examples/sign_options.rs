@@ -16,7 +16,7 @@ async fn main() {
     Account(account_id.clone())
         .add_key(AccessKeyPermission::FullAccess, public_key)
         .with_signer(Signer::new(Signer::from_secret_key(account_sk.clone())).unwrap())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
@@ -28,7 +28,7 @@ async fn main() {
             Signer::new(Signer::from_seed_phrase(&new_seed_phrase, Some("smile")).unwrap())
                 .unwrap(),
         )
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
@@ -37,13 +37,13 @@ async fn main() {
     Account(account_id.clone())
         .delete_key(account_sk.public_key())
         .with_signer(Signer::new(Signer::from_ledger()).unwrap())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
     let keys = Account(account_id.clone())
         .list_keys()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 

@@ -17,7 +17,7 @@ async fn main() {
     // You can add init call as well using `with_init_call`
     .without_init_call()
     .with_signer(signer.clone())
-    .send_to(&network)
+    .send_to(network)
     .await
     .unwrap();
 
@@ -30,7 +30,7 @@ async fn main() {
         .call_function("get_num", ())
         .unwrap()
         .read_only()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -42,7 +42,7 @@ async fn main() {
         .unwrap()
         .transaction()
         .with_signer(account_id.clone(), signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
@@ -51,7 +51,7 @@ async fn main() {
         .call_function("get_num", ())
         .unwrap()
         .read_only()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 

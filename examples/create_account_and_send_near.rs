@@ -12,7 +12,7 @@ async fn main() {
 
     let balance = Tokens::account(account_id.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -26,7 +26,7 @@ async fn main() {
         .public_key(generate_secret_key().unwrap().public_key())
         .unwrap()
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
@@ -34,18 +34,18 @@ async fn main() {
         .send_to(new_account.clone())
         .near(NearToken::from_near(1))
         .with_signer(signer)
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
 
     let new_account_balance = Tokens::account(account_id.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
     let bob_balance = Tokens::account(new_account)
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 

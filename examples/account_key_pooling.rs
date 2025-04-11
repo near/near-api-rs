@@ -37,7 +37,7 @@ async fn main() {
             secret_key.public_key(),
         )
         .with_signer(Arc::clone(&signer))
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
@@ -52,7 +52,7 @@ async fn main() {
             .send_to(second_account_id.clone())
             .near(NearToken::from_near(1))
             .with_signer(Arc::clone(&signer))
-            .send_to(&network)
+            .send_to(network)
     });
     let results = futures::future::join_all(txs)
         .await
