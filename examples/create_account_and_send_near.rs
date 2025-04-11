@@ -5,11 +5,12 @@ use signer::generate_secret_key;
 
 #[tokio::main]
 async fn main() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account_id = "account.sandbox".parse().unwrap();
+    let account_sk = sandbox.create_root_subaccount(&account_id).await.unwrap();
+    let network = &sandbox.network_config;
 
-    let balance = Tokens::account(account.id().clone())
+    let balance = Tokens::account(account_id.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -17,11 +18,11 @@ async fn main() {
 
     println!("Balance: {}", balance.total);
 
-    let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
+    let signer = Signer::new(Signer::from_secret_key(account_sk)).unwrap();
 
     Account::create_account(new_account.clone())
-        .fund_myself(account.id().clone(), NearToken::from_near(1))
+        .fund_myself(account_id.clone(), NearToken::from_near(1))
         .public_key(generate_secret_key().unwrap().public_key())
         .unwrap()
         .with_signer(signer.clone())
@@ -29,7 +30,7 @@ async fn main() {
         .await
         .unwrap();
 
-    Tokens::account(account.id().clone())
+    Tokens::account(account_id.clone())
         .send_to(new_account.clone())
         .near(NearToken::from_near(1))
         .with_signer(signer)
@@ -37,7 +38,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let new_account_balance = Tokens::account(account.id().clone())
+    let new_account_balance = Tokens::account(account_id.clone())
         .near_balance()
         .fetch_from(&network)
         .await

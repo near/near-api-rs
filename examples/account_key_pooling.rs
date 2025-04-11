@@ -11,12 +11,17 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let second_account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account_id = "account.sandbox".parse().unwrap();
+    let second_account_id = "second_account.sandbox".parse().unwrap();
+    let account_sk = sandbox.create_root_subaccount(&account_id).await.unwrap();
+    let _second_account = sandbox
+        .create_root_subaccount(&second_account_id)
+        .await
+        .unwrap();
+    let network = &sandbox.network_config;
 
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let signer = Signer::new(Signer::from_secret_key(account_sk)).unwrap();
 
     println!(
         "Initial public key: {}",
@@ -26,7 +31,7 @@ async fn main() {
     let secret_key = generate_secret_key().unwrap();
     println!("New public key: {}", secret_key.public_key());
 
-    Account(account.id().clone())
+    Account(account_id.clone())
         .add_key(
             near_primitives::account::AccessKeyPermission::FullAccess,
             secret_key.public_key(),
@@ -43,8 +48,8 @@ async fn main() {
         .unwrap();
 
     let txs = (0..2).map(|_| {
-        Tokens::account(account.id().clone())
-            .send_to(second_account.id().clone())
+        Tokens::account(account_id.clone())
+            .send_to(second_account_id.clone())
             .near(NearToken::from_near(1))
             .with_signer(Arc::clone(&signer))
             .send_to(&network)

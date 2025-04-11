@@ -3,6 +3,7 @@ use near_jsonrpc_client::{
     methods::{query::RpcQueryRequest, tx::RpcTransactionError, RpcMethod},
 };
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
+use near_primitives::errors::TxExecutionError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -299,4 +300,44 @@ pub enum CryptoHashError {
     Base58DecodeError(#[from] bs58::decode::Error),
     #[error("Incorrect hash length (expected 32, but {0} was given)")]
     IncorrectHashLength(usize),
+}
+
+#[cfg(feature = "testing")]
+#[derive(thiserror::Error, Debug)]
+pub enum SandboxError {
+    #[error("Failed to create an temporary directory")]
+    TempDirCreationError,
+
+    #[error("Failed to init sandbox: {0}")]
+    InitFailure(String),
+
+    #[error("Failed to run sandbox: {0}")]
+    RunFailure(String),
+
+    #[error("Failed to load validator key: {0}")]
+    ValidatorKeyLoadFailure(#[from] AccessKeyFileError),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Failed to create a signer: {0}")]
+    SignerCreationError(#[from] SignerError),
+
+    #[error("Failed to create an account: {0}")]
+    AccountCreationError(#[from] AccountCreationError),
+
+    #[error("Failed to generate a secret key: {0}")]
+    SecretKeyGenerationError(#[from] SecretError),
+
+    #[error("Failed to execute a transaction: {0}")]
+    TransactionExecutionError(#[from] ExecuteTransactionError),
+
+    #[error("Transaction failed: {0}")]
+    TransactionFailed(#[from] TxExecutionError),
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
+
+    #[error("Invalid account ID. The account should be a sub-account of the `sandbox` account.")]
+    InvalidAccountId,
 }

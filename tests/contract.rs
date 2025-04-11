@@ -4,22 +4,25 @@ use serde_json::json;
 
 #[tokio::test]
 async fn contract_without_init_call() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account = "account.sandbox".parse().unwrap();
+    let account_sk = sandbox.create_root_subaccount(&account).await.unwrap();
+    let network = &sandbox.network_config;
+
+    let signer = Signer::new(Signer::from_secret_key(account_sk)).unwrap();
 
     Contract::deploy(
-        account.id().clone(),
+        account.clone(),
         include_bytes!("../resources/counter.wasm").to_vec(),
     )
     .without_init_call()
-    .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
+    .with_signer(signer.clone())
     .send_to(&network)
     .await
     .unwrap()
     .assert_success();
 
-    let contract = Contract(account.id().clone());
+    let contract = Contract(account.clone());
 
     assert!(!contract
         .wasm()
@@ -52,10 +55,7 @@ async fn contract_without_init_call() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(
-            account.id().clone(),
-            Signer::new(Signer::from_workspace(&account)).unwrap(),
-        )
+        .with_signer(account.clone(), signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -74,29 +74,32 @@ async fn contract_without_init_call() {
 
 #[tokio::test]
 async fn contract_with_init_call() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account = "account.sandbox".parse().unwrap();
+    let account_sk = sandbox.create_root_subaccount(&account).await.unwrap();
+    let network = &sandbox.network_config;
+
+    let signer = Signer::new(Signer::from_secret_key(account_sk)).unwrap();
 
     Contract::deploy(
-        account.id().clone(),
+        account.clone(),
         include_bytes!("../resources/fungible_token.wasm").to_vec(),
     )
     .with_init_call(
         "new_default_meta",
         json!({
-            "owner_id": account.id().to_string(),
+            "owner_id": account.clone().to_string(),
             "total_supply": "1000000000000000000000000000"
         }),
     )
     .unwrap()
-    .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
+    .with_signer(signer.clone())
     .send_to(&network)
     .await
     .unwrap()
     .assert_success();
 
-    let contract = Contract(account.id().clone());
+    let contract = Contract(account.clone());
 
     assert!(!contract
         .wasm()

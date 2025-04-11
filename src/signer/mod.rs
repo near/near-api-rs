@@ -155,12 +155,13 @@ pub const DEFAULT_WORD_COUNT: usize = 12;
 /// This might be useful for getting keys from a file. E.g. `~/.near-credentials`.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccountKeyPair {
+    pub account_id: AccountId,
     pub public_key: near_crypto::PublicKey,
     pub private_key: near_crypto::SecretKey,
 }
 
 impl AccountKeyPair {
-    fn load_access_key_file(path: &Path) -> Result<Self, AccessKeyFileError> {
+    pub(crate) fn load_access_key_file(path: &Path) -> Result<Self, AccessKeyFileError> {
         let data = std::fs::read_to_string(path)?;
         Ok(serde_json::from_str(&data)?)
     }

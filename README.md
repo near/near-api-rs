@@ -26,6 +26,7 @@ The minimum required version for full feature support is located in the [rust-ve
 * `ledger`: Enables integration with a Ledger hardware signer for secure key management.
 * `keystore`: Enables integration with a system keystore signer for managing keys securely on the local system.
 * `workspaces`: Provides integration with [`near-workspaces`](https://github.com/near/near-workspaces-rs) for testing purposes. This feature allows you to convert `near-workspaces` networks (such as sandbox, testnet, etc.) into a NetworkConfig and use `near-workspaces` `Account` object as a signer for testing and development.
+* `testing`: Enables integration with [`near-sandbox-utils`](https://github.com/near/near-sandbox-utils-rs) for testing purposes. This feature allows you to launch a local sandboxed NEAR network and use it for testing and development. This feature is developed as a replacement for the `near-workspaces` as it doesn't make sense to have `near-api-rs` and `near-workspaces` together. The feature is in the early stage of development and not all the sandbox features are supported yet.
 
 ## Current issues
 
@@ -40,6 +41,8 @@ The library is in good condition, but lacks a few points to be even better:
 - [x] storage deposit manager for FT calls 
 - [x] basic logging with tracing for querying/signing/sending transactions
 - [ ] self-sustainable. remove the `nearcore` as a dependency ([#5](https://github.com/near/near-api-rs/issues/5))
+- [ ] sandbox state patching
+- [ ] sandbox fast-forwarding
 
 ## Examples
 The crate provides [examples](./examples/) that contain detailed information on using the library.

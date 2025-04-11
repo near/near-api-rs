@@ -4,17 +4,20 @@ use signer::generate_secret_key;
 
 #[tokio::test]
 async fn create_and_delete_account() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network: NetworkConfig = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account_id = "account.sandbox".parse().unwrap();
+    let account_sk = sandbox.create_root_subaccount(&account_id).await.unwrap();
+    let network = &sandbox.network_config;
 
-    let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
+    let signer = Signer::new(Signer::from_secret_key(account_sk)).unwrap();
+
+    let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
     let secret = generate_secret_key().unwrap();
     Account::create_account(new_account.clone())
-        .fund_myself(account.id().clone(), NearToken::from_near(1))
+        .fund_myself(account_id.clone(), NearToken::from_near(1))
         .public_key(secret.public_key())
         .unwrap()
-        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -28,21 +31,20 @@ async fn create_and_delete_account() {
 
     assert_eq!(balance_before_del.total.as_near(), 1);
 
-    Account(account.id().clone())
+    Account(account_id.clone())
         .delete_account_with_beneficiary(new_account.clone())
-        .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
         .assert_success();
 
-    Tokens::account(account.id().clone())
+    Tokens::account(account_id.clone())
         .near_balance()
         .fetch_from(&network)
         .await
         .expect_err("Shouldn't exist");
 
-    // TODO: why do we need a sleep to wait for beneficiary transfer?
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let balance_after_del = Tokens::account(new_account.clone())
@@ -55,27 +57,34 @@ async fn create_and_delete_account() {
 
 #[tokio::test]
 async fn transfer_funds() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let alice = network.dev_create_account().await.unwrap();
-    let bob = network.dev_create_account().await.unwrap();
-    let network: NetworkConfig = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let alice = "alice.sandbox".parse().unwrap();
+    let bob = "bob.sandbox".parse().unwrap();
+    let alice_sk = sandbox
+        .create_root_subaccount_with_balance(&alice, NearToken::from_near(100))
+        .await
+        .unwrap();
+    let _bob_sk = sandbox.create_root_subaccount(&bob).await.unwrap();
+    let network = &sandbox.network_config;
 
-    Tokens::account(alice.id().clone())
-        .send_to(bob.id().clone())
+    let signer = Signer::new(Signer::from_secret_key(alice_sk)).unwrap();
+
+    Tokens::account(alice.clone())
+        .send_to(bob.clone())
         .near(NearToken::from_near(50))
-        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
         .assert_success();
 
-    let alice_balance = Tokens::account(alice.id().clone())
+    let alice_balance = Tokens::account(alice.clone())
         .near_balance()
         .fetch_from(&network)
         .await
         .unwrap();
 
-    let bob_balance = Tokens::account(bob.id().clone())
+    let bob_balance = Tokens::account(bob.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -83,16 +92,19 @@ async fn transfer_funds() {
 
     // it's actually 49.99 because of the fee
     assert_eq!(alice_balance.total.as_near(), 49);
-    assert_eq!(bob_balance.total.as_near(), 150);
+    assert_eq!(bob_balance.total.as_near(), 60);
 }
 
 #[tokio::test]
 async fn access_key_management() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let alice = network.dev_create_account().await.unwrap();
-    let network: NetworkConfig = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let alice = "alice.sandbox".parse().unwrap();
+    let alice_sk = sandbox.create_root_subaccount(&alice).await.unwrap();
+    let network = &sandbox.network_config;
 
-    let alice_acc = Account(alice.id().clone());
+    let signer = Signer::new(Signer::from_secret_key(alice_sk)).unwrap();
+
+    let alice_acc = Account(alice.clone());
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
     assert_eq!(keys.keys.len(), 1);
@@ -101,7 +113,7 @@ async fn access_key_management() {
 
     alice_acc
         .add_key(AccessKeyPermission::FullAccess, secret.public_key())
-        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -123,7 +135,7 @@ async fn access_key_management() {
 
     alice_acc
         .delete_key(secret.public_key())
-        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -143,7 +155,7 @@ async fn access_key_management() {
         let secret = generate_secret_key().unwrap();
         alice_acc
             .add_key(AccessKeyPermission::FullAccess, secret.public_key())
-            .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+            .with_signer(signer.clone())
             .send_to(&network)
             .await
             .unwrap()
@@ -156,7 +168,7 @@ async fn access_key_management() {
 
     alice_acc
         .delete_keys(keys.keys.into_iter().map(|k| k.public_key).collect())
-        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()

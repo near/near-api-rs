@@ -160,6 +160,31 @@ impl NetworkConfig {
         }
     }
 
+    #[cfg(feature = "testing")]
+    pub fn sandbox(rpc_endpoint: url::Url) -> Self {
+        let timeout_secs = match std::env::var("NEAR_RPC_TIMEOUT_SECS") {
+            Ok(secs) => secs
+                .parse::<u8>()
+                .expect("Failed to parse provided NEAR_RPC_TIMEOUT_SECS"),
+            Err(_) => 10,
+        };
+
+        Self {
+            network_name: "sandbox".to_string(),
+            rpc_endpoints: vec![RPCEndpoint::new(rpc_endpoint)
+                .with_retry_method(RetryMethod::Fixed {
+                    sleep: std::time::Duration::from_millis(500),
+                })
+                .with_retries(timeout_secs * 2)],
+            linkdrop_account_id: None,
+            near_social_db_contract_account_id: None,
+            faucet_url: None,
+            meta_transaction_relayer_url: None,
+            fastnear_url: None,
+            staking_pools_factory_account_id: None,
+        }
+    }
+
     pub(crate) fn json_rpc_client(&self, index: usize) -> near_jsonrpc_client::JsonRpcClient {
         let rpc_endpoint = &self.rpc_endpoints[index];
         let mut json_rpc_client =

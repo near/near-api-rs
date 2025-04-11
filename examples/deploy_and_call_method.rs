@@ -2,15 +2,16 @@ use near_api::*;
 
 #[tokio::main]
 async fn main() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let sandbox = near_api::sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account_id = "account.sandbox".parse().unwrap();
+    let account_sk = sandbox.create_root_subaccount(&account_id).await.unwrap();
+    let network = &sandbox.network_config;
 
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let signer = Signer::new(Signer::from_secret_key(account_sk)).unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
     Contract::deploy(
-        account.id().clone(),
+        account_id.clone(),
         include_bytes!("../resources/counter.wasm").to_vec(),
     )
     // You can add init call as well using `with_init_call`
@@ -20,7 +21,7 @@ async fn main() {
     .await
     .unwrap();
 
-    let contract = Contract(account.id().clone());
+    let contract = Contract(account_id.clone());
 
     // Let's fetch current value on a contract
     let current_value: Data<i8> = contract
@@ -40,7 +41,7 @@ async fn main() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(account.id().clone(), signer.clone())
+        .with_signer(account_id.clone(), signer.clone())
         .send_to(&network)
         .await
         .unwrap()

@@ -63,6 +63,8 @@ mod transactions;
 mod common;
 
 pub mod errors;
+#[cfg(feature = "testing")]
+pub mod sandbox;
 pub mod signer;
 pub mod types;
 
