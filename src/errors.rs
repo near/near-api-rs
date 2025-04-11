@@ -318,7 +318,7 @@ pub enum SandboxError {
     ValidatorKeyLoadFailure(#[from] AccessKeyFileError),
 
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    IO(#[from] std::io::Error),
 
     #[error("Failed to create a signer: {0}")]
     SignerCreationError(#[from] SignerError),

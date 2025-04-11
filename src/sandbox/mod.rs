@@ -33,13 +33,8 @@ async fn pick_unused_port() -> Result<u16, SandboxError> {
     // Important to use localhost as using 0.0.0.0 leads to users getting brief firewall popups to
     // allow inbound connections on MacOS.
     let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0);
-    let listener = TcpListener::bind(addr)
-        .await
-        .map_err(|err| SandboxError::Io(err))?;
-    let port = listener
-        .local_addr()
-        .map_err(|err| SandboxError::Io(err))?
-        .port();
+    let listener = TcpListener::bind(addr).await.map_err(SandboxError::IO)?;
+    let port = listener.local_addr().map_err(SandboxError::IO)?.port();
     Ok(port)
 }
 

@@ -24,13 +24,13 @@ use crate::errors::SandboxError;
 /// dict, and saves back into `home_dir` at the end of the day.
 fn overwrite(home_dir: impl AsRef<Path>, value: Value) -> Result<(), SandboxError> {
     let home_dir = home_dir.as_ref();
-    let config_file = File::open(home_dir.join("config.json")).map_err(SandboxError::Io)?;
+    let config_file = File::open(home_dir.join("config.json")).map_err(SandboxError::IO)?;
     let config = BufReader::new(config_file);
     let mut config: Value = serde_json::from_reader(config)
         .map_err(|err| SandboxError::ConfigError(err.to_string()))?;
 
     json_patch::merge(&mut config, &value);
-    let config_file = File::create(home_dir.join("config.json")).map_err(SandboxError::Io)?;
+    let config_file = File::create(home_dir.join("config.json")).map_err(SandboxError::IO)?;
     serde_json::to_writer(config_file, &config)
         .map_err(|err| SandboxError::ConfigError(err.to_string()))?;
 
@@ -78,7 +78,7 @@ pub(crate) fn set_sandbox_configs(home_dir: impl AsRef<Path>) -> Result<(), Sand
 /// dict, and saves back into `home_dir` at the end of the day.
 fn overwrite_genesis(home_dir: impl AsRef<Path>) -> Result<(), SandboxError> {
     let home_dir = home_dir.as_ref();
-    let config_file = File::open(home_dir.join("genesis.json")).map_err(SandboxError::Io)?;
+    let config_file = File::open(home_dir.join("genesis.json")).map_err(SandboxError::IO)?;
     let config = BufReader::new(config_file);
     let mut config: Value = serde_json::from_reader(config)
         .map_err(|err| SandboxError::ConfigError(err.to_string()))?;
@@ -131,7 +131,7 @@ fn overwrite_genesis(home_dir: impl AsRef<Path>) -> Result<(), SandboxError> {
             }
         ));
 
-    let config_file = File::create(home_dir.join("genesis.json")).map_err(SandboxError::Io)?;
+    let config_file = File::create(home_dir.join("genesis.json")).map_err(SandboxError::IO)?;
     serde_json::to_writer(config_file, &config)
         .map_err(|err| SandboxError::ConfigError(err.to_string()))?;
 
@@ -142,10 +142,10 @@ pub fn set_sandbox_genesis(home_dir: impl AsRef<Path>) -> Result<(), SandboxErro
     overwrite_genesis(&home_dir)?;
     let registrar_key = r#"{"account_id":"sandbox","public_key":"ed25519:5BGSaf6YjVm7565VzWQHNxoyEjwr3jUpRJSGjREvU9dB","private_key":"ed25519:3tgdk2wPraJzT4nsTuf86UX41xgPNk3MHnq8epARMdBNs29AFEztAuaQ7iHddDfXG9F2RzV1XNQYgJyAyoW51UBB"}"#;
     let mut registrar_wallet =
-        File::create(home_dir.as_ref().join("registrar.json")).map_err(SandboxError::Io)?;
+        File::create(home_dir.as_ref().join("registrar.json")).map_err(SandboxError::IO)?;
     registrar_wallet
         .write_all(registrar_key.as_bytes())
-        .map_err(SandboxError::Io)?;
-    registrar_wallet.flush().map_err(SandboxError::Io)?;
+        .map_err(SandboxError::IO)?;
+    registrar_wallet.flush().map_err(SandboxError::IO)?;
     Ok(())
 }
