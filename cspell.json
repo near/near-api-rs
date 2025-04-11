@@ -51,7 +51,9 @@
         "nearcore",
         "dtolnay",
         "Ieni",
-        "subaccount"
+        "subaccount",
+        "neard",
+        "lockpath",
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key
