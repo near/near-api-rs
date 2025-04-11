@@ -52,6 +52,11 @@ near-account-id = "1.0.0"
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 
+near-sandbox-utils = { version = "0.14", optional = true }
+tempfile = { version = "3.19", optional = true }
+fs2 = { version = "0.4", optional = true }
+json-patch = { version = "4.0", optional = true }
+
 near-abi = "0.4.2"
 zstd = "0.13"
 
@@ -64,13 +69,18 @@ keyring = { version = "3.2", features = [
 
 near-workspaces = { version = "0.18.0", optional = true }
 
-
 [features]
 default = ["ledger", "keystore"]
 ledger = ["near-ledger"]
 keystore = ["dep:keyring"]
 workspaces = ["dep:near-workspaces"]
+testing = [
+    "dep:near-sandbox-utils",
+    "dep:tempfile",
+    "dep:fs2",
+    "dep:json-patch",
+]
 
 [dev-dependencies]
 tokio = { version = "1.0", default-features = false, features = ["full"] }
-near-api = { path = ".", features = ["workspaces"] }
+near-api = { path = ".", features = ["testing"] }
