@@ -161,7 +161,7 @@ impl NetworkConfig {
     }
 
     #[cfg(feature = "testing")]
-    pub fn sandbox(rpc_endpoint: url::Url) -> Self {
+    pub(crate) fn sandbox(rpc_endpoint: url::Url) -> Self {
         Self {
             network_name: "sandbox".to_string(),
 
