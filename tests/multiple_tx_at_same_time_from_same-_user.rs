@@ -18,7 +18,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
 
     let start_nonce = Account(account.clone())
         .access_key(account_sk.public_key())
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap()
         .data
@@ -30,7 +30,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
             .near(NearToken::from_millinear(i))
     });
     let signer = Signer::new(Signer::from_secret_key(account_sk.clone())).unwrap();
-    let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
+    let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(network)))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()
@@ -41,7 +41,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
 
     let end_nonce = Account(account.clone())
         .access_key(account_sk.public_key())
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap()
         .data
@@ -65,7 +65,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret.public_key())
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
@@ -79,7 +79,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret2.public_key())
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap();
     signer
@@ -92,7 +92,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
             .send_to(tmp_account.clone())
             .near(NearToken::from_millinear(i))
     });
-    let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
+    let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(network)))
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()

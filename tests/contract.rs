@@ -17,7 +17,7 @@ async fn contract_without_init_call() {
     )
     .without_init_call()
     .with_signer(signer.clone())
-    .send_to(&network)
+    .send_to(network)
     .await
     .unwrap()
     .assert_success();
@@ -26,7 +26,7 @@ async fn contract_without_init_call() {
 
     assert!(!contract
         .wasm()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap()
         .data
@@ -35,7 +35,7 @@ async fn contract_without_init_call() {
 
     assert!(contract
         .contract_source_metadata()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap()
         .data
@@ -46,7 +46,7 @@ async fn contract_without_init_call() {
         .call_function("get_num", ())
         .unwrap()
         .read_only()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
     assert_eq!(current_value.data, 0);
@@ -56,7 +56,7 @@ async fn contract_without_init_call() {
         .unwrap()
         .transaction()
         .with_signer(account.clone(), signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
@@ -65,7 +65,7 @@ async fn contract_without_init_call() {
         .call_function("get_num", ())
         .unwrap()
         .read_only()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -94,7 +94,7 @@ async fn contract_with_init_call() {
     )
     .unwrap()
     .with_signer(signer.clone())
-    .send_to(&network)
+    .send_to(network)
     .await
     .unwrap()
     .assert_success();
@@ -103,7 +103,7 @@ async fn contract_with_init_call() {
 
     assert!(!contract
         .wasm()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap()
         .data

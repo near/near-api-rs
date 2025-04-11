@@ -18,14 +18,14 @@ async fn create_and_delete_account() {
         .public_key(secret.public_key())
         .unwrap()
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
 
     let balance_before_del = Tokens::account(new_account.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -34,14 +34,14 @@ async fn create_and_delete_account() {
     Account(account_id.clone())
         .delete_account_with_beneficiary(new_account.clone())
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
 
     Tokens::account(account_id.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .expect_err("Shouldn't exist");
 
@@ -49,7 +49,7 @@ async fn create_and_delete_account() {
 
     let balance_after_del = Tokens::account(new_account.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
     assert!(balance_after_del.total > balance_before_del.total);
@@ -73,20 +73,20 @@ async fn transfer_funds() {
         .send_to(bob.clone())
         .near(NearToken::from_near(50))
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
 
     let alice_balance = Tokens::account(alice.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
     let bob_balance = Tokens::account(bob.clone())
         .near_balance()
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -106,7 +106,7 @@ async fn access_key_management() {
 
     let alice_acc = Account(alice.clone());
 
-    let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
+    let keys = alice_acc.list_keys().fetch_from(network).await.unwrap();
     assert_eq!(keys.keys.len(), 1);
 
     let secret = generate_secret_key().unwrap();
@@ -114,17 +114,17 @@ async fn access_key_management() {
     alice_acc
         .add_key(AccessKeyPermission::FullAccess, secret.public_key())
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
 
-    let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
+    let keys = alice_acc.list_keys().fetch_from(network).await.unwrap();
     assert_eq!(keys.keys.len(), 2);
 
     let new_key_info = alice_acc
         .access_key(secret.public_key())
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .unwrap();
 
@@ -136,18 +136,18 @@ async fn access_key_management() {
     alice_acc
         .delete_key(secret.public_key())
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
 
-    let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
+    let keys = alice_acc.list_keys().fetch_from(network).await.unwrap();
 
     assert_eq!(keys.keys.len(), 1);
 
     alice_acc
         .access_key(secret.public_key())
-        .fetch_from(&network)
+        .fetch_from(network)
         .await
         .expect_err("Shouldn't exist");
 
@@ -156,24 +156,24 @@ async fn access_key_management() {
         alice_acc
             .add_key(AccessKeyPermission::FullAccess, secret.public_key())
             .with_signer(signer.clone())
-            .send_to(&network)
+            .send_to(network)
             .await
             .unwrap()
             .assert_success();
     }
 
-    let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
+    let keys = alice_acc.list_keys().fetch_from(network).await.unwrap();
 
     assert_eq!(keys.keys.len(), 11);
 
     alice_acc
         .delete_keys(keys.keys.into_iter().map(|k| k.public_key).collect())
         .with_signer(signer.clone())
-        .send_to(&network)
+        .send_to(network)
         .await
         .unwrap()
         .assert_success();
 
-    let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
+    let keys = alice_acc.list_keys().fetch_from(network).await.unwrap();
     assert_eq!(keys.keys.len(), 0);
 }
