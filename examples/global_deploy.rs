@@ -6,9 +6,11 @@ async fn main() {
     let network = near_workspaces::sandbox().await.unwrap();
     let account = network.dev_create_account().await.unwrap();
     let target_account = network.dev_create_account().await.unwrap();
+
     let network = NetworkConfig::from(network);
 
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let target_signer = Signer::new(Signer::from_workspace(&target_account)).unwrap();
 
     let code: Vec<u8> = include_bytes!("../resources/counter.wasm").to_vec();
     let contract_hash = hash(&code);
@@ -32,7 +34,7 @@ async fn main() {
     Contract::deploy(target_account.id().clone())
         .use_global_account_id(account.id().clone())
         .without_init_call()
-        .with_signer(signer.clone())
+        .with_signer(target_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -41,7 +43,7 @@ async fn main() {
     Contract::deploy(target_account.id().clone())
         .use_global_hash(contract_hash.into())
         .without_init_call()
-        .with_signer(signer.clone())
+        .with_signer(target_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
