@@ -1,4 +1,5 @@
 use near_api::*;
+use near_primitives::hash::hash;
 
 #[tokio::main]
 async fn main() {
@@ -9,17 +10,19 @@ async fn main() {
 
     let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
 
-    let deploy_hash_result =
-        Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
-            .as_hash(account.id().clone())
-            .with_signer(signer.clone())
-            .send_to(&network)
-            .await
-            .unwrap()
-            .assert_success();
+    let code: Vec<u8> = include_bytes!("../resources/counter.wasm").to_vec();
+    let contract_hash = hash(&code);
 
-    Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
-        .as_account_id(account.id().clone())
+    Contract::deploy_global_contract_code(code.clone())
+        .to_hash(account.id().clone())
+        .with_signer(signer.clone())
+        .send_to(&network)
+        .await
+        .unwrap()
+        .assert_success();
+
+    Contract::deploy_global_contract_code(code)
+        .to_account_id(account.id().clone())
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -36,7 +39,7 @@ async fn main() {
         .assert_success();
 
     Contract::deploy(target_account.id().clone())
-        .with_global_hash(todo!("Use hash"))
+        .with_global_hash(contract_hash.into())
         .without_init_call()
         .with_signer(signer.clone())
         .send_to(&network)

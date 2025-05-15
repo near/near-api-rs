@@ -160,7 +160,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
-    ///     .as_hash("some-account.testnet".parse()?)
+    ///     .to_hash("some-account.testnet".parse()?)
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
@@ -180,7 +180,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
-    ///     .as_account_id("nft-contract.testnet".parse()?)
+    ///     .to_account_id("nft-contract.testnet".parse()?)
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
@@ -538,13 +538,14 @@ impl GlobalDeployBuilder {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
-    ///     .as_hash("some-account.testnet".parse()?)
+    ///     .to_hash("some-account.testnet".parse()?)
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn as_hash(self, signer_id: AccountId) -> ConstructTransaction {
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_hash(self, signer_id: AccountId) -> ConstructTransaction {
         Transaction::construct(signer_id.clone(), signer_id).add_action(
             Action::DeployGlobalContract(DeployGlobalContractAction {
                 code: self.code,
@@ -566,13 +567,13 @@ impl GlobalDeployBuilder {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
-    ///     .as_account_id("some-account.testnet".parse()?)
+    ///     .to_account_id("some-account.testnet".parse()?)
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn as_account_id(self, signer_id: AccountId) -> ConstructTransaction {
+    pub fn to_account_id(self, signer_id: AccountId) -> ConstructTransaction {
         Transaction::construct(signer_id.clone(), signer_id).add_action(
             Action::DeployGlobalContract(DeployGlobalContractAction {
                 code: self.code,
