@@ -14,7 +14,7 @@ async fn main() {
     let contract_hash = hash(&code);
 
     Contract::deploy_global_contract_code(code.clone())
-        .to_hash(account.id().clone())
+        .as_hash(account.id().clone())
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -22,7 +22,7 @@ async fn main() {
         .assert_success();
 
     Contract::deploy_global_contract_code(code)
-        .to_account_id(account.id().clone())
+        .as_account_id(account.id().clone())
         .with_signer(signer.clone())
         .send_to(&network)
         .await
