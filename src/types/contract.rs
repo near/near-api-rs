@@ -73,7 +73,6 @@ pub struct ContractSourceMetadata {
     /// # ;
     /// ```
     // it's a guess it was added as 1.1.0 of nep330, [nep330 1.1.0 standard recording](https://www.youtube.com/watch?v=pBLN9UyE6AA) actually discusses nep351
-    #[serde(default)]
     pub standards: Vec<Standard>,
 
     /// Optional details that are required for formal contract WASM build reproducibility verification
@@ -82,7 +81,7 @@ pub struct ContractSourceMetadata {
     pub build_info: Option<BuildInfo>,
 }
 
-/// NEAR Standard implementation descriptor following [NEP-330](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)    
+/// NEAR Standard implementation descriptor following [NEP-330](https://github.com/near/NEPs/blob/master/neps/nep-0330.md)
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct Standard {
     /// Standard name in lowercase NEP format
@@ -122,7 +121,7 @@ mod build_info {
         /// ## Examples:
         ///
         /// ```rust,no_run
-        /// # let build_environment: String =  
+        /// # let build_environment: String =
         ///  "sourcescan/cargo-near:0.13.3-rust-1.84.0@sha256:722198ddb92d1b82cbfcd3a4a9f7fba6fd8715f4d0b5fb236d8725c4883f97de".into()
         /// # ;
         /// ```
