@@ -548,7 +548,7 @@ impl GlobalDeployBuilder {
     pub fn as_hash(self, signer_id: AccountId) -> ConstructTransaction {
         Transaction::construct(signer_id.clone(), signer_id).add_action(
             Action::DeployGlobalContract(DeployGlobalContractAction {
-                code: self.code,
+                code: self.code.into(),
                 deploy_mode: GlobalContractDeployMode::CodeHash,
             }),
         )
@@ -577,7 +577,7 @@ impl GlobalDeployBuilder {
     pub fn as_account_id(self, signer_id: AccountId) -> ConstructTransaction {
         Transaction::construct(signer_id.clone(), signer_id).add_action(
             Action::DeployGlobalContract(DeployGlobalContractAction {
-                code: self.code,
+                code: self.code.into(),
                 deploy_mode: GlobalContractDeployMode::AccountId,
             }),
         )
