@@ -26,8 +26,14 @@ pub struct SelfActionBuilder {
     pub actions: Vec<near_primitives::action::Action>,
 }
 
+impl Default for SelfActionBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SelfActionBuilder {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             actions: Vec::new(),
         }
@@ -51,7 +57,7 @@ impl SelfActionBuilder {
         signer_account_id: AccountId,
         signer: Arc<Signer>,
     ) -> ExecuteSignedTransaction {
-        ConstructTransaction::new(signer_account_id.clone(), signer_account_id.clone())
+        ConstructTransaction::new(signer_account_id.clone(), signer_account_id)
             .add_actions(self.actions)
             .with_signer(signer)
     }
