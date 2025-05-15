@@ -170,7 +170,7 @@ impl Contract {
     ///
     /// ## Example deploying a contract to the global contract code storage as account-id
     ///
-    /// The difference between the hash and acccount-id version is that the account-id version
+    /// The difference between the hash and account-id version is that the account-id version
     /// upgradable and can be changed.
     ///
     /// ```rust,no_run
