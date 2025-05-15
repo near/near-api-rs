@@ -160,6 +160,26 @@ impl NetworkConfig {
         }
     }
 
+    #[cfg(feature = "testing")]
+    pub(crate) fn sandbox(rpc_endpoint: url::Url) -> Self {
+        Self {
+            network_name: "sandbox".to_string(),
+
+            // 10 secs in total with retries every 500ms
+            rpc_endpoints: vec![RPCEndpoint::new(rpc_endpoint)
+                .with_retry_method(RetryMethod::Fixed {
+                    sleep: std::time::Duration::from_millis(500),
+                })
+                .with_retries(20)],
+            linkdrop_account_id: None,
+            near_social_db_contract_account_id: None,
+            faucet_url: None,
+            meta_transaction_relayer_url: None,
+            fastnear_url: None,
+            staking_pools_factory_account_id: None,
+        }
+    }
+
     pub(crate) fn json_rpc_client(&self, index: usize) -> near_jsonrpc_client::JsonRpcClient {
         let rpc_endpoint = &self.rpc_endpoints[index];
         let mut json_rpc_client =
