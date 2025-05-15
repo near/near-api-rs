@@ -19,7 +19,7 @@ Currently, the library provides:
 * Several ways to sign transactions (secret key, seed phrase, file, ledger, secure keychain).
 * Account key pool support to sign the transaction with different user keys to avoid nonce issues.
 
-The minimum required version for full feature support is located in the [rust-version](./Cargo.toml#L4) field of the `Cargo.toml` file. However, it can still be compiled and used without the `keystore` feature on older versions of Rust.
+The minimum required version is located in the [rust-version](./Cargo.toml#L4) field of the `Cargo.toml` file.
 
 ## Features
 
@@ -37,10 +37,9 @@ The library is in good condition, but lacks a few points to be even better:
 - [x] anyhow -> thiserror
 - [x] ledger is blocking and it's not good in the async runtime
 - [ ] secure keychain is not that straightforward to use
-- [x] storage deposit manager for FT calls 
+- [x] storage deposit manager for FT calls
 - [x] basic logging with tracing for querying/signing/sending transactions
 - [ ] self-sustainable. remove the `nearcore` as a dependency ([#5](https://github.com/near/near-api-rs/issues/5))
 
 ## Examples
 The crate provides [examples](./examples/) that contain detailed information on using the library.
- 
