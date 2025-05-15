@@ -20,7 +20,8 @@ where
     #[error("Unexpected response kind: expected {expected} type, but got {got:?}")]
     UnexpectedResponse {
         expected: &'static str,
-        got: QueryResponseKind,
+        // Boxed to avoid large error type
+        got: Box<QueryResponseKind>,
     },
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
