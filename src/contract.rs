@@ -22,7 +22,7 @@ use crate::{
     },
     errors::BuilderError,
     signer::Signer,
-    transactions::{ConstructTransaction, Transaction},
+    transactions::{ConstructTransaction, SelfActionBuilder, Transaction},
     types::{contract::ContractSourceMetadata, CryptoHash, Data},
 };
 
@@ -160,8 +160,8 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
-    ///     .as_hash("some-account.testnet".parse()?)
-    ///     .with_signer(signer)
+    ///     .as_hash()
+    ///     .with_signer("some-account.testnet".parse()?, signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -325,8 +325,9 @@ impl Contract {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct DeployMethodBuilder {
-    contract: AccountId,
+    pub contract: AccountId,
 }
 
 impl DeployMethodBuilder {
@@ -538,20 +539,20 @@ impl GlobalDeployBuilder {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
-    ///     .as_hash("some-account.testnet".parse()?)
-    ///     .with_signer(signer)
+    ///     .as_hash()
+    ///     .with_signer("some-account.testnet".parse()?, signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
     #[allow(clippy::wrong_self_convention)]
-    pub fn as_hash(self, signer_id: AccountId) -> ConstructTransaction {
-        Transaction::construct(signer_id.clone(), signer_id).add_action(
-            Action::DeployGlobalContract(DeployGlobalContractAction {
+    pub fn as_hash(self) -> SelfActionBuilder {
+        SelfActionBuilder::new().add_action(Action::DeployGlobalContract(
+            DeployGlobalContractAction {
                 code: self.code.into(),
                 deploy_mode: GlobalContractDeployMode::CodeHash,
-            }),
-        )
+            },
+        ))
     }
 
     /// Prepares a transaction to deploy a code to the global contract code storage and reference it by account-id.
@@ -583,6 +584,8 @@ impl GlobalDeployBuilder {
         )
     }
 }
+
+#[derive(Clone, Debug)]
 pub struct CallFunctionBuilder {
     contract: AccountId,
     method_name: String,

@@ -21,6 +21,42 @@ impl<T: Transactionable> TransactionWithSign<T> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct SelfActionBuilder {
+    pub actions: Vec<near_primitives::action::Action>,
+}
+
+impl SelfActionBuilder {
+    pub fn new() -> Self {
+        Self {
+            actions: Vec::new(),
+        }
+    }
+
+    /// Adds an action to the transaction.
+    pub fn add_action(mut self, action: Action) -> Self {
+        self.actions.push(action);
+        self
+    }
+
+    /// Adds multiple actions to the transaction.
+    pub fn add_actions(mut self, actions: Vec<Action>) -> Self {
+        self.actions.extend(actions);
+        self
+    }
+
+    /// Signs the transaction with the given account id and signer related to it.
+    pub fn with_signer(
+        self,
+        signer_account_id: AccountId,
+        signer: Arc<Signer>,
+    ) -> ExecuteSignedTransaction {
+        ConstructTransaction::new(signer_account_id.clone(), signer_account_id.clone())
+            .add_actions(self.actions)
+            .with_signer(signer)
+    }
+}
+
 /// A builder for constructing transactions using Actions.
 #[derive(Debug, Clone)]
 pub struct ConstructTransaction {
