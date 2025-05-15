@@ -606,7 +606,7 @@ where
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "CallResult",
-                got: response.kind,
+                got: Box::new(response.kind),
             })
         }
     }
@@ -646,7 +646,7 @@ impl ResponseHandler for AccountViewHandler {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "ViewAccount",
-                got: response.kind,
+                got: Box::new(response.kind),
             })
         }
     }
@@ -682,7 +682,7 @@ impl ResponseHandler for AccessKeyListHandler {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "AccessKeyList",
-                got: response.kind,
+                got: Box::new(response.kind),
             })
         }
     }
@@ -722,7 +722,7 @@ impl ResponseHandler for AccessKeyHandler {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "AccessKey",
-                got: response.kind,
+                got: Box::new(response.kind),
             })
         }
     }
@@ -762,7 +762,7 @@ impl ResponseHandler for ViewStateHandler {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "ViewState",
-                got: response.kind,
+                got: Box::new(response.kind),
             })
         }
     }
@@ -802,7 +802,7 @@ impl ResponseHandler for ViewCodeHandler {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response.kind);
             Err(QueryError::UnexpectedResponse {
                 expected: "ViewCode",
-                got: response.kind,
+                got: Box::new(response.kind),
             })
         }
     }
