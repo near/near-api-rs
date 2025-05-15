@@ -9,7 +9,7 @@ async fn contract_without_init_call() {
     let network = NetworkConfig::from(network);
 
     Contract::deploy(account.id().clone())
-        .with_code(include_bytes!("../resources/counter.wasm").to_vec())
+        .use_code(include_bytes!("../resources/counter.wasm").to_vec())
         .without_init_call()
         .with_signer(Signer::new(Signer::from_workspace(&account)).unwrap())
         .send_to(&network)
@@ -77,7 +77,7 @@ async fn contract_with_init_call() {
     let network = NetworkConfig::from(network);
 
     Contract::deploy(account.id().clone())
-        .with_code(include_bytes!("../resources/fungible_token.wasm").to_vec())
+        .use_code(include_bytes!("../resources/fungible_token.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
             json!({

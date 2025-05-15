@@ -12,7 +12,7 @@ async fn main() {
 
     // Deploying token contract
     Contract::deploy(token.id().clone())
-        .with_code(include_bytes!("../resources/fungible_token.wasm").to_vec())
+        .use_code(include_bytes!("../resources/fungible_token.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
             json!({

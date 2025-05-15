@@ -112,7 +112,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
-    ///     .with_code(code)
+    ///     .use_code(code)
     ///     .without_init_call()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
@@ -130,7 +130,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
-    ///     .with_global_account_id("nft-contract.testnet".parse()?)
+    ///     .use_global_account_id("nft-contract.testnet".parse()?)
     ///     .with_init_call("init", json!({ "number": 100 }))?
     ///     // Optional
     ///     .gas(NearGas::from_tgas(200))
@@ -347,14 +347,14 @@ impl DeployMethodBuilder {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
-    ///     .with_code(code)
+    ///     .use_code(code)
     ///     .without_init_call()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn with_code(self, code: Vec<u8>) -> DeployContractBuilder {
+    pub fn use_code(self, code: Vec<u8>) -> DeployContractBuilder {
         DeployContractBuilder::new(
             self.contract,
             Action::DeployContract(DeployContractAction { code }),
@@ -370,14 +370,14 @@ impl DeployMethodBuilder {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
-    ///     .with_global_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
+    ///     .use_global_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
     ///     .without_init_call()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn with_global_hash(self, global_hash: CryptoHash) -> DeployContractBuilder {
+    pub fn use_global_hash(self, global_hash: CryptoHash) -> DeployContractBuilder {
         DeployContractBuilder::new(
             self.contract,
             Action::UseGlobalContract(Box::new(UseGlobalContractAction {
@@ -398,14 +398,14 @@ impl DeployMethodBuilder {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
-    ///     .with_global_account_id("nft-contract.testnet".parse()?)
+    ///     .use_global_account_id("nft-contract.testnet".parse()?)
     ///     .without_init_call()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn with_global_account_id(self, global_account_id: AccountId) -> DeployContractBuilder {
+    pub fn use_global_account_id(self, global_account_id: AccountId) -> DeployContractBuilder {
         DeployContractBuilder::new(
             self.contract,
             Action::UseGlobalContract(Box::new(UseGlobalContractAction {

@@ -30,7 +30,7 @@ async fn main() {
         .assert_success();
 
     Contract::deploy(target_account.id().clone())
-        .with_global_account_id(account.id().clone())
+        .use_global_account_id(account.id().clone())
         .without_init_call()
         .with_signer(signer.clone())
         .send_to(&network)
@@ -39,7 +39,7 @@ async fn main() {
         .assert_success();
 
     Contract::deploy(target_account.id().clone())
-        .with_global_hash(contract_hash.into())
+        .use_global_hash(contract_hash.into())
         .without_init_call()
         .with_signer(signer.clone())
         .send_to(&network)

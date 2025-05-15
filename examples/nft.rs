@@ -15,7 +15,7 @@ async fn main() {
 
     // Deploying token contract
     Contract::deploy(nft.id().clone())
-        .with_code(include_bytes!("../resources/nft.wasm").to_vec())
+        .use_code(include_bytes!("../resources/nft.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
             json!({
