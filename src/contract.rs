@@ -130,7 +130,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
-    ///     .use_global_account_id("nft-contract.testnet".parse()?)
+    ///     .use_code(code)
     ///     .with_init_call("init", json!({ "number": 100 }))?
     ///     // Optional
     ///     .gas(NearGas::from_tgas(200))
@@ -140,8 +140,8 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub const fn deploy(contract: AccountId) -> DeployMethodBuilder {
-        DeployMethodBuilder::new(contract)
+    pub const fn deploy(contract: AccountId) -> DeployBuilder {
+        DeployBuilder::new(contract)
     }
 
     /// Prepares a transaction to deploy a code to the global contract code storage.
@@ -326,11 +326,11 @@ impl Contract {
 }
 
 #[derive(Clone, Debug)]
-pub struct DeployMethodBuilder {
+pub struct DeployBuilder {
     pub contract: AccountId,
 }
 
-impl DeployMethodBuilder {
+impl DeployBuilder {
     pub const fn new(contract: AccountId) -> Self {
         Self { contract }
     }
@@ -355,8 +355,8 @@ impl DeployMethodBuilder {
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn use_code(self, code: Vec<u8>) -> DeployContractBuilder {
-        DeployContractBuilder::new(
+    pub fn use_code(self, code: Vec<u8>) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
             self.contract,
             Action::DeployContract(DeployContractAction { code }),
         )
@@ -378,8 +378,8 @@ impl DeployMethodBuilder {
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn use_global_hash(self, global_hash: CryptoHash) -> DeployContractBuilder {
-        DeployContractBuilder::new(
+    pub fn use_global_hash(self, global_hash: CryptoHash) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
             self.contract,
             Action::UseGlobalContract(Box::new(UseGlobalContractAction {
                 contract_identifier: GlobalContractIdentifier::CodeHash(global_hash.into()),
@@ -406,8 +406,8 @@ impl DeployMethodBuilder {
     ///     .await?;
     /// # Ok(())
     /// # }
-    pub fn use_global_account_id(self, global_account_id: AccountId) -> DeployContractBuilder {
-        DeployContractBuilder::new(
+    pub fn use_global_account_id(self, global_account_id: AccountId) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
             self.contract,
             Action::UseGlobalContract(Box::new(UseGlobalContractAction {
                 contract_identifier: GlobalContractIdentifier::AccountId(global_account_id),
@@ -417,12 +417,12 @@ impl DeployMethodBuilder {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub struct DeployContractBuilder {
+pub struct SetDeployActionBuilder {
     contract: AccountId,
     deploy_action: near_primitives::action::Action,
 }
 
-impl DeployContractBuilder {
+impl SetDeployActionBuilder {
     pub const fn new(contract: AccountId, deploy_action: near_primitives::action::Action) -> Self {
         Self {
             contract,
@@ -444,10 +444,10 @@ impl DeployContractBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> Result<DeployContractTransactBuilder, BuilderError> {
+    ) -> Result<SetDeployActionWithInitCallBuilder, BuilderError> {
         let args = serde_json::to_vec(&args)?;
 
-        Ok(DeployContractTransactBuilder::new(
+        Ok(SetDeployActionWithInitCallBuilder::new(
             self.contract.clone(),
             method_name.to_string(),
             args,
@@ -457,7 +457,7 @@ impl DeployContractBuilder {
 }
 
 #[derive(Clone, Debug)]
-pub struct DeployContractTransactBuilder {
+pub struct SetDeployActionWithInitCallBuilder {
     contract: AccountId,
     method_name: String,
     args: Vec<u8>,
@@ -466,7 +466,7 @@ pub struct DeployContractTransactBuilder {
     deposit: Option<NearToken>,
 }
 
-impl DeployContractTransactBuilder {
+impl SetDeployActionWithInitCallBuilder {
     const fn new(
         contract: AccountId,
         method_name: String,
