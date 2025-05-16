@@ -26,9 +26,18 @@ where
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
     #[error("Query error: {0}")]
-    JsonRpcError(#[from] RetryError<JsonRpcError<Method::Error>>),
+    JsonRpcError(Box<RetryError<JsonRpcError<Method::Error>>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
+}
+
+impl<Method: RpcMethod> From<RetryError<JsonRpcError<Method::Error>>> for QueryError<Method>
+where
+    Method::Error: std::fmt::Debug + std::fmt::Display + 'static,
+{
+    fn from(err: RetryError<JsonRpcError<Method::Error>>) -> Self {
+        Self::JsonRpcError(Box::new(err))
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
