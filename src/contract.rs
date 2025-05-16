@@ -3,7 +3,10 @@ use std::sync::Arc;
 use near_gas::NearGas;
 
 use near_primitives::{
-    action::{Action, DeployContractAction, FunctionCallAction},
+    action::{
+        Action, DeployContractAction, DeployGlobalContractAction, FunctionCallAction,
+        GlobalContractDeployMode, GlobalContractIdentifier, UseGlobalContractAction,
+    },
     types::{AccountId, BlockReference, StoreKey},
 };
 use near_token::NearToken;
@@ -19,8 +22,8 @@ use crate::{
     },
     errors::BuilderError,
     signer::Signer,
-    transactions::{ConstructTransaction, Transaction},
-    types::{contract::ContractSourceMetadata, Data},
+    transactions::{ConstructTransaction, SelfActionBuilder, Transaction},
+    types::{contract::ContractSourceMetadata, CryptoHash, Data},
 };
 
 /// Contract-related interactions with the NEAR Protocol
@@ -108,7 +111,8 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?, code)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    ///     .use_code(code)
     ///     .without_init_call()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
@@ -125,7 +129,8 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?, code)
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    ///     .use_code(code)
     ///     .with_init_call("init", json!({ "number": 100 }))?
     ///     // Optional
     ///     .gas(NearGas::from_tgas(200))
@@ -135,8 +140,55 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub const fn deploy(contract: AccountId, code: Vec<u8>) -> DeployContractBuilder {
-        DeployContractBuilder::new(contract, code)
+    pub const fn deploy(contract: AccountId) -> DeployBuilder {
+        DeployBuilder::new(contract)
+    }
+
+    /// Prepares a transaction to deploy a code to the global contract code storage.
+    ///
+    /// This will allow other users to reference given code as hash or account-id and reduce
+    /// the gas cost for deployment.
+    ///
+    /// Please be aware that the deploy costs 10x more compared to the regular costs and the tokens are burnt
+    /// with no way to get it back.
+    ///
+    /// ## Example deploying a contract to the global contract code storage as hash
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    ///     .as_hash()
+    ///     .with_signer("some-account.testnet".parse()?, signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Example deploying a contract to the global contract code storage as account-id
+    ///
+    /// The difference between the hash and account-id version is that the account-id version
+    /// upgradable and can be changed.
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    ///     .as_account_id("nft-contract.testnet".parse()?)
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn deploy_global_contract_code(code: Vec<u8>) -> GlobalDeployBuilder {
+        GlobalDeployBuilder::new(code)
     }
 
     /// Prepares a query to fetch the [ABI](near_abi::AbiRoot) of the contract using the following [standard](https://github.com/near/near-abi-rs).
@@ -273,24 +325,116 @@ impl Contract {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub struct DeployContractBuilder {
-    contract: AccountId,
-    code: Vec<u8>,
+#[derive(Clone, Debug)]
+pub struct DeployBuilder {
+    pub contract: AccountId,
 }
 
-impl DeployContractBuilder {
-    pub const fn new(contract: AccountId, code: Vec<u8>) -> Self {
-        Self { contract, code }
+impl DeployBuilder {
+    pub const fn new(contract: AccountId) -> Self {
+        Self { contract }
+    }
+
+    /// Prepares a transaction to deploy a contract to the provided account
+    ///
+    /// The code is the wasm bytecode of the contract. For more information on how to compile your contract,
+    /// please refer to the [NEAR documentation](https://docs.near.org/build/smart-contracts/quickstart).
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    ///     .use_code(code)
+    ///     .without_init_call()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    pub fn use_code(self, code: Vec<u8>) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
+            self.contract,
+            Action::DeployContract(DeployContractAction { code }),
+        )
+    }
+
+    /// Prepares a transaction to deploy a contract to the provided account using a immutable hash reference to the code from the global contract code storage.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    ///     .use_global_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
+    ///     .without_init_call()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    pub fn use_global_hash(self, global_hash: CryptoHash) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
+            self.contract,
+            Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                contract_identifier: GlobalContractIdentifier::CodeHash(global_hash.into()),
+            })),
+        )
+    }
+
+    /// Prepares a transaction to deploy a contract to the provided account using a mutable account-id reference to the code from the global contract code storage.
+    ///
+    /// Please note that you have to trust the account-id that you are providing. As the code is mutable, the owner of the referenced account can
+    /// change the code at any time which might lead to unexpected behavior or malicious activity.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    ///     .use_global_account_id("nft-contract.testnet".parse()?)
+    ///     .without_init_call()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    pub fn use_global_account_id(self, global_account_id: AccountId) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
+            self.contract,
+            Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                contract_identifier: GlobalContractIdentifier::AccountId(global_account_id),
+            })),
+        )
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct SetDeployActionBuilder {
+    contract: AccountId,
+    deploy_action: near_primitives::action::Action,
+}
+
+impl SetDeployActionBuilder {
+    pub const fn new(contract: AccountId, deploy_action: near_primitives::action::Action) -> Self {
+        Self {
+            contract,
+            deploy_action,
+        }
     }
 
     /// Prepares a transaction to deploy a contract to the provided account without an init call.
     ///
     /// This will deploy the contract without calling any function.
     pub fn without_init_call(self) -> ConstructTransaction {
-        Transaction::construct(self.contract.clone(), self.contract.clone()).add_action(
-            Action::DeployContract(DeployContractAction { code: self.code }),
-        )
+        Transaction::construct(self.contract.clone(), self.contract).add_action(self.deploy_action)
     }
 
     /// Prepares a transaction to deploy a contract to the provided account with an init call.
@@ -300,35 +444,40 @@ impl DeployContractBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> Result<DeployContractTransactBuilder, BuilderError> {
+    ) -> Result<SetDeployActionWithInitCallBuilder, BuilderError> {
         let args = serde_json::to_vec(&args)?;
 
-        Ok(DeployContractTransactBuilder::new(
+        Ok(SetDeployActionWithInitCallBuilder::new(
             self.contract.clone(),
             method_name.to_string(),
             args,
-            self.code,
+            self.deploy_action,
         ))
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct DeployContractTransactBuilder {
+pub struct SetDeployActionWithInitCallBuilder {
     contract: AccountId,
     method_name: String,
     args: Vec<u8>,
-    code: Vec<u8>,
+    deploy_action: near_primitives::action::Action,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
 
-impl DeployContractTransactBuilder {
-    const fn new(contract: AccountId, method_name: String, args: Vec<u8>, code: Vec<u8>) -> Self {
+impl SetDeployActionWithInitCallBuilder {
+    const fn new(
+        contract: AccountId,
+        method_name: String,
+        args: Vec<u8>,
+        deploy_action: near_primitives::action::Action,
+    ) -> Self {
         Self {
             contract,
             method_name,
             args,
-            code,
+            deploy_action,
             gas: None,
             deposit: None,
         }
@@ -357,9 +506,7 @@ impl DeployContractTransactBuilder {
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
         Transaction::construct(self.contract.clone(), self.contract)
-            .add_action(Action::DeployContract(DeployContractAction {
-                code: self.code,
-            }))
+            .add_action(self.deploy_action)
             .add_action(Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: self.method_name.to_owned(),
                 args: self.args,
@@ -367,6 +514,74 @@ impl DeployContractTransactBuilder {
                 deposit: deposit.as_yoctonear(),
             })))
             .with_signer(signer)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct GlobalDeployBuilder {
+    code: Vec<u8>,
+}
+
+impl GlobalDeployBuilder {
+    pub const fn new(code: Vec<u8>) -> Self {
+        Self { code }
+    }
+
+    /// Prepares a transaction to deploy a code to the global contract code storage and reference it by hash.
+    ///
+    /// The code is immutable and cannot be changed once deployed.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    ///     .as_hash()
+    ///     .with_signer("some-account.testnet".parse()?, signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    #[allow(clippy::wrong_self_convention)]
+    pub fn as_hash(self) -> SelfActionBuilder {
+        SelfActionBuilder::new().add_action(Action::DeployGlobalContract(
+            DeployGlobalContractAction {
+                code: self.code.into(),
+                deploy_mode: GlobalContractDeployMode::CodeHash,
+            },
+        ))
+    }
+
+    /// Prepares a transaction to deploy a code to the global contract code storage and reference it by account-id.
+    ///
+    /// You would be able to change the code later on.
+    /// Please note that every subsequent upgrade will charge full deployment cost.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    ///     .as_account_id("some-account.testnet".parse()?)
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    #[allow(clippy::wrong_self_convention)]
+    pub fn as_account_id(self, signer_id: AccountId) -> ConstructTransaction {
+        Transaction::construct(signer_id.clone(), signer_id).add_action(
+            Action::DeployGlobalContract(DeployGlobalContractAction {
+                code: self.code.into(),
+                deploy_mode: GlobalContractDeployMode::AccountId,
+            }),
+        )
     }
 }
 
