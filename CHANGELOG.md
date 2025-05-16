@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/near/near-api-rs/compare/v0.5.0...v0.6.0) - 2025-05-16
+
+### Added
+
+- [**breaking**] added support for the s Global Contracts (NEP-591) ([#56](https://github.com/near/near-api-rs/pull/56))
+- [**breaking**] add field output_wasm_path to ContractSourceMetadata ([#55](https://github.com/near/near-api-rs/pull/55))
+- add issues & prs to devtools project ([#52](https://github.com/near/near-api-rs/pull/52))
+
+### Fixed
+
+- allow forks to leverage transfer-to-project workflow ([#54](https://github.com/near/near-api-rs/pull/54))
+
+### Other
+
+- [**breaking**] updates near-* dependencies to 0.30 release ([#59](https://github.com/near/near-api-rs/pull/59))
+- *(near-contract-standards)* deserialize ContractSourceMetadata::standards field so, as if it were optional 
+
 ## [0.5.0](https://github.com/near/near-api-rs/compare/v0.4.0...v0.5.0) - 2025-03-16
 
 ### Added
