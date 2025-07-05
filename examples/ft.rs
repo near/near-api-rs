@@ -34,7 +34,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Owner has {}", tokens);
+    println!("Owner has {tokens}");
 
     // Transfer 100 tokens to the account
     // We handle internally the storage deposit for the receiver account
@@ -59,7 +59,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Account has {}", tokens);
+    println!("Account has {tokens}");
 
     let tokens = Tokens::account(token.id().clone())
         .ft_balance(token.id().clone())
@@ -68,7 +68,7 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Owner has {}", tokens);
+    println!("Owner has {tokens}");
 
     // We validate decimals at the network level so this should fail with a validation error
     let token = Tokens::account(token.id().clone())

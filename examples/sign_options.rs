@@ -49,5 +49,5 @@ async fn main() {
         .unwrap();
 
     // Should contain 2 keys: new key from seed phrase, and ledger key
-    println!("{:#?}", keys);
+    println!("{keys:#?}");
 }
