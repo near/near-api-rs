@@ -156,7 +156,7 @@ impl TryFrom<Vec<u8>> for CryptoHash {
 
 impl std::fmt::Debug for CryptoHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 

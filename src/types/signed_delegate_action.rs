@@ -29,7 +29,7 @@ impl std::fmt::Display for SignedDelegateActionAsBase64 {
             &borsh::to_vec(&self.inner)
                 .expect("Signed Delegate Action serialization to borsh is not expected to fail"),
         );
-        write!(f, "{}", base64_signed_delegate_action)
+        write!(f, "{base64_signed_delegate_action}")
     }
 }
 

@@ -29,5 +29,5 @@ async fn main() {
         .await
         .unwrap();
 
-    println!("Signature: {}", signature);
+    println!("Signature: {signature}");
 }

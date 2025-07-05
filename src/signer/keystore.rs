@@ -101,7 +101,7 @@ impl KeystoreSigner {
         trace!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key from keyring");
         let service_name =
             std::borrow::Cow::Owned(format!("near-{}-{}", network_name, account_id.as_str()));
-        let user = format!("{}:{}", account_id, public_key);
+        let user = format!("{account_id}:{public_key}");
 
         // This can be a blocking operation (for example, if the keyring is locked in the OS and user needs to unlock it),
         // so we need to spawn a new task to get the password
