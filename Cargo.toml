@@ -45,8 +45,8 @@ near-crypto = "0.30"
 near-primitives = "0.30"
 near-jsonrpc-client = "0.17"
 near-jsonrpc-primitives = "0.30"
-near-contract-standards = "5.14"
-near-sdk = "5.14"
+near-contract-standards = "5.15.1"
+near-sdk = { version = "5.15.1", features = ["non-contract-usage"] }
 
 near-account-id = "1.0.0"
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
