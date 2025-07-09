@@ -77,9 +77,9 @@ pub use crate::{
     tokens::Tokens,
     transactions::Transaction,
     types::{
+        Data,
         reference::{EpochReference, Reference},
         tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
-        Data,
     },
 };
 
@@ -87,8 +87,6 @@ pub mod advanced {
     pub use crate::common::query::*;
     pub use crate::common::send::*;
 }
-
-pub use near_primitives;
 
 pub use near_account_id::AccountId;
 pub use near_gas::NearGas;

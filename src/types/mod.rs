@@ -1,17 +1,24 @@
 use std::fmt;
 
-use near_primitives::types::BlockHeight;
-use reqwest::header::InvalidHeaderValue;
-
-use crate::errors::CryptoHashError;
+use crate::{common::utils::from_base58, errors::CryptoHashError};
 
 pub mod contract;
+pub mod query_request;
 pub mod reference;
 pub mod signed_delegate_action;
 pub mod stake;
 pub mod storage;
 pub mod tokens;
 pub mod transactions;
+
+pub use omni_transaction::near::types::*;
+pub mod openapi_types {
+    pub use near_openapi_types::*;
+}
+pub mod private_key;
+
+pub type BlockHeight = u64;
+pub type Nonce = u64;
 
 /// A wrapper around a generic query result that includes the block height and block hash
 /// at which the query was executed
@@ -57,52 +64,48 @@ impl<T> Data<T> {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Eq, Hash, Clone, Debug, PartialEq)]
-pub struct ApiKey(near_openapi_client::auth::ApiKey);
+// #[derive(Eq, Hash, Clone, Debug, PartialEq)]
+// pub struct ApiKey(near_openapi_client::auth::ApiKey);
 
-impl From<ApiKey> for near_openapi_client::auth::ApiKey {
-    fn from(api_key: ApiKey) -> Self {
-        api_key.0
-    }
-}
+// impl From<ApiKey> for near_openapi_client::auth::ApiKey {
+//     fn from(api_key: ApiKey) -> Self {
+//         api_key.0
+//     }
+// }
 
-impl std::fmt::Display for ApiKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0.to_str().map_err(|_| std::fmt::Error)?)
-    }
-}
+// impl std::fmt::Display for ApiKey {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "{}", self.0.to_str().map_err(|_| std::fmt::Error)?)
+//     }
+// }
 
-impl std::str::FromStr for ApiKey {
-    type Err = InvalidHeaderValue;
+// impl std::str::FromStr for ApiKey {
+//     type Err = InvalidHeaderValue;
 
-    fn from_str(api_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(near_openapi_client::auth::ApiKey::new(api_key)?))
-    }
-}
+//     fn from_str(api_key: &str) -> Result<Self, Self::Err> {
+//         Ok(Self(near_openapi_client::auth::ApiKey::new(api_key)?))
+//     }
+// }
 
-impl serde::ser::Serialize for ApiKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        serializer.serialize_str(self.0.to_str().map_err(serde::ser::Error::custom)?)
-    }
-}
+// impl serde::ser::Serialize for ApiKey {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::ser::Serializer,
+//     {
+//         serializer.serialize_str(self.0.to_str().map_err(serde::ser::Error::custom)?)
+//     }
+// }
 
-impl<'de> serde::de::Deserialize<'de> for ApiKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .parse()
-            .map_err(|err: InvalidHeaderValue| serde::de::Error::custom(err.to_string()))
-    }
-}
-
-fn from_base58(s: &str) -> Result<Vec<u8>, bs58::decode::Error> {
-    bs58::decode(s).into_vec()
-}
+// impl<'de> serde::de::Deserialize<'de> for ApiKey {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: serde::de::Deserializer<'de>,
+//     {
+//         String::deserialize(deserializer)?
+//             .parse()
+//             .map_err(|err: InvalidHeaderValue| serde::de::Error::custom(err.to_string()))
+//     }
+// }
 
 /// A type that represents a hash of the data.
 ///
@@ -166,14 +169,15 @@ impl std::fmt::Display for CryptoHash {
     }
 }
 
-impl From<near_primitives::hash::CryptoHash> for CryptoHash {
-    fn from(hash: near_primitives::hash::CryptoHash) -> Self {
-        Self(hash.0)
+impl From<near_openapi_types::CryptoHash> for CryptoHash {
+    fn from(hash: near_openapi_types::CryptoHash) -> Self {
+        // TODO: handle error
+        hash.0.parse().unwrap()
     }
 }
 
-impl From<CryptoHash> for near_primitives::hash::CryptoHash {
+impl From<CryptoHash> for near_openapi_types::CryptoHash {
     fn from(hash: CryptoHash) -> Self {
-        Self(hash.0)
+        near_openapi_types::CryptoHash(hash.to_string())
     }
 }

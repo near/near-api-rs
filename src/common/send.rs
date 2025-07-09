@@ -1,26 +1,24 @@
 use std::sync::Arc;
 
-use near_crypto::PublicKey;
-use near_primitives::{
-    action::delegate::SignedDelegateAction,
-    transaction::SignedTransaction,
-    types::{BlockHeight, Nonce},
-    views::FinalExecutionOutcomeView,
+use near_openapi_types::{
+    FinalExecutionOutcomeView, JsonRpcRequestForSendTx, RpcSendTransactionRequest,
+    SignedDelegateAction, SignedTransaction, TxExecutionStatus,
 };
+use omni_transaction::near::types::PublicKey;
 use reqwest::Response;
 use tracing::{debug, info};
 
 use crate::{
     common::utils::is_critical_transaction_error,
-    config::{retry, NetworkConfig, RetryResponse},
+    config::{NetworkConfig, RetryResponse, retry},
     errors::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError,
         ValidationError,
     },
     signer::Signer,
     types::{
-        signed_delegate_action::SignedDelegateActionAsBase64, transactions::PrepopulateTransaction,
-        CryptoHash,
+        BlockHeight, CryptoHash, Nonce, signed_delegate_action::SignedDelegateActionAsBase64,
+        transactions::PrepopulateTransaction,
     },
 };
 
@@ -252,33 +250,36 @@ impl ExecuteSignedTransaction {
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
     ) -> Result<FinalExecutionOutcomeView, ExecuteTransactionError> {
-        retry(network.clone(), |json_rpc_client| {
+        retry(network.clone(), |client| {
             let signed_tr = signed_tr.clone();
             async move {
-                    let result = match json_rpc_client
-                .call(
-                    near_openapi_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
-                        signed_transaction: signed_tr.clone(),
+                let result = match client
+                    .send_tx(&JsonRpcRequestForSendTx {
+                        id: "0".to_string(),
+                        jsonrpc: "2.0".to_string(),
+                        method: near_openapi_types::JsonRpcRequestForSendTxMethod::SendTx,
+                        params: RpcSendTransactionRequest {
+                            signed_tx_base64: signed_tr,
+                            wait_until: TxExecutionStatus::Final,
                         },
-                    )
-                        .await
-                    {
-                        Ok(result) => RetryResponse::Ok(result),
-                        Err(err) if is_critical_transaction_error(&err) => RetryResponse::Critical(err),
-                        Err(err) => RetryResponse::Retry(err),
-                    };
+                    })
+                    .await
+                {
+                    Ok(result) => RetryResponse::Ok(result),
+                    Err(err) if is_critical_transaction_error(&err) => RetryResponse::Critical(err),
+                    Err(err) => RetryResponse::Retry(err),
+                };
 
-                    tracing::debug!(
-                        target: TX_EXECUTOR_TARGET,
-                        "Broadcasting transaction {} resulted in {:?}",
-                        signed_tr.get_hash(),
-                        result
-                    );
-
+                tracing::debug!(
+                    target: TX_EXECUTOR_TARGET,
+                    "Broadcasting transaction {} resulted in {:?}",
+                    signed_tr.get_hash(),
                     result
-                }
-            },
-        )
+                );
+
+                result
+            }
+        })
         .await
         .map_err(ExecuteTransactionError::TransactionError)
     }

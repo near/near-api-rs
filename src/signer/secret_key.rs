@@ -1,4 +1,5 @@
-use near_crypto::{PublicKey, SecretKey};
+use near_crypto::SecretKey;
+use omni_transaction::near::types::{ED25519PublicKey, PublicKey, Secp256K1PublicKey};
 use tracing::{instrument, trace};
 
 use crate::errors::SignerError;
@@ -36,7 +37,16 @@ impl SecretKeySigner {
         let public_key = secret_key.public_key();
         Self {
             secret_key,
-            public_key,
+            public_key: match public_key {
+                near_crypto::PublicKey::ED25519(public_key) => {
+                    omni_transaction::near::types::PublicKey::ED25519(ED25519PublicKey(
+                        public_key.0,
+                    ))
+                }
+                near_crypto::PublicKey::SECP256K1(public_key) => {
+                    todo!()
+                }
+            },
         }
     }
 }

@@ -110,23 +110,22 @@
 //! The user can instantiate [`Signer`] with a custom signing logic by utilizing the [`SignerTrait`] trait.
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     str::FromStr,
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use near_crypto::{ED25519SecretKey, PublicKey, SecretKey, Signature};
-use near_primitives::{
-    action::delegate::SignedDelegateAction,
-    hash::hash,
-    transaction::{SignedTransaction, Transaction},
-    types::{AccountId, BlockHeight, Nonce},
-};
+use near_crypto::{ED25519SecretKey, SecretKey, Signature};
+use omni_transaction::near::types::PublicKey;
+
+use near_account_id::AccountId;
+use near_openapi_types::{SignedDelegateAction, SignedTransaction};
+use near_sdk::BlockHeight;
 use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
 use tracing::{debug, info, instrument, trace, warn};
@@ -134,7 +133,7 @@ use tracing::{debug, info, instrument, trace, warn};
 use crate::{
     config::NetworkConfig,
     errors::{AccessKeyFileError, MetaSignError, SecretError, SignerError},
-    types::{transactions::PrepopulateTransaction, CryptoHash},
+    types::{CryptoHash, Nonce, transactions::PrepopulateTransaction},
 };
 
 use secret_key::SecretKeySigner;
@@ -155,8 +154,8 @@ pub const DEFAULT_WORD_COUNT: usize = 12;
 /// This might be useful for getting keys from a file. E.g. `~/.near-credentials`.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccountKeyPair {
-    pub public_key: near_crypto::PublicKey,
-    pub private_key: near_crypto::SecretKey,
+    pub public_key: PublicKey,
+    pub private_key: SecretKey,
 }
 
 impl AccountKeyPair {
@@ -354,7 +353,7 @@ pub trait SignerTrait {
 ///
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
-    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    pool: tokio::sync::RwLock<BTreeMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, PublicKey), AtomicU64>>,
     current_public_key: AtomicUsize,
 }
@@ -401,7 +400,7 @@ impl Signer {
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
         let nonce_data = crate::account::Account(account_id.clone())
-            .access_key(public_key.clone())
+            .access_key(public_key)
             .fetch_from(network)
             .await?;
         let nonce_cache = self.nonce_cache.read().await;

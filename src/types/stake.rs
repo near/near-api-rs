@@ -1,3 +1,4 @@
+use near_account_id::AccountId;
 use near_token::NearToken;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StakingPoolInfo {
     /// The validator that is running the pool.
-    pub validator_id: near_primitives::types::AccountId,
+    pub validator_id: AccountId,
     /// The fee that is taken by the pool contract.
     pub fee: Option<RewardFeeFraction>,
     /// The number of delegators on the pool.

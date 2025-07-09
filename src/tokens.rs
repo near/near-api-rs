@@ -1,20 +1,22 @@
+use std::str::FromStr;
+
+use near_account_id::AccountId;
 use near_contract_standards::{
     fungible_token::metadata::FungibleTokenMetadata,
-    non_fungible_token::{metadata::NFTContractMetadata, Token},
-};
-use near_primitives::{
-    action::{Action, TransferAction},
-    types::{AccountId, BlockReference},
+    non_fungible_token::{Token, metadata::NFTContractMetadata},
 };
 use near_sdk::json_types::U128;
 use near_token::NearToken;
+use omni_transaction::near::types::{Action, TransferAction};
 use serde_json::json;
 
 use crate::{
+    Data, NetworkConfig, Reference, StorageDeposit,
+    advanced::query_rpc::SimpleQueryRpc,
     common::{
         query::{
             AccountViewHandler, CallResultHandler, MultiQueryBuilder, MultiQueryHandler,
-            PostprocessHandler, QueryBuilder, SimpleQuery,
+            PostprocessHandler, QueryBuilder,
         },
         send::Transactionable,
     },
@@ -22,10 +24,10 @@ use crate::{
     errors::{BuilderError, FTValidatorError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::{
-        tokens::{FTBalance, UserBalance, STORAGE_COST_PER_BYTE},
+        query_request::QueryRequest,
+        tokens::{FTBalance, STORAGE_COST_PER_BYTE, UserBalance},
         transactions::PrepopulateTransaction,
     },
-    Data, NetworkConfig, StorageDeposit,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -135,22 +137,23 @@ impl Tokens {
     pub fn near_balance(
         &self,
     ) -> QueryBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
-        let request = near_primitives::views::QueryRequest::ViewAccount {
+        let request = QueryRequest::ViewAccount {
             account_id: self.account_id.clone(),
         };
 
         QueryBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
             AccountViewHandler,
         )
         .map(|account| {
             let account = account.data;
-            let total = NearToken::from_yoctonear(account.amount);
+            // TODO: fix those unwrap
+            let total = NearToken::from_str(&account.amount).unwrap();
             let storage_locked = NearToken::from_yoctonear(
                 account.storage_usage as u128 * STORAGE_COST_PER_BYTE.as_yoctonear(),
             );
-            let locked = NearToken::from_yoctonear(account.locked);
+            let locked = NearToken::from_str(&account.locked).unwrap();
             let storage_usage = account.storage_usage;
             UserBalance {
                 total,
@@ -280,7 +283,7 @@ impl Tokens {
             CallResultHandler::<FungibleTokenMetadata>::new(),
             CallResultHandler::default(),
         ));
-        let multiquery = MultiQueryBuilder::new(handler, BlockReference::latest())
+        let multiquery = MultiQueryBuilder::new(handler, Reference::Optimistic)
             .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
             .add_query_builder(
                 Contract(ft_contract)
@@ -370,7 +373,7 @@ impl SendToBuilder {
     pub fn near(self, amount: NearToken) -> ConstructTransaction {
         ConstructTransaction::new(self.from, self.receiver_id).add_action(Action::Transfer(
             TransferAction {
-                deposit: amount.as_yoctonear(),
+                deposit: amount.as_yoctonear().into(),
             },
         ))
     }
@@ -471,7 +474,8 @@ impl Transactionable for FTTransactionable {
         let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
             .view_account_storage(self.receiver.clone())?
             .fetch_from(network)
-            .await?;
+            .await
+            .map_err(|e| ValidationError::QueryError(e))?;
 
         if storage_balance.data.is_none() {
             Err(FTValidatorError::StorageDepositNeeded)?;
@@ -489,7 +493,8 @@ impl Transactionable for FTTransactionable {
         let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
             .view_account_storage(self.receiver.clone())?
             .fetch_from(network)
-            .await?;
+            .await
+            .map_err(|e| ValidationError::QueryError(e))?;
 
         if storage_balance.data.is_none() {
             let mut action = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())

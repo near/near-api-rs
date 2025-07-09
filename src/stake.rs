@@ -1,24 +1,32 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
 use near_gas::NearGas;
-use near_openapi_client::methods::query::{RpcQueryError, RpcQueryRequest};
-use near_primitives::types::{AccountId, BlockReference, EpochReference};
+use near_openapi_types::{RpcError, RpcQueryResponse, StateItem, StoreKey};
 use near_token::NearToken;
+use tracing::warn;
 
 use crate::{
+    Data, EpochReference, NetworkConfig, Reference,
+    advanced::{
+        ResponseHandler, RpcBuilder, query_rpc::SimpleQueryRpc, validator_rpc::SimpleValidatorRpc,
+    },
     common::{
         query::{
             CallResultHandler, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
-            QueryBuilder, QueryCreator, RpcValidatorHandler, SimpleValidatorRpc,
-            ValidatorQueryBuilder, ViewStateHandler,
+            QueryBuilder, RpcType, RpcValidatorHandler, ValidatorQueryBuilder, ViewStateHandler,
         },
-        utils::{is_critical_query_error, near_data_to_near_token},
+        utils::{from_base64, near_data_to_near_token, to_base64},
     },
+    config::RetryResponse,
     contract::Contract,
-    errors::{BuilderError, QueryCreationError, QueryError},
+    errors::{BuilderError, QueryCreationError, QueryError, SendRequestError},
     transactions::ConstructTransaction,
-    types::stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
+    types::{
+        query_request::QueryRequest,
+        stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
+    },
 };
+use near_account_id::AccountId;
 
 type Result<T> = core::result::Result<T, BuilderError>;
 
@@ -153,30 +161,28 @@ impl Delegation {
             PostprocessHandler<
                 UserStakeBalance,
                 MultiQueryHandler<(
-                    CallResultHandler<u128>,
-                    CallResultHandler<u128>,
-                    CallResultHandler<u128>,
+                    CallResultHandler<NearToken>,
+                    CallResultHandler<NearToken>,
+                    CallResultHandler<NearToken>,
                 )>,
             >,
         >,
     > {
         let postprocess = MultiQueryHandler::default();
 
-        let multiquery = MultiQueryBuilder::new(postprocess, BlockReference::latest())
+        let multiquery = MultiQueryBuilder::new(postprocess, Reference::Optimistic)
             .add_query_builder(self.view_staked_balance(pool.clone())?)
             .add_query_builder(self.view_unstaked_balance(pool.clone())?)
             .add_query_builder(self.view_total_balance(pool)?)
-            .map(|(staked, unstaked, total)| {
-                let staked = near_data_to_near_token(staked);
-                let unstaked = near_data_to_near_token(unstaked);
-                let total = near_data_to_near_token(total);
-
-                UserStakeBalance {
-                    staked,
-                    unstaked,
-                    total,
-                }
-            });
+            .map(
+                |(staked, unstaked, total): (Data<NearToken>, Data<NearToken>, Data<NearToken>)| {
+                    UserStakeBalance {
+                        staked: staked.data,
+                        unstaked: unstaked.data,
+                        total: total.data,
+                    }
+                },
+            );
         Ok(multiquery)
     }
 
@@ -492,22 +498,12 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn active_staking_pools()
-    -> QueryBuilder<PostprocessHandler<std::collections::BTreeSet<AccountId>, ViewStateHandler>>
-    {
-        QueryBuilder::new(
+    pub fn active_staking_pools() -> RpcBuilder<ActiveStakingPoolQuery, ActiveStakingHandler> {
+        RpcBuilder::new(
             ActiveStakingPoolQuery,
-            BlockReference::latest(),
-            ViewStateHandler,
+            Reference::Optimistic,
+            ActiveStakingHandler,
         )
-        .map(|query_result| {
-            query_result
-                .data
-                .values
-                .into_iter()
-                .filter_map(|item| borsh::from_slice(&item.value).ok())
-                .collect()
-        })
     }
 
     /// Returns a list of validators and their stake ([near_primitives::views::EpochValidatorInfo]) for the current epoch.
@@ -555,8 +551,7 @@ impl Staking {
                 .current_proposals
                 .into_iter()
                 .map(|validator_stake_view| {
-                    let validator_stake = validator_stake_view.into_validator_stake();
-                    validator_stake.account_and_stake()
+                    (validator_stake_view.account_id, validator_stake_view.stake)
                 })
                 .chain(validator_response.current_validators.into_iter().map(
                     |current_epoch_validator_info| {
@@ -574,7 +569,8 @@ impl Staking {
                         )
                     },
                 ))
-                .map(|(account_id, stake)| (account_id, NearToken::from_yoctonear(stake)))
+                // TODO: fix this unwrap
+                .map(|(account_id, stake)| (account_id, NearToken::from_str(&stake).unwrap()))
                 .collect()
         })
     }
@@ -689,7 +685,7 @@ impl Staking {
             CallResultHandler::default(),
         ));
 
-        MultiQueryBuilder::new(handler, BlockReference::latest())
+        MultiQueryBuilder::new(handler, Reference::Optimistic)
             .add_query_builder(Self::staking_pool_reward_fee(pool.clone()))
             .add_query_builder(Self::staking_pool_delegators(pool.clone()))
             .add_query_builder(Self::staking_pool_total_stake(pool))
@@ -715,31 +711,55 @@ impl Staking {
 #[derive(Clone, Debug)]
 pub struct ActiveStakingPoolQuery;
 
-impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
-    type RpcReference = BlockReference;
+#[async_trait::async_trait]
+impl RpcType for ActiveStakingPoolQuery {
+    type RpcReference = <SimpleQueryRpc as RpcType>::RpcReference;
+    type Response = <SimpleQueryRpc as RpcType>::Response;
+    type Error = <SimpleQueryRpc as RpcType>::Error;
 
-    fn create_query(
+    async fn send_query(
         &self,
-        network: &crate::config::NetworkConfig,
-        reference: Self::RpcReference,
-    ) -> core::result::Result<RpcQueryRequest, QueryError<RpcQueryRequest>> {
-        Ok(RpcQueryRequest {
-            block_reference: reference,
-            request: near_primitives::views::QueryRequest::ViewState {
-                account_id: network
-                    .staking_pools_factory_account_id
-                    .clone()
-                    .ok_or(QueryCreationError::StakingPoolFactoryNotDefined)?,
-                prefix: near_primitives::types::StoreKey::from(b"se".to_vec()),
-                include_proof: false,
-            },
-        })
+        client: &near_openapi_client::Client,
+        network: &NetworkConfig,
+        reference: &Reference,
+    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcError>> {
+        let Some(account_id) = network.staking_pools_factory_account_id.clone() else {
+            return RetryResponse::Critical(SendRequestError::QueryCreationError(
+                QueryCreationError::StakingPoolFactoryNotDefined,
+            ));
+        };
+
+        let request = QueryRequest::ViewState {
+            account_id,
+            prefix_base64: StoreKey(to_base64(b"se")),
+            include_proof: Some(false),
+        };
+
+        SimpleQueryRpc { request }
+            .send_query(client, network, reference)
+            .await
     }
+}
 
-    fn is_critical_error(
+#[derive(Clone, Debug)]
+pub struct ActiveStakingHandler;
+
+#[async_trait::async_trait]
+impl ResponseHandler for ActiveStakingHandler {
+    type Query = ActiveStakingPoolQuery;
+    type Response = std::collections::BTreeSet<AccountId>;
+
+    fn process_response(
         &self,
-        error: &near_openapi_client::errors::JsonRpcError<RpcQueryError>,
-    ) -> bool {
-        is_critical_query_error(error)
+        response: Vec<RpcQueryResponse>,
+    ) -> core::result::Result<Self::Response, QueryError<RpcError>> {
+        let query_result = ViewStateHandler {}.process_response(response)?;
+
+        Ok(query_result
+            .data
+            .values
+            .into_iter()
+            .filter_map(|item| borsh::from_slice(&from_base64(&item.value).ok()?).ok())
+            .collect())
     }
 }

@@ -1,4 +1,4 @@
-use near_primitives::types::BlockHeight;
+use crate::types::BlockHeight;
 
 const META_TRANSACTION_VALID_FOR_DEFAULT: BlockHeight = 1000;
 

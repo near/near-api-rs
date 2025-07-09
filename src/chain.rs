@@ -1,7 +1,9 @@
-use near_primitives::types::{BlockHeight, BlockReference};
+use near_sdk::BlockHeight;
 
 use crate::{
-    common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler, SimpleBlockRpc},
+    Reference,
+    advanced::block_rpc::SimpleBlockRpc,
+    common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler},
     types::CryptoHash,
 };
 
@@ -50,7 +52,7 @@ impl Chain {
     /// # }
     /// ```
     pub fn block_number() -> BlockQueryBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
-        BlockQueryBuilder::new(SimpleBlockRpc, BlockReference::latest(), RpcBlockHandler)
+        BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
             .map(|data| data.header.height)
     }
 
@@ -80,7 +82,7 @@ impl Chain {
     /// # }
     /// ```
     pub fn block_hash() -> BlockQueryBuilder<PostprocessHandler<CryptoHash, RpcBlockHandler>> {
-        BlockQueryBuilder::new(SimpleBlockRpc, BlockReference::latest(), RpcBlockHandler)
+        BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
             .map(|data| data.header.hash.into())
     }
 
@@ -123,7 +125,7 @@ impl Chain {
     /// # }
     /// ```
     pub fn block() -> BlockQueryBuilder<RpcBlockHandler> {
-        BlockQueryBuilder::new(SimpleBlockRpc, BlockReference::latest(), RpcBlockHandler)
+        BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
     }
 
     // TODO: chunk info

@@ -1,6 +1,6 @@
 // Source: <https://github.com/near/near-workspaces-rs/blob/10a6c1a00b2b6c937242043312455e05f0d4a125/workspaces/src/types/mod.rs#L513C1-L537C2>
 
-use crate::types::CryptoHash;
+use crate::types::{BlockHeight, CryptoHash};
 
 /// A reference to a specific block. This type is used to specify the block for most queries.
 ///
@@ -13,7 +13,7 @@ pub enum Reference {
     /// (<1 second delay after the transaction is submitted).
     Optimistic,
     /// Near-final finality. Similarly to `Final` finality, but delay should be roughly 1 second.
-    DoomSlug,
+    NearFinal,
     /// Final finality. The block that has been validated on at least 66% of the nodes in the
     /// network. (At max, should be 2 second delay after the transaction is submitted.)
     Final,
@@ -21,22 +21,6 @@ pub enum Reference {
     AtBlock(BlockHeight),
     /// Reference to a specific block hash.
     AtBlockHash(CryptoHash),
-}
-
-impl From<Reference> for near_primitives::types::BlockReference {
-    fn from(value: Reference) -> Self {
-        match value {
-            Reference::Optimistic => near_primitives::types::Finality::None.into(),
-            Reference::DoomSlug => near_primitives::types::Finality::DoomSlug.into(),
-            Reference::Final => near_primitives::types::Finality::Final.into(),
-            Reference::AtBlock(block_height) => {
-                near_primitives::types::BlockId::Height(block_height).into()
-            }
-            Reference::AtBlockHash(block_hash) => {
-                near_primitives::types::BlockId::Hash(block_hash.into()).into()
-            }
-        }
-    }
 }
 
 /// A reference to a specific epoch. This type is used to specify the epoch for some queries.
@@ -51,19 +35,4 @@ pub enum EpochReference {
     AtBlockHash(CryptoHash),
     /// Latest epoch on the node
     Latest,
-}
-
-impl From<EpochReference> for near_primitives::types::EpochReference {
-    fn from(value: EpochReference) -> Self {
-        match value {
-            EpochReference::AtBlock(block_height) => {
-                Self::BlockId(near_primitives::types::BlockId::Height(block_height))
-            }
-            EpochReference::AtBlockHash(block_hash) => {
-                Self::BlockId(near_primitives::types::BlockId::Hash(block_hash.into()))
-            }
-            EpochReference::AtEpoch(epoch) => Self::EpochId(EpochId(epoch.into())),
-            EpochReference::Latest => Self::Latest,
-        }
-    }
 }

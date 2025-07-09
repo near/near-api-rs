@@ -1,4 +1,4 @@
-use near_openapi_client::{Client, JsonRpcClient};
+use near_openapi_client::Client;
 
 use crate::errors::RetryError;
 
@@ -26,7 +26,7 @@ pub struct RPCEndpoint {
     /// The URL of the RPC endpoint
     pub url: url::Url,
     /// Optional API key for authenticated requests
-    pub api_key: Option<crate::types::ApiKey>,
+    // pub api_key: Option<crate::types::ApiKey>,
     /// Number of consecutive failures to move on to the next endpoint.
     pub retries: u8,
     /// The retry method to use
@@ -41,7 +41,7 @@ impl RPCEndpoint {
     pub const fn new(url: url::Url) -> Self {
         Self {
             url,
-            api_key: None,
+            // api_key: None,
             retries: 5,
             // 10ms, 20ms, 40ms, 80ms, 160ms
             retry_method: RetryMethod::ExponentialBackoff {
@@ -62,10 +62,10 @@ impl RPCEndpoint {
     }
 
     /// Set API key for the endpoint.
-    pub fn with_api_key(mut self, api_key: crate::types::ApiKey) -> Self {
-        self.api_key = Some(api_key);
-        self
-    }
+    // pub fn with_api_key(mut self, api_key: crate::types::ApiKey) -> Self {
+    //     self.api_key = Some(api_key);
+    //     self
+    // }
 
     /// Set number of retries for the endpoint before moving on to the next one.
     pub const fn with_retries(mut self, retries: u8) -> Self {
@@ -116,9 +116,9 @@ pub struct NetworkConfig {
     /// List of [RPC endpoints](https://docs.near.org/api/rpc/providers) to use with failover
     pub rpc_endpoints: Vec<RPCEndpoint>,
     /// Account ID used for [linkdrop functionality](https://docs.near.org/build/primitives/linkdrop)
-    pub linkdrop_account_id: Option<near_primitives::types::AccountId>,
+    pub linkdrop_account_id: Option<near_account_id::AccountId>,
     /// Account ID of the [NEAR Social contract](https://docs.near.org/social/contract)
-    pub near_social_db_contract_account_id: Option<near_primitives::types::AccountId>,
+    pub near_social_db_contract_account_id: Option<near_account_id::AccountId>,
     /// URL of the network's faucet service
     pub faucet_url: Option<url::Url>,
     /// URL for the [meta transaction relayer](https://docs.near.org/concepts/abstraction/relayers) service
@@ -128,7 +128,7 @@ pub struct NetworkConfig {
     /// Currently, unused. See [#30](https://github.com/near/near-api-rs/issues/30)
     pub fastnear_url: Option<url::Url>,
     /// Account ID of the [staking pools factory](https://github.com/NearSocial/social-db)
-    pub staking_pools_factory_account_id: Option<near_primitives::types::AccountId>,
+    pub staking_pools_factory_account_id: Option<near_account_id::AccountId>,
 }
 
 impl NetworkConfig {
@@ -229,7 +229,7 @@ where
 
     let mut last_error = None;
     for (index, endpoint) in network.rpc_endpoints.iter().enumerate() {
-        let client = network.json_rpc_client(index);
+        let client = network.client(index);
         for retry in 0..endpoint.retries {
             let result = task(client.clone()).await;
             match result {

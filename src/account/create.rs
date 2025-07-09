@@ -3,14 +3,15 @@ use std::convert::Infallible;
 use near_account_id::AccountId;
 use near_gas::NearGas;
 use near_token::NearToken;
-use omni_transaction::near::types::PublicKey;
+use omni_transaction::near::types::CreateAccountAction;
 use omni_transaction::near::types::{
-    AccessKey, AccessKeyPermission, Action, AddKeyAction, TransferAction,
+    AccessKey, AccessKeyPermission, Action, AddKeyAction, PublicKey, TransferAction,
 };
 use reqwest::Response;
 use serde_json::json;
 use url::Url;
 
+use crate::common::utils::public_key_to_string;
 use crate::{
     Contract, NetworkConfig,
     common::send::Transactionable,
@@ -38,14 +39,14 @@ impl CreateAccountBuilder {
             let (actions, receiver_id) = if self.account_id.is_sub_account_of(&signer_account_id) {
                 (
                     vec![
-                        Action::CreateAccount(Action::CreateAccountAction {}),
+                        Action::CreateAccount(CreateAccountAction {}),
                         Action::Transfer(TransferAction {
-                            deposit: initial_balance.as_yoctonear(),
+                            deposit: initial_balance.as_yoctonear().into(),
                         }),
                         Action::AddKey(Box::new(AddKeyAction {
                             public_key,
                             access_key: AccessKey {
-                                nonce: 0,
+                                nonce: 0.into(),
                                 permission: AccessKeyPermission::FullAccess,
                             },
                         })),
@@ -59,7 +60,7 @@ impl CreateAccountBuilder {
                             "create_account",
                             json!({
                                 "new_account_id": self.account_id.to_string(),
-                                "new_public_key": public_key.to_string(),
+                                "new_public_key": public_key,
                             }),
                         )?
                         .transaction()
@@ -147,7 +148,10 @@ impl CreateAccountByFaucet {
     pub async fn send_to_faucet(self, url: &Url) -> Result<Response, FaucetError> {
         let mut data = std::collections::HashMap::new();
         data.insert("newAccountId", self.new_account_id.to_string());
-        data.insert("newAccountPublicKey", self.public_key.to_string());
+        data.insert(
+            "newAccountPublicKey",
+            public_key_to_string(&self.public_key),
+        );
 
         let client = reqwest::Client::new();
 

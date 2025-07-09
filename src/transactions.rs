@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use near_primitives::{action::Action, types::AccountId};
+use near_account_id::AccountId;
+use omni_transaction::near::types::Action;
 
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::{SignerError, ValidationError},
+    errors::ValidationError,
     signer::Signer,
     types::transactions::PrepopulateTransaction,
 };
@@ -23,7 +24,7 @@ impl<T: Transactionable> TransactionWithSign<T> {
 
 #[derive(Clone, Debug)]
 pub struct SelfActionBuilder {
-    pub actions: Vec<near_primitives::action::Action>,
+    pub actions: Vec<Action>,
 }
 
 impl Default for SelfActionBuilder {
@@ -186,22 +187,13 @@ impl Transaction {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn sign_transaction(
-        unsigned_tx: near_primitives::transaction::Transaction,
+    pub async fn use_transaction(
+        unsigned_tx: PrepopulateTransaction,
         signer: Arc<Signer>,
-    ) -> Result<ExecuteSignedTransaction, SignerError> {
-        let public_key = unsigned_tx.public_key().clone();
-        let block_hash = *unsigned_tx.block_hash();
-        let nonce = unsigned_tx.nonce();
-
-        ConstructTransaction::new(
-            unsigned_tx.signer_id().clone(),
-            unsigned_tx.receiver_id().clone(),
-        )
-        .add_actions(unsigned_tx.take_actions())
-        .with_signer(signer)
-        .presign_offline(public_key, block_hash.into(), nonce)
-        .await
+    ) -> ExecuteSignedTransaction {
+        ConstructTransaction::new(unsigned_tx.signer_id, unsigned_tx.receiver_id)
+            .add_actions(unsigned_tx.actions)
+            .with_signer(signer)
     }
 
     // TODO: fetch transaction status

@@ -1,8 +1,6 @@
-use near_jsonrpc_primitives::types::query::QueryResponseKind;
-use near_openapi_client::{
-    errors::JsonRpcError,
-    methods::{RpcMethod, query::RpcQueryRequest, tx::RpcTransactionError},
-};
+use near_openapi_types::{RpcError, RpcQueryRequest};
+
+use crate::advanced::RpcType;
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -11,32 +9,27 @@ pub enum QueryCreationError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum QueryError<Method: RpcMethod>
-where
-    Method::Error: std::fmt::Debug + std::fmt::Display + 'static,
-{
+pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     #[error(transparent)]
     QueryCreationError(#[from] QueryCreationError),
     #[error("Unexpected response kind: expected {expected} type, but got {got:?}")]
     UnexpectedResponse {
         expected: &'static str,
         // Boxed to avoid large error type
-        got: Box<QueryResponseKind>,
+        got: &'static str,
     },
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
     #[error("Query error: {0}")]
-    JsonRpcError(Box<RetryError<JsonRpcError<Method::Error>>>),
+    QueryError(RetryError<SendRequestError<RpcError>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
 }
-
-impl<Method: RpcMethod> From<RetryError<JsonRpcError<Method::Error>>> for QueryError<Method>
-where
-    Method::Error: std::fmt::Debug + std::fmt::Display + 'static,
+impl<RpcError: std::fmt::Debug + Send + Sync> From<RetryError<SendRequestError<RpcError>>>
+    for QueryError<RpcError>
 {
-    fn from(err: RetryError<JsonRpcError<Method::Error>>) -> Self {
-        Self::JsonRpcError(Box::new(err))
+    fn from(err: RetryError<SendRequestError<RpcError>>) -> Self {
+        Self::QueryError(err)
     }
 }
 
@@ -56,8 +49,8 @@ pub enum SignerError {
     PublicKeyIsNotAvailable,
     #[error("Secret key is not available")]
     SecretKeyIsNotAvailable,
-    #[error("Failed to fetch nonce: {0}")]
-    FetchNonceError(#[from] QueryError<RpcQueryRequest>),
+    #[error("Failed to fetch nonce: {0:?}")]
+    FetchNonceError(QueryError<RpcError>),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
 
@@ -91,8 +84,8 @@ pub enum AccessKeyFileError {
 pub enum KeyStoreError {
     #[error(transparent)]
     Keystore(#[from] keyring::Error),
-    #[error("Failed to query account keys: {0}")]
-    QueryError(#[from] QueryError<RpcQueryRequest>),
+    #[error("Failed to query account keys: {0:?}")]
+    QueryError(QueryError<RpcError>),
     #[error("Failed to parse access key file: {0}")]
     ParseError(#[from] serde_json::Error),
     #[error(transparent)]
@@ -168,6 +161,9 @@ pub enum AccountCreationError {
     #[error(transparent)]
     BuilderError(#[from] BuilderError),
 
+    #[error(transparent)]
+    PublicKeyParsingError(#[from] PublicKeyParsingError),
+
     #[error("Top-level account is not allowed")]
     TopLevelAccountIsNotAllowed,
 
@@ -209,6 +205,16 @@ pub enum RetryError<E> {
 }
 
 #[derive(thiserror::Error, Debug)]
+pub enum SendRequestError<E: std::fmt::Debug> {
+    #[error("Client error: {0}")]
+    ClientError(near_openapi_types::Error<()>),
+    #[error("Server returned an error: {0}")]
+    ServerError(E),
+    #[error("Query creation error: {0}")]
+    QueryCreationError(#[from] QueryCreationError),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum ExecuteTransactionError {
     #[error("Transaction validation error: {0}")]
     ValidationError(#[from] ValidationError),
@@ -216,13 +222,10 @@ pub enum ExecuteTransactionError {
     SignerError(#[from] SignerError),
     #[error("Meta-signing error: {0}")]
     MetaSignError(#[from] MetaSignError),
-    #[error("Pre-query error: {0}")]
-    PreQueryError(#[from] QueryError<RpcQueryRequest>),
-    #[error("Transaction error: {0}")]
-    TransactionError(#[from] RetryError<JsonRpcError<RpcTransactionError>>),
-    #[deprecated(since = "0.2.1", note = "unused")]
-    #[error("Transaction error: {0}")]
-    CriticalTransactionError(JsonRpcError<RpcTransactionError>),
+    #[error("Pre-query error: {0:?}")]
+    PreQueryError(QueryError<RpcError>),
+    #[error("Transaction error: {0:?}")]
+    TransactionError(RetryError<SendRequestError<RpcError>>),
     #[error(transparent)]
     NonEmptyVecError(#[from] NonEmptyVecError),
 }
@@ -233,8 +236,8 @@ pub enum ExecuteMetaTransactionsError {
     ValidationError(#[from] ValidationError),
     #[error("Meta-signing error: {0}")]
     SignError(#[from] MetaSignError),
-    #[error("Pre-query error: {0}")]
-    PreQueryError(#[from] QueryError<RpcQueryRequest>),
+    #[error("Pre-query error: {0:?}")]
+    PreQueryError(QueryError<RpcError>),
 
     #[error("Relayer is not defined in the network config")]
     RelayerIsNotDefined,
@@ -269,8 +272,8 @@ pub enum FastNearError {
 //TODO: it's better to have a separate errors, but for now it would be aggregated here
 #[derive(thiserror::Error, Debug)]
 pub enum ValidationError {
-    #[error("Query error: {0}")]
-    QueryError(#[from] QueryError<RpcQueryRequest>),
+    #[error("Query error: {0:?}")]
+    QueryError(QueryError<RpcError>),
 
     #[error("Query creation error: {0}")]
     QueryBuilderError(#[from] BuilderError),
@@ -311,4 +314,20 @@ pub enum CryptoHashError {
     Base58DecodeError(#[from] bs58::decode::Error),
     #[error("Incorrect hash length (expected 32, but {0} was given)")]
     IncorrectHashLength(usize),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum PublicKeyParsingError {
+    #[error("Invalid prefix: {0}")]
+    InvalidPrefix(String),
+    #[error("Base64 decoding error: {0}")]
+    Base64DecodeError(#[from] base64::DecodeError),
+    #[error("Invalid Key Length")]
+    InvalidKeyLength,
+}
+
+impl From<Vec<u8>> for PublicKeyParsingError {
+    fn from(_: Vec<u8>) -> Self {
+        Self::InvalidKeyLength
+    }
 }

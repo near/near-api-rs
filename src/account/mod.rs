@@ -1,14 +1,17 @@
 use near_account_id::AccountId;
+use near_openapi_types::PublicKey;
 use omni_transaction::near::types::{
-    AccessKey, AccessKeyPermission, Action, AddKeyAction, DeleteKeyAction, PublicKey,
+    AccessKey, AccessKeyPermission, Action, AddKeyAction, DeleteAccountAction, DeleteKeyAction, U64,
 };
 
 use crate::Reference;
+use crate::advanced::query_rpc::SimpleQueryRpc;
 use crate::common::query::{
     AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder, RpcBuilder,
-    SimpleQuery,
 };
+use crate::common::utils::public_key_to_string;
 use crate::transactions::ConstructTransaction;
+use crate::types::query_request::QueryRequest;
 
 use self::create::CreateAccountBuilder;
 
@@ -46,13 +49,11 @@ impl Account {
     /// # }
     /// ```
     pub fn view(&self) -> QueryBuilder<AccountViewHandler> {
-        let account = near_openapi_types::RpcQueryRequest::ViewAccountByBlockId {
-            account_id: (),
-            block_id: (),
-            request_type: (),
+        let request = QueryRequest::ViewAccount {
+            account_id: self.0.clone(),
         };
         QueryBuilder::new(
-            SimpleQuery { request },
+            SimpleQueryRpc { request },
             Reference::Optimistic,
             Default::default(),
         )
@@ -75,14 +76,17 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn access_key(&self, signer_public_key: PublicKey) -> QueryBuilder<AccessKeyHandler> {
-        let request = near_primitives::views::QueryRequest::ViewAccessKey {
+    pub fn access_key(
+        &self,
+        signer_public_key: omni_transaction::near::types::PublicKey,
+    ) -> QueryBuilder<AccessKeyHandler> {
+        let request = QueryRequest::ViewAccessKey {
             account_id: self.0.clone(),
-            public_key: signer_public_key,
+            public_key: PublicKey(public_key_to_string(&signer_public_key)),
         };
         RpcBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
             Default::default(),
         )
     }
@@ -100,12 +104,12 @@ impl Account {
     /// # }
     /// ```
     pub fn list_keys(&self) -> QueryBuilder<AccessKeyListHandler> {
-        let request = near_primitives::views::QueryRequest::ViewAccessKeyList {
+        let request = QueryRequest::ViewAccessKeyList {
             account_id: self.0.clone(),
         };
         RpcBuilder::new(
-            SimpleQuery { request },
-            BlockReference::latest(),
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
             Default::default(),
         )
     }
@@ -132,12 +136,12 @@ impl Account {
     pub fn add_key(
         &self,
         permission: AccessKeyPermission,
-        public_key: PublicKey,
+        public_key: omni_transaction::near::types::PublicKey,
     ) -> ConstructTransaction {
         ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::AddKey(
             Box::new(AddKeyAction {
                 access_key: AccessKey {
-                    nonce: 0,
+                    nonce: U64::from(0),
                     permission,
                 },
                 public_key,
@@ -161,12 +165,12 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn delete_key(&self, public_key: PublicKey) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(
-            near_primitives::transaction::Action::DeleteKey(Box::new(DeleteKeyAction {
-                public_key,
-            })),
-        )
+    pub fn delete_key(
+        &self,
+        public_key: omni_transaction::near::types::PublicKey,
+    ) -> ConstructTransaction {
+        ConstructTransaction::new(self.0.clone(), self.0.clone())
+            .add_action(Action::DeleteKey(Box::new(DeleteKeyAction { public_key })))
     }
 
     /// Deletes multiple access keys from the given account ID.
@@ -186,14 +190,13 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn delete_keys(&self, public_keys: Vec<PublicKey>) -> ConstructTransaction {
+    pub fn delete_keys(
+        &self,
+        public_keys: Vec<omni_transaction::near::types::PublicKey>,
+    ) -> ConstructTransaction {
         let actions = public_keys
             .into_iter()
-            .map(|public_key| {
-                near_primitives::transaction::Action::DeleteKey(Box::new(DeleteKeyAction {
-                    public_key,
-                }))
-            })
+            .map(|public_key| Action::DeleteKey(Box::new(DeleteKeyAction { public_key })))
             .collect();
 
         ConstructTransaction::new(self.0.clone(), self.0.clone()).add_actions(actions)
@@ -224,11 +227,9 @@ impl Account {
         &self,
         beneficiary_id: AccountId,
     ) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(
-            near_primitives::transaction::Action::DeleteAccount(
-                near_primitives::transaction::DeleteAccountAction { beneficiary_id },
-            ),
-        )
+        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::DeleteAccount(
+            DeleteAccountAction { beneficiary_id },
+        ))
     }
 
     /// Creates a new account builder for the given account ID.
