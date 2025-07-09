@@ -48,8 +48,6 @@ near-openapi-types = "0.3.0"
 near-openapi-client = "0.3.0"
 omni-transaction = "0.2.0"
 
-schemars = "=0.8.22"
-
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 
