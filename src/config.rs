@@ -1,4 +1,4 @@
-use near_jsonrpc_client::JsonRpcClient;
+use near_openapi_client::{Client, JsonRpcClient};
 
 use crate::errors::RetryError;
 
@@ -160,15 +160,15 @@ impl NetworkConfig {
         }
     }
 
-    pub(crate) fn json_rpc_client(&self, index: usize) -> near_jsonrpc_client::JsonRpcClient {
+    pub(crate) fn client(&self, index: usize) -> Client {
         let rpc_endpoint = &self.rpc_endpoints[index];
-        let mut json_rpc_client =
-            near_jsonrpc_client::JsonRpcClient::connect(rpc_endpoint.url.as_ref());
-        if let Some(rpc_api_key) = &rpc_endpoint.api_key {
-            json_rpc_client =
-                json_rpc_client.header(near_jsonrpc_client::auth::ApiKey::from(rpc_api_key.clone()))
-        };
-        json_rpc_client
+        let mut client = near_openapi_client::Client::new(rpc_endpoint.url.as_ref());
+        // TODO: Api key
+        // if let Some(rpc_api_key) = &rpc_endpoint.api_key {
+        //     json_rpc_client =
+        //         json_rpc_client.header(near_openapi_client::auth::ApiKey::from(rpc_api_key.clone()))
+        // };
+        client
     }
 }
 
@@ -218,7 +218,7 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
 /// * `task` - The task to retry.
 pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
-    F: FnMut(JsonRpcClient) -> T + Send,
+    F: FnMut(Client) -> T + Send,
     T: core::future::Future<Output = RetryResponse<R, E>> + Send,
     T::Output: Send,
     E: Send,

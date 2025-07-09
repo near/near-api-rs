@@ -1,19 +1,22 @@
 use std::convert::Infallible;
 
-use near_crypto::PublicKey;
+use near_account_id::AccountId;
 use near_gas::NearGas;
-use near_primitives::types::AccountId;
 use near_token::NearToken;
+use omni_transaction::near::types::PublicKey;
+use omni_transaction::near::types::{
+    AccessKey, AccessKeyPermission, Action, AddKeyAction, TransferAction,
+};
 use reqwest::Response;
 use serde_json::json;
 use url::Url;
 
 use crate::{
+    Contract, NetworkConfig,
     common::send::Transactionable,
     errors::{AccountCreationError, FaucetError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     types::transactions::PrepopulateTransaction,
-    Contract, NetworkConfig,
 };
 
 #[derive(Clone, Debug)]
@@ -35,24 +38,17 @@ impl CreateAccountBuilder {
             let (actions, receiver_id) = if self.account_id.is_sub_account_of(&signer_account_id) {
                 (
                     vec![
-                        near_primitives::transaction::Action::CreateAccount(
-                            near_primitives::transaction::CreateAccountAction {},
-                        ),
-                        near_primitives::transaction::Action::Transfer(
-                            near_primitives::transaction::TransferAction {
-                                deposit: initial_balance.as_yoctonear(),
+                        Action::CreateAccount(Action::CreateAccountAction {}),
+                        Action::Transfer(TransferAction {
+                            deposit: initial_balance.as_yoctonear(),
+                        }),
+                        Action::AddKey(Box::new(AddKeyAction {
+                            public_key,
+                            access_key: AccessKey {
+                                nonce: 0,
+                                permission: AccessKeyPermission::FullAccess,
                             },
-                        ),
-                        near_primitives::transaction::Action::AddKey(Box::new(
-                            near_primitives::transaction::AddKeyAction {
-                                public_key,
-                                access_key: near_primitives::account::AccessKey {
-                                    nonce: 0,
-                                    permission:
-                                        near_primitives::account::AccessKeyPermission::FullAccess,
-                                },
-                            },
-                        )),
+                        })),
                     ],
                     self.account_id.clone(),
                 )

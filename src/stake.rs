@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use near_gas::NearGas;
-use near_jsonrpc_client::methods::query::{RpcQueryError, RpcQueryRequest};
+use near_openapi_client::methods::query::{RpcQueryError, RpcQueryRequest};
 use near_primitives::types::{AccountId, BlockReference, EpochReference};
 use near_token::NearToken;
 
@@ -492,8 +492,8 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn active_staking_pools(
-    ) -> QueryBuilder<PostprocessHandler<std::collections::BTreeSet<AccountId>, ViewStateHandler>>
+    pub fn active_staking_pools()
+    -> QueryBuilder<PostprocessHandler<std::collections::BTreeSet<AccountId>, ViewStateHandler>>
     {
         QueryBuilder::new(
             ActiveStakingPoolQuery,
@@ -738,7 +738,7 @@ impl QueryCreator<RpcQueryRequest> for ActiveStakingPoolQuery {
 
     fn is_critical_error(
         &self,
-        error: &near_jsonrpc_client::errors::JsonRpcError<RpcQueryError>,
+        error: &near_openapi_client::errors::JsonRpcError<RpcQueryError>,
     ) -> bool {
         is_critical_query_error(error)
     }

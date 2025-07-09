@@ -1,8 +1,8 @@
-use near_jsonrpc_client::{
-    errors::JsonRpcError,
-    methods::{query::RpcQueryRequest, tx::RpcTransactionError, RpcMethod},
-};
 use near_jsonrpc_primitives::types::query::QueryResponseKind;
+use near_openapi_client::{
+    errors::JsonRpcError,
+    methods::{RpcMethod, query::RpcQueryRequest, tx::RpcTransactionError},
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -180,7 +180,9 @@ pub enum AccountCreationError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum FaucetError {
-    #[error("The <{0}> network config does not have a defined faucet (helper service) that can sponsor the creation of an account.")]
+    #[error(
+        "The <{0}> network config does not have a defined faucet (helper service) that can sponsor the creation of an account."
+    )]
     FaucetIsNotDefined(String),
     #[error("Failed to send message: {0}")]
     SendError(#[from] reqwest::Error),

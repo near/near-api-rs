@@ -1,7 +1,6 @@
 // Source: <https://github.com/near/near-workspaces-rs/blob/10a6c1a00b2b6c937242043312455e05f0d4a125/workspaces/src/types/mod.rs#L513C1-L537C2>
 
 use crate::types::CryptoHash;
-use near_primitives::types::{BlockHeight, EpochId};
 
 /// A reference to a specific block. This type is used to specify the block for most queries.
 ///

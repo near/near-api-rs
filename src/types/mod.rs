@@ -42,7 +42,7 @@ impl<T> Data<T> {
     }
 }
 
-/// A wrapper around [near_jsonrpc_client::auth::ApiKey]
+/// A wrapper around [near_openapi_client::auth::ApiKey]
 ///
 /// This type is used to authenticate requests to the RPC node
 ///
@@ -58,9 +58,9 @@ impl<T> Data<T> {
 /// # }
 /// ```
 #[derive(Eq, Hash, Clone, Debug, PartialEq)]
-pub struct ApiKey(near_jsonrpc_client::auth::ApiKey);
+pub struct ApiKey(near_openapi_client::auth::ApiKey);
 
-impl From<ApiKey> for near_jsonrpc_client::auth::ApiKey {
+impl From<ApiKey> for near_openapi_client::auth::ApiKey {
     fn from(api_key: ApiKey) -> Self {
         api_key.0
     }
@@ -76,7 +76,7 @@ impl std::str::FromStr for ApiKey {
     type Err = InvalidHeaderValue;
 
     fn from_str(api_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(near_jsonrpc_client::auth::ApiKey::new(api_key)?))
+        Ok(Self(near_openapi_client::auth::ApiKey::new(api_key)?))
     }
 }
 

@@ -1,10 +1,9 @@
-use near_crypto::PublicKey;
-use near_primitives::{
-    account::{AccessKey, AccessKeyPermission},
-    action::{AddKeyAction, DeleteKeyAction},
-    types::{AccountId, BlockReference},
+use near_account_id::AccountId;
+use omni_transaction::near::types::{
+    AccessKey, AccessKeyPermission, Action, AddKeyAction, DeleteKeyAction, PublicKey,
 };
 
+use crate::Reference;
 use crate::common::query::{
     AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder, RpcBuilder,
     SimpleQuery,
@@ -47,12 +46,14 @@ impl Account {
     /// # }
     /// ```
     pub fn view(&self) -> QueryBuilder<AccountViewHandler> {
-        let request = near_primitives::views::QueryRequest::ViewAccount {
-            account_id: self.0.clone(),
+        let account = near_openapi_types::RpcQueryRequest::ViewAccountByBlockId {
+            account_id: (),
+            block_id: (),
+            request_type: (),
         };
         QueryBuilder::new(
             SimpleQuery { request },
-            BlockReference::latest(),
+            Reference::Optimistic,
             Default::default(),
         )
     }
@@ -133,15 +134,15 @@ impl Account {
         permission: AccessKeyPermission,
         public_key: PublicKey,
     ) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(
-            near_primitives::transaction::Action::AddKey(Box::new(AddKeyAction {
+        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::AddKey(
+            Box::new(AddKeyAction {
                 access_key: AccessKey {
                     nonce: 0,
                     permission,
                 },
                 public_key,
-            })),
-        )
+            }),
+        ))
     }
 
     /// Deletes an access key from the given account ID.

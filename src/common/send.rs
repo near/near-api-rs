@@ -257,7 +257,7 @@ impl ExecuteSignedTransaction {
             async move {
                     let result = match json_rpc_client
                 .call(
-                    near_jsonrpc_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
+                    near_openapi_client::methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
                         signed_transaction: signed_tr.clone(),
                         },
                     )

@@ -1,6 +1,8 @@
 // https://github.com/near/near-token-rs/blob/3feafec624e7d1028ed00695f2acf87e1d823fa7/src/utils.rs#L1-L49
 
-use crate::errors::DecimalNumberParsingError;
+use near_openapi_types::RpcQueryRequest;
+
+use crate::{Reference, errors::DecimalNumberParsingError};
 
 /// Converts [crate::Data]<[u128]>] to [crate::NearToken].
 pub const fn near_data_to_near_token(data: crate::Data<u128>) -> crate::NearToken {
@@ -54,20 +56,24 @@ pub fn parse_decimal_number(s: &str, pref_const: u128) -> Result<u128, DecimalNu
     Ok(result)
 }
 
+pub fn overwrite_reference(request: &RpcQueryRequest, reference: Reference) -> RpcQueryRequest {
+    todo!()
+}
+
 pub fn is_critical_blocks_error(
-    err: &near_jsonrpc_client::errors::JsonRpcError<
+    err: &near_openapi_client::errors::JsonRpcError<
         near_jsonrpc_primitives::types::blocks::RpcBlockError,
     >,
 ) -> bool {
     is_critical_json_rpc_error(err, |err| match err {
-        near_jsonrpc_client::methods::block::RpcBlockError::UnknownBlock { .. }
-        | near_jsonrpc_client::methods::block::RpcBlockError::NotSyncedYet
-        | near_jsonrpc_client::methods::block::RpcBlockError::InternalError { .. } => true,
+        near_openapi_client::methods::block::RpcBlockError::UnknownBlock { .. }
+        | near_openapi_client::methods::block::RpcBlockError::NotSyncedYet
+        | near_openapi_client::methods::block::RpcBlockError::InternalError { .. } => true,
     })
 }
 
 pub fn is_critical_validator_error(
-    err: &near_jsonrpc_client::errors::JsonRpcError<
+    err: &near_openapi_client::errors::JsonRpcError<
         near_jsonrpc_primitives::types::validator::RpcValidatorError,
     >,
 ) -> bool {
@@ -81,7 +87,7 @@ pub fn is_critical_validator_error(
 }
 
 pub fn is_critical_query_error(
-    err: &near_jsonrpc_client::errors::JsonRpcError<
+    err: &near_openapi_client::errors::JsonRpcError<
         near_jsonrpc_primitives::types::query::RpcQueryError,
     >,
 ) -> bool {
@@ -101,20 +107,20 @@ pub fn is_critical_query_error(
 }
 
 pub fn is_critical_transaction_error(
-    err: &near_jsonrpc_client::errors::JsonRpcError<
-        near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError,
+    err: &near_openapi_client::errors::JsonRpcError<
+        near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError,
     >,
 ) -> bool {
     is_critical_json_rpc_error(err, |err| {
         match err {
-            near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::TimeoutError => {
+            near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError::TimeoutError => {
                 false
             }
-            near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::InvalidTransaction { .. } |
-                near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::DoesNotTrackShard |
-                    near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::RequestRouted{..} |
-                        near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::UnknownTransaction{..} |
-                            near_jsonrpc_client::methods::broadcast_tx_commit::RpcTransactionError::InternalError{..} => {
+            near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError::InvalidTransaction { .. } |
+                near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError::DoesNotTrackShard |
+                    near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError::RequestRouted{..} |
+                        near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError::UnknownTransaction{..} |
+                            near_openapi_client::methods::broadcast_tx_commit::RpcTransactionError::InternalError{..} => {
                 true
             }
         }
@@ -122,31 +128,31 @@ pub fn is_critical_transaction_error(
 }
 
 fn is_critical_json_rpc_error<T>(
-    err: &near_jsonrpc_client::errors::JsonRpcError<T>,
+    err: &near_openapi_client::errors::JsonRpcError<T>,
     is_critical_t: impl Fn(&T) -> bool,
 ) -> bool {
     match err {
-        near_jsonrpc_client::errors::JsonRpcError::TransportError(_rpc_transport_error) => {
+        near_openapi_client::errors::JsonRpcError::TransportError(_rpc_transport_error) => {
             false
         }
-        near_jsonrpc_client::errors::JsonRpcError::ServerError(rpc_server_error) => match rpc_server_error {
-            near_jsonrpc_client::errors::JsonRpcServerError::HandlerError(rpc_transaction_error) => is_critical_t(rpc_transaction_error),
-            near_jsonrpc_client::errors::JsonRpcServerError::RequestValidationError(..) |
-            near_jsonrpc_client::errors::JsonRpcServerError::NonContextualError(..) => {
+        near_openapi_client::errors::JsonRpcError::ServerError(rpc_server_error) => match rpc_server_error {
+            near_openapi_client::errors::JsonRpcServerError::HandlerError(rpc_transaction_error) => is_critical_t(rpc_transaction_error),
+            near_openapi_client::errors::JsonRpcServerError::RequestValidationError(..) |
+            near_openapi_client::errors::JsonRpcServerError::NonContextualError(..) => {
                 true
             }
-            near_jsonrpc_client::errors::JsonRpcServerError::InternalError{ .. } => {
+            near_openapi_client::errors::JsonRpcServerError::InternalError{ .. } => {
                 false
             }
-            near_jsonrpc_client::errors::JsonRpcServerError::ResponseStatusError(json_rpc_server_response_status_error) => match json_rpc_server_response_status_error {
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::Unauthorized |
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::Unexpected{..} |
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::BadRequest => {
+            near_openapi_client::errors::JsonRpcServerError::ResponseStatusError(json_rpc_server_response_status_error) => match json_rpc_server_response_status_error {
+                near_openapi_client::errors::JsonRpcServerResponseStatusError::Unauthorized |
+                near_openapi_client::errors::JsonRpcServerResponseStatusError::Unexpected{..} |
+                near_openapi_client::errors::JsonRpcServerResponseStatusError::BadRequest => {
                     true
                 }
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::TimeoutError |
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::ServiceUnavailable |
-                near_jsonrpc_client::errors::JsonRpcServerResponseStatusError::TooManyRequests => {
+                near_openapi_client::errors::JsonRpcServerResponseStatusError::TimeoutError |
+                near_openapi_client::errors::JsonRpcServerResponseStatusError::ServiceUnavailable |
+                near_openapi_client::errors::JsonRpcServerResponseStatusError::TooManyRequests => {
                     false
                 }
             }
