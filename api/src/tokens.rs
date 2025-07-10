@@ -143,11 +143,11 @@ impl Tokens {
         .map(|account| {
             let account = account.data;
             // TODO: fix those unwrap
-            let total = NearToken::from_str(&account.amount).unwrap();
+            let total = NearToken::from_yoctonear(account.amount.parse().unwrap());
             let storage_locked = NearToken::from_yoctonear(
                 account.storage_usage as u128 * STORAGE_COST_PER_BYTE.as_yoctonear(),
             );
-            let locked = NearToken::from_str(&account.locked).unwrap();
+            let locked = NearToken::from_yoctonear(account.locked.parse().unwrap());
             let storage_usage = account.storage_usage;
             UserBalance {
                 total,

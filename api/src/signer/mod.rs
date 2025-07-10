@@ -506,10 +506,14 @@ impl Signer {
         keystore::KeystoreSigner::search_for_keys(account_id, network).await
     }
 
-    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) from a [near_workspaces::Account](`near_workspaces::Account`) for testing purposes.
-    #[cfg(feature = "workspaces")]
-    pub fn from_workspace(account: &near_workspaces::Account) -> SecretKeySigner {
-        SecretKeySigner::new(account.secret_key().to_string().parse().unwrap())
+    #[cfg(feature = "sandbox")]
+    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) from the default sandbox account for testing purposes.
+    pub fn default_sandbox() -> SecretKeySigner {
+        SecretKeySigner::new(
+            near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY
+                .parse()
+                .unwrap(),
+        )
     }
 
     /// Retrieves the public key from the pool of signers.

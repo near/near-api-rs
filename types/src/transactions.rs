@@ -105,8 +105,8 @@ impl BorshSerialize for Transaction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize)]
 pub struct SignedTransaction {
-    pub signature: Signature,
     pub transaction: Transaction,
+    pub signature: Signature,
     #[borsh(skip)]
     hash: CryptoHash,
 }

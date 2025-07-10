@@ -1,15 +1,19 @@
-use near_api::*;
-
-use near_token::NearToken;
+use near_api::{types::NearToken, *};
+use near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT;
+use near_types::{AccountId, Convert};
 use signer::generate_secret_key;
 
 #[tokio::main]
 async fn main() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
+        .await
+        .unwrap();
 
-    let balance = Tokens::account(account.id().clone())
+    let network = NetworkConfig::sandbox(&network);
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+
+    let balance = Tokens::account(account.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -17,19 +21,18 @@ async fn main() {
 
     println!("Balance: {}", balance.total);
 
-    let new_account: AccountId = format!("{}.{}", "bob", account.id()).parse().unwrap();
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let new_account: AccountId = format!("{}.{}", "bob", account).parse().unwrap();
 
     Account::create_account(new_account.clone())
-        .fund_myself(account.id().clone(), NearToken::from_near(1))
-        .public_key(generate_secret_key().unwrap().public_key())
+        .fund_myself(account.clone(), NearToken::from_near(1))
+        .public_key(Convert(generate_secret_key().unwrap().public_key()).into())
         .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap();
 
-    Tokens::account(account.id().clone())
+    Tokens::account(account.clone())
         .send_to(new_account.clone())
         .near(NearToken::from_near(1))
         .with_signer(signer)
@@ -37,7 +40,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let new_account_balance = Tokens::account(account.id().clone())
+    let new_account_balance = Tokens::account(account.clone())
         .near_balance()
         .fetch_from(&network)
         .await

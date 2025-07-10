@@ -39,7 +39,7 @@ impl RPCEndpoint {
     ///
     /// The default retry method is `ExponentialBackoff` with an initial sleep of 10ms and a factor of 2.
     /// The delays will be 10ms, 20ms, 40ms, 80ms, 160ms.
-    pub const fn new(url: url::Url) -> Self {
+    pub fn new(url: url::Url) -> Self {
         Self {
             url,
             // api_key: None,
@@ -161,27 +161,13 @@ impl NetworkConfig {
         }
     }
 
-    pub(crate) fn client(&self, index: usize) -> Client {
-        let rpc_endpoint = &self.rpc_endpoints[index];
-        let mut client = near_openapi_client::Client::new(rpc_endpoint.url.as_ref());
-        // TODO: Api key
-        // if let Some(rpc_api_key) = &rpc_endpoint.api_key {
-        //     json_rpc_client =
-        //         json_rpc_client.header(near_openapi_client::auth::ApiKey::from(rpc_api_key.clone()))
-        // };
-        client
-    }
-}
-
-#[cfg(feature = "workspaces")]
-impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkConfig {
-    fn from(network: near_workspaces::Worker<T>) -> Self {
-        use near_workspaces::network::NetworkInfo;
-
-        let info = network.info();
+    #[cfg(feature = "sandbox")]
+    pub fn sandbox(sandbox: &near_sandbox_utils::high_level::Sandbox) -> Self {
         Self {
-            network_name: info.name.clone(),
-            rpc_endpoints: vec![RPCEndpoint::new(info.rpc_url.clone())],
+            network_name: "sandbox".to_string(),
+            rpc_endpoints: vec![RPCEndpoint::new(
+                sandbox.rpc_addr.parse().expect("valid url"),
+            )],
             linkdrop_account_id: None,
             near_social_db_contract_account_id: None,
             faucet_url: None,
@@ -189,6 +175,18 @@ impl<T: near_workspaces::Network> From<near_workspaces::Worker<T>> for NetworkCo
             meta_transaction_relayer_url: None,
             staking_pools_factory_account_id: None,
         }
+    }
+
+    pub(crate) fn client(&self, index: usize) -> Client {
+        let rpc_endpoint = &self.rpc_endpoints[index];
+        let mut client =
+            near_openapi_client::Client::new(rpc_endpoint.url.as_ref().trim_end_matches('/'));
+        // TODO: Api key
+        // if let Some(rpc_api_key) = &rpc_endpoint.api_key {
+        //     json_rpc_client =
+        //         json_rpc_client.header(near_openapi_client::auth::ApiKey::from(rpc_api_key.clone()))
+        // };
+        client
     }
 }
 
