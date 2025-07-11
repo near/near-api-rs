@@ -98,7 +98,7 @@ impl StorageDeposit {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tx: near_primitives::views::FinalExecutionOutcomeView = StorageDeposit::on_contract("contract.testnet".parse()?)
+    /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -129,7 +129,7 @@ impl StorageDeposit {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tx: near_primitives::views::FinalExecutionOutcomeView = StorageDeposit::on_contract("contract.testnet".parse()?)
+    /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .withdraw("alice.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()

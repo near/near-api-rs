@@ -228,7 +228,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .deposit("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -259,7 +259,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .deposit_and_stake("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -295,7 +295,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .stake("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -355,7 +355,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .unstake("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -386,7 +386,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .unstake_all("pool.testnet".parse()?)?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -413,7 +413,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .withdraw("pool.testnet".parse()?, NearToken::from_near(1))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -444,7 +444,7 @@ impl Delegation {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Staking::delegation("alice.testnet".parse()?)
+    /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .withdraw_all("pool.testnet".parse()?)?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -503,7 +503,7 @@ impl Staking {
         )
     }
 
-    /// Returns a list of validators and their stake ([near_primitives::views::EpochValidatorInfo]) for the current epoch.
+    /// Returns a list of validators and their stake ([near_types::RpcValidatorResponse]) for the current epoch.
     ///
     /// ## Example
     /// ```rust,no_run

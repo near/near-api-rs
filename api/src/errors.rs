@@ -19,13 +19,14 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     },
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
-    #[error("Query error: {0}")]
+    #[error("Query error: {0:?}")]
     QueryError(RetryError<SendRequestError<RpcError>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
     #[error("Failed to convert response: {0}")]
     ConversionError(Box<dyn std::error::Error + Send + Sync>),
 }
+
 impl<RpcError: std::fmt::Debug + Send + Sync> From<RetryError<SendRequestError<RpcError>>>
     for QueryError<RpcError>
 {
@@ -36,7 +37,6 @@ impl<RpcError: std::fmt::Debug + Send + Sync> From<RetryError<SendRequestError<R
 
 #[derive(thiserror::Error, Debug)]
 pub enum MetaSignError {
-    // near_primitives::action::delegate::IsDelegateAction is private, so we redefined it here
     #[error("Attempted to construct NonDelegateAction from Action::Delegate")]
     DelegateActionIsNotSupported,
 
@@ -183,9 +183,9 @@ pub enum FaucetError {
 pub enum RetryError<E> {
     #[error("No RPC endpoints are defined in the network config")]
     NoRpcEndpoints,
-    #[error("Request failed. Retries exhausted. Last error: {0}")]
+    #[error("Request failed. Retries exhausted. Last error: {0:?}")]
     RetriesExhausted(E),
-    #[error("Critical error: {0}")]
+    #[error("Critical error: {0:?}")]
     Critical(E),
 }
 
@@ -193,7 +193,7 @@ pub enum RetryError<E> {
 pub enum SendRequestError<E: std::fmt::Debug> {
     #[error("Client error: {0}")]
     ClientError(near_openapi_client::Error<()>),
-    #[error("Server returned an error: {0}")]
+    #[error("Server returned an error: {0:?}")]
     ServerError(E),
     #[error("Query creation error: {0}")]
     QueryCreationError(#[from] QueryCreationError),

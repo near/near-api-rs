@@ -76,6 +76,11 @@ pub use crate::{
     storage::StorageDeposit,
     tokens::Tokens,
     transactions::Transaction,
+    types::{
+        AccountId, CryptoHash, Data, EpochReference, NearGas, NearToken, PublicKey, Reference,
+        SecretKey,
+        tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
+    },
 };
 
 pub mod advanced {

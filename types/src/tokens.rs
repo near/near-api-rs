@@ -28,7 +28,7 @@ pub const STORAGE_COST_PER_BYTE: NearToken = NearToken::from_yoctonear(10u128.po
 ///
 /// ## Defining 2.5 USDT
 /// ```rust
-/// use near_api::FTBalance;
+/// use near_types::tokens::FTBalance;
 ///
 /// let usdt_balance = FTBalance::with_decimals(6).with_float_str("2.5").unwrap();
 ///
@@ -37,7 +37,7 @@ pub const STORAGE_COST_PER_BYTE: NearToken = NearToken::from_yoctonear(10u128.po
 ///
 /// ## Defining 3 USDT using smaller precision
 /// ```rust
-/// use near_api::FTBalance;
+/// use near_types::tokens::FTBalance;
 ///
 /// let usdt = FTBalance::with_decimals(6);
 ///
@@ -48,7 +48,7 @@ pub const STORAGE_COST_PER_BYTE: NearToken = NearToken::from_yoctonear(10u128.po
 ///
 /// ## Defining 3 wETH using 18 decimals
 /// ```rust
-/// use near_api::FTBalance;
+/// use near_types::tokens::FTBalance;
 ///
 /// let weth = FTBalance::with_decimals_and_symbol(18, "wETH");
 /// let weth_balance = weth.with_whole_amount(3);
@@ -91,7 +91,7 @@ impl FTBalance {
     ///
     /// ## Example
     /// ```rust
-    /// use near_api::FTBalance;
+    /// use near_types::tokens::FTBalance;
     ///
     /// let usdt_balance = FTBalance::with_decimals(6).with_amount(2_500_000);
     /// assert_eq!(usdt_balance.amount(), 2_500_000);
@@ -111,7 +111,7 @@ impl FTBalance {
     ///
     /// ## Example
     /// ```rust
-    /// use near_api::FTBalance;
+    /// use near_types::tokens::FTBalance;
     ///
     /// let usdt_balance = FTBalance::with_decimals(6).with_whole_amount(3);
     /// assert_eq!(usdt_balance.amount(), 3 * 10u128.pow(6));
@@ -131,7 +131,7 @@ impl FTBalance {
     ///
     /// ## Defining 2.5 USDT
     /// ```rust
-    /// use near_api::FTBalance;
+    /// use near_types::tokens::FTBalance;
     ///
     /// let usdt_balance = FTBalance::with_decimals(6).with_float_str("2.515").unwrap();
     ///

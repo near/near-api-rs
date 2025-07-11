@@ -307,7 +307,7 @@ impl Tokens {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let alice_tokens = Tokens::account("alice.near".parse()?);
     ///
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = alice_tokens.send_to("bob.near".parse()?)
+    /// let result = alice_tokens.send_to("bob.near".parse()?)
     ///     .near(NearToken::from_near(1))
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_mainnet()
@@ -323,7 +323,7 @@ impl Tokens {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let alice_tokens = Tokens::account("alice.near".parse()?);
     ///
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = alice_tokens.send_to("bob.near".parse()?)
+    /// let result = alice_tokens.send_to("bob.near".parse()?)
     ///     .ft("usdt.tether-token.near".parse()?, USDT_BALANCE.with_whole_amount(100))?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_mainnet()
@@ -339,7 +339,7 @@ impl Tokens {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let alice_tokens = Tokens::account("alice.near".parse()?);
     ///
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = alice_tokens.send_to("bob.near".parse()?)
+    /// let result = alice_tokens.send_to("bob.near".parse()?)
     ///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())?
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()

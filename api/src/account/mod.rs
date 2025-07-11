@@ -33,7 +33,7 @@ mod create;
 pub struct Account(pub AccountId);
 
 impl Account {
-    /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_primitives::views::AccountView)> with the account information for the given account ID.
+    /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_types::AccountView)> with the account information for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -56,12 +56,11 @@ impl Account {
         )
     }
 
-    /// Prepares a query to fetch the [Data](crate::Data)<[AccessKeyView](near_primitives::views::AccessKeyView)> with the access key information for the given account public key.
+    /// Prepares a query to fetch the [Data](crate::Data)<[AccessKey](near_types::AccessKey)> with the access key information for the given account public key.
     ///
     /// ## Example
     /// ```rust,no_run
     /// use near_api::*;
-    /// use near_crypto::PublicKey;
     /// use std::str::FromStr;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -88,7 +87,7 @@ impl Account {
         )
     }
 
-    /// Prepares a query to fetch the [AccessKeyList](near_primitives::views::AccessKeyList) list of access keys for the given account ID.
+    /// Prepares a query to fetch the [Vec<AccessKeyInfo>](near_types::actions::AccessKeyInfo) list of access keys for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -115,14 +114,12 @@ impl Account {
     ///
     /// ## Example
     /// ```rust,no_run
-    /// use near_api::*;
-    /// use near_primitives::account::AccessKeyPermission;
-    /// use near_crypto::PublicKey;
+    /// use near_api::{*, types::AccessKeyPermission};
     /// use std::str::FromStr;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let pk = PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
+    /// let result = Account("alice.testnet".parse()?)
     ///     .add_key(AccessKeyPermission::FullAccess, pk)
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -151,10 +148,9 @@ impl Account {
     /// ## Example
     /// ```rust,no_run
     /// use near_api::*;
-    /// use near_crypto::PublicKey;
     /// use std::str::FromStr;
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
+    /// let result = Account("alice.testnet".parse()?)
     ///     .delete_key(PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?)
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -175,11 +171,10 @@ impl Account {
     /// ## Example
     /// ```rust,no_run
     /// use near_api::*;
-    /// use near_crypto::PublicKey;
     /// use std::str::FromStr;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
+    /// let result = Account("alice.testnet".parse()?)
     ///     .delete_keys(vec![PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?])
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -209,7 +204,7 @@ impl Account {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account("alice.testnet".parse()?)
+    /// let result = Account("alice.testnet".parse()?)
     ///     .delete_account_with_beneficiary("bob.testnet".parse()?)
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
@@ -261,7 +256,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account::create_account("alice.testnet".parse()?)
+    /// let result = Account::create_account("alice.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?
     ///     .with_signer(bob_signer)
@@ -283,7 +278,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Account::create_account("sub.bob.testnet".parse()?)
+    /// let result = Account::create_account("sub.bob.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?
     ///     .with_signer(bob_signer)

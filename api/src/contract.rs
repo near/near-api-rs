@@ -69,7 +69,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract("some_contract.testnet".parse()?)
+    /// let result = Contract("some_contract.testnet".parse()?)
     ///     .call_function("set_number", json!({ "number": 100 }))?
     ///     .transaction()
     ///      // Optional
@@ -109,7 +109,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    /// let result = Contract::deploy("contract.testnet".parse()?)
     ///     .use_code(code)
     ///     .without_init_call()
     ///     .with_signer(signer)
@@ -127,7 +127,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    /// let result = Contract::deploy("contract.testnet".parse()?)
     ///     .use_code(code)
     ///     .with_init_call("init", json!({ "number": 100 }))?
     ///     // Optional
@@ -157,7 +157,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_hash()
     ///     .with_signer("some-account.testnet".parse()?, signer)
     ///     .send_to_testnet()
@@ -177,7 +177,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_account_id("nft-contract.testnet".parse()?)
     ///     .with_signer(signer)
     ///     .send_to_testnet()
@@ -216,7 +216,7 @@ impl Contract {
             })
     }
 
-    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_primitives::views::ContractCodeView)>) of the contract.
+    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_types::ContractCodeView)>) of the contract.
     ///
     /// # Example
     /// ```rust,no_run
@@ -224,7 +224,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let wasm = Contract("some_contract.testnet".parse()?).wasm().fetch_from_testnet().await?;
-    /// println!("WASM: {:?}", wasm.data.code.len());
+    /// println!("WASM: {}", wasm.data.code_base64);
     /// # Ok(())
     /// # }
     /// ```
@@ -240,7 +240,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_primitives::views::ViewStateResult)>) using the given prefix as a filter.
+    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_types::ViewStateResult)>) using the given prefix as a filter.
     ///
     /// It helpful if you are aware of the storage that you are looking for.
     ///
@@ -250,7 +250,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let storage = Contract("some_contract.testnet".parse()?)
-    ///     .view_storage_with_prefix(b"se".to_vec())
+    ///     .view_storage_with_prefix(b"se")
     ///     .fetch_from_testnet()
     ///     .await?;
     /// println!("Storage: {:?}", storage);
@@ -271,7 +271,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_primitives::views::ViewStateResult)>).
+    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_types::ViewStateResult)>).
     ///
     /// Please be aware that large storage queries might fail.
     ///
@@ -346,7 +346,7 @@ impl DeployBuilder {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    /// let result = Contract::deploy("contract.testnet".parse()?)
     ///     .use_code(code)
     ///     .without_init_call()
     ///     .with_signer(signer)
@@ -369,7 +369,7 @@ impl DeployBuilder {
     // ///
     // /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     // /// let signer = Signer::new(Signer::from_ledger())?;
-    // /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    // /// let result = Contract::deploy("contract.testnet".parse()?)
     // ///     .use_global_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
     // ///     .without_init_call()
     // ///     .with_signer(signer)
@@ -397,7 +397,7 @@ impl DeployBuilder {
     // ///
     // /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     // /// let signer = Signer::new(Signer::from_ledger())?;
-    // /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy("contract.testnet".parse()?)
+    // /// let result = Contract::deploy("contract.testnet".parse()?)
     // ///     .use_global_account_id("nft-contract.testnet".parse()?)
     // ///     .without_init_call()
     // ///     .with_signer(signer)
@@ -537,7 +537,7 @@ impl GlobalDeployBuilder {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_hash()
     ///     .with_signer("some-account.testnet".parse()?, signer)
     ///     .send_to_testnet()
@@ -566,7 +566,7 @@ impl GlobalDeployBuilder {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
-    /// let result: near_primitives::views::FinalExecutionOutcomeView = Contract::deploy_global_contract_code(code)
+    /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_account_id("some-account.testnet".parse()?)
     ///     .with_signer(signer)
     ///     .send_to_testnet()

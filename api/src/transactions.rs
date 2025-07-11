@@ -131,24 +131,23 @@ impl Transaction {
     /// This example constructs a transaction with a two transfer actions.
     ///
     /// ```rust,no_run
-    /// use near_api::*;
-    /// use near_primitives::transaction::{Action, TransferAction};
+    /// use near_api::{*, types::{actions::{Action, TransferAction}, integers::U128}};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
     ///
-    /// let transaction_result: near_primitives::views::FinalExecutionOutcomeView = Transaction::construct(
+    /// let transaction_result = Transaction::construct(
     ///     "sender.near".parse()?,
     ///     "receiver.near".parse()?
     /// )
     /// .add_action(Action::Transfer(
     ///     TransferAction {
-    ///         deposit: NearToken::from_near(1).as_yoctonear(),
+    ///         deposit: U128(NearToken::from_near(1).as_yoctonear()),
     ///     },
     /// ))
     /// .add_action(Action::Transfer(
     ///     TransferAction {
-    ///         deposit: NearToken::from_near(1).as_yoctonear(),
+    ///         deposit: U128(NearToken::from_near(1).as_yoctonear()),
     ///     },
     /// ))
     /// .with_signer(signer)
@@ -169,23 +168,21 @@ impl Transaction {
     ///
     /// ```rust,no_run
     /// use near_api::*;
-    /// use near_primitives::transaction::{Action, TransferAction};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// # let unsigned_tx = todo!();
     ///
-    /// let transaction_result: near_primitives::views::FinalExecutionOutcomeView = Transaction::sign_transaction(
+    /// let transaction_result = Transaction::use_transaction(
     ///     unsigned_tx,
     ///     signer
     /// )
-    /// .await?
     /// .send_to_mainnet()
     /// .await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn use_transaction(
+    pub fn use_transaction(
         unsigned_tx: PrepopulateTransaction,
         signer: Arc<Signer>,
     ) -> ExecuteSignedTransaction {

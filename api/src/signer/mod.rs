@@ -198,8 +198,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, PublicKey, SecretKey, CryptoHash}, errors::SignerError};
-/// use near_primitives::transaction::Transaction;
+/// use near_api::{*, signer::*, types::transactions::{PrepopulateTransaction, Transaction}, errors::SignerError};
 ///
 /// struct CustomSigner {
 ///     secret_key: SecretKey,
@@ -216,14 +215,14 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///     }
 ///
 ///     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
-///         Ok(self.secret_key.public_key())
+///         Ok(self.secret_key.public_key().into())
 ///     }
 /// }
 /// ```
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, PublicKey, SecretKey, CryptoHash}, errors::SignerError};
+/// # use near_api::{AccountId, signer::*, types::{transactions::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::SignerError};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
 /// #     fn new(_: SecretKey) -> Self { Self }

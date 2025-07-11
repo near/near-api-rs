@@ -115,9 +115,8 @@ where
     /// ## Example
     /// ```rust,no_run
     /// use near_api::advanced::{MultiQueryHandler, CallResultHandler, MultiRpcBuilder};
-    /// use near_api::types::Data;
+    /// use near_api::types::{Data, Reference};
     /// use std::marker::PhantomData;
-    /// use near_primitives::types::BlockReference;
     ///
     /// // Create a handler for multiple query responses and specify the types of the responses
     /// let handler = MultiQueryHandler::new((

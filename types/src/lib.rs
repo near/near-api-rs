@@ -72,29 +72,6 @@ impl<T> Data<T> {
     }
 }
 
-/// A wrapper around [near_openapi_client::auth::ApiKey]
-///
-/// This type is used to authenticate requests to the RPC node
-///
-/// ## Creating an API key
-///
-/// ```
-/// use near_api::types::ApiKey;
-/// use std::str::FromStr;
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let api_key = ApiKey("your_api_key".to_string());
-/// # Ok(())
-/// # }
-#[derive(Eq, Hash, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApiKey(String);
-
-impl std::fmt::Display for ApiKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 /// A type that represents a hash of the data.
 ///
 /// This type is copy of the [near_primitives::hash::CryptoHash]
