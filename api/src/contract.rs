@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
 use near_types::{
-    AccountId, Action, Data, DeployContractAction, FunctionArgs, FunctionCallAction, NearGas,
-    NearToken, Reference, StoreKey, contract::ContractSourceMetadata,
+    AccountId, Action, CryptoHash, Data, FunctionArgs, NearGas, NearToken, Reference, StoreKey,
+    actions::{
+        DeployContractAction, DeployGlobalContractAction, FunctionCallAction,
+        GlobalContractDeployMode, GlobalContractIdentifier, UseGlobalContractAction,
+    },
+    contract::ContractSourceMetadata,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -373,14 +377,14 @@ impl DeployBuilder {
     // ///     .await?;
     // /// # Ok(())
     // /// # }
-    // pub fn use_global_hash(self, global_hash: CryptoHash) -> SetDeployActionBuilder {
-    //     SetDeployActionBuilder::new(
-    //         self.contract,
-    //         Action::UseGlobalContract(Box::new(UseGlobalContractAction {
-    //             contract_identifier: GlobalContractIdentifier::CodeHash(global_hash.into()),
-    //         })),
-    //     )
-    // }
+    pub fn use_global_hash(self, global_hash: CryptoHash) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
+            self.contract,
+            Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                contract_identifier: GlobalContractIdentifier::CodeHash(global_hash.into()),
+            })),
+        )
+    }
 
     // /// Prepares a transaction to deploy a contract to the provided account using a mutable account-id reference to the code from the global contract code storage.
     // ///
@@ -401,14 +405,14 @@ impl DeployBuilder {
     // ///     .await?;
     // /// # Ok(())
     // /// # }
-    // pub fn use_global_account_id(self, global_account_id: AccountId) -> SetDeployActionBuilder {
-    //     SetDeployActionBuilder::new(
-    //         self.contract,
-    //         Action::UseGlobalContract(Box::new(UseGlobalContractAction {
-    //             contract_identifier: GlobalContractIdentifier::AccountId(global_account_id),
-    //         })),
-    //     )
-    // }
+    pub fn use_global_account_id(self, global_account_id: AccountId) -> SetDeployActionBuilder {
+        SetDeployActionBuilder::new(
+            self.contract,
+            Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                contract_identifier: GlobalContractIdentifier::AccountId(global_account_id),
+            })),
+        )
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -542,13 +546,12 @@ impl GlobalDeployBuilder {
     /// # }
     #[allow(clippy::wrong_self_convention)]
     pub fn as_hash(self) -> SelfActionBuilder {
-        // SelfActionBuilder::new().add_action(Action::DeployGlobalContract(
-        //     DeployGlobalContractAction {
-        //         code: self.code.into(),
-        //         deploy_mode: GlobalContractDeployMode::CodeHash,
-        //     },
-        // ))
-        unimplemented!("Not supported by omni-transaction")
+        SelfActionBuilder::new().add_action(Action::DeployGlobalContract(
+            DeployGlobalContractAction {
+                code: self.code.into(),
+                deploy_mode: GlobalContractDeployMode::CodeHash,
+            },
+        ))
     }
 
     /// Prepares a transaction to deploy a code to the global contract code storage and reference it by account-id.
@@ -572,13 +575,12 @@ impl GlobalDeployBuilder {
     /// # }
     #[allow(clippy::wrong_self_convention)]
     pub fn as_account_id(self, signer_id: AccountId) -> ConstructTransaction {
-        unimplemented!("Not supported by omni-transaction")
-        // Transaction::construct(signer_id.clone(), signer_id).add_action(
-        //     Action::DeployGlobalContract(DeployGlobalContractAction {
-        //         code: self.code.into(),
-        //         deploy_mode: GlobalContractDeployMode::AccountId,
-        //     }),
-        // )
+        Transaction::construct(signer_id.clone(), signer_id).add_action(
+            Action::DeployGlobalContract(DeployGlobalContractAction {
+                code: self.code.into(),
+                deploy_mode: GlobalContractDeployMode::AccountId,
+            }),
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 use near_openapi_client::types::RpcQueryResponse;
 use near_types::{
-    AccessKeyList, AccessKeyView, AccountView, ContractCodeView, Data, RpcBlockResponse,
-    RpcValidatorResponse, ViewStateResult,
+    AccessKey, AccountView, ContractCodeView, Data, RpcBlockResponse, RpcValidatorResponse,
+    ViewStateResult, actions::AccessKeyInfo, integers::U64,
 };
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
@@ -156,7 +156,7 @@ impl ResponseHandler for AccountViewHandler {
 pub struct AccessKeyListHandler;
 
 impl ResponseHandler for AccessKeyListHandler {
-    type Response = Data<AccessKeyList>;
+    type Response = Data<Vec<AccessKeyInfo>>;
     type Query = SimpleQueryRpc;
 
     fn process_response(
@@ -179,7 +179,10 @@ impl ResponseHandler for AccessKeyListHandler {
                 keys.len()
             );
             Ok(Data {
-                data: AccessKeyList { keys },
+                data: keys
+                    .into_iter()
+                    .filter_map(|key| key.try_into().ok())
+                    .collect(),
                 block_height,
                 block_hash: block_hash.into(),
             })
@@ -201,7 +204,7 @@ impl ResponseHandler for AccessKeyListHandler {
 pub struct AccessKeyHandler;
 
 impl ResponseHandler for AccessKeyHandler {
-    type Response = Data<AccessKeyView>;
+    type Response = Data<AccessKey>;
     type Query = SimpleQueryRpc;
 
     fn process_response(
@@ -226,7 +229,12 @@ impl ResponseHandler for AccessKeyHandler {
                 permission
             );
             Ok(Data {
-                data: AccessKeyView { nonce, permission },
+                data: AccessKey {
+                    nonce: U64(nonce),
+                    permission: permission
+                        .try_into()
+                        .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                },
                 block_height,
                 block_hash: block_hash.into(),
             })

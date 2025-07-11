@@ -1,14 +1,8 @@
-use std::str::FromStr;
-
 use futures::future::join_all;
-use near_account_id::AccountId;
-use near_crypto::SecretKey;
-use near_openapi_types::AccessKeyPermissionView;
-use omni_transaction::near::types::{ED25519PublicKey, PublicKey};
+use near_types::{AccessKeyPermission, AccountId, PublicKey, SecretKey};
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
-    common::utils::public_key_to_string,
     config::NetworkConfig,
     errors::{KeyStoreError, SignerError},
 };
@@ -85,30 +79,11 @@ impl KeystoreSigner {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Filtering and collecting potential public keys");
         let potential_pubkeys = account_keys
             .data
-            .keys
             .iter()
             // TODO: support functional access keys
-            .filter(|key| {
-                matches!(
-                    key.access_key.permission,
-                    AccessKeyPermissionView::FullAccess
-                )
-            })
-            .filter_map(|key| {
-                let public_key = near_crypto::PublicKey::from_str(&key.public_key).ok()?;
-                let public_key = match public_key {
-                    near_crypto::PublicKey::ED25519(public_key) => {
-                        omni_transaction::near::types::PublicKey::ED25519(ED25519PublicKey(
-                            public_key.0,
-                        ))
-                    }
-                    near_crypto::PublicKey::SECP256K1(public_key) => {
-                        todo!()
-                    }
-                };
-                Some(public_key)
-            })
-            .map(|key| Self::get_secret_key(&account_id, key.clone(), &network.network_name));
+            .filter(|key| matches!(key.access_key.permission, AccessKeyPermission::FullAccess))
+            .filter_map(|key| key.public_key.clone().try_into().ok())
+            .map(|key| Self::get_secret_key(&account_id, key, &network.network_name));
         let potential_pubkeys: Vec<PublicKey> = join_all(potential_pubkeys)
             .await
             .into_iter()
@@ -128,7 +103,7 @@ impl KeystoreSigner {
         trace!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key from keyring");
         let service_name =
             std::borrow::Cow::Owned(format!("near-{}-{}", network_name, account_id.as_str()));
-        let user = format!("{account_id}:{}", public_key_to_string(&public_key));
+        let user = format!("{account_id}:{}", public_key.to_string());
 
         // This can be a blocking operation (for example, if the keyring is locked in the OS and user needs to unlock it),
         // so we need to spawn a new task to get the password

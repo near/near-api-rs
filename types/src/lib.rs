@@ -1,44 +1,42 @@
+use sha2::Digest;
 use std::fmt;
 
 use crate::errors::CryptoHashError;
 
+pub mod actions;
 pub mod contract;
 pub mod delegate_action;
 pub mod errors;
+pub mod public_key;
 pub mod reference;
 pub mod signable_message;
+pub mod signature;
 pub mod stake;
 pub mod storage;
 pub mod tokens;
 pub mod transactions;
 
-mod conversions;
-
 pub use near_abi as abi;
 pub use near_account_id::AccountId;
 pub use near_contract_standards::{fungible_token, non_fungible_token};
-pub use near_crypto::{ED25519SecretKey, InMemorySigner};
+pub use near_crypto::{ED25519SecretKey, InMemorySigner, SecretKey};
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
-    AccessKeyList, AccessKeyView, AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse,
-    RpcValidatorResponse, StoreKey, ViewStateResult,
+    AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcValidatorResponse, StoreKey,
+    ViewStateResult,
 };
 pub use near_sdk::json_types::U128;
-pub use omni_transaction::near::types::{
-    AccessKey, AccessKeyPermission, AddKeyAction, CreateAccountAction, DeleteAccountAction,
-    DeleteKeyAction, DeployContractAction, FunctionCallAction, StakeAction, TransferAction, U64,
-};
-use sha2::Digest;
-pub use storage::{StorageBalance, StorageBalanceInternal};
-
 pub use near_token::NearToken;
 pub use reference::{EpochReference, Reference};
+pub use storage::{StorageBalance, StorageBalanceInternal};
+
+pub use actions::{AccessKey, AccessKeyPermission, Action};
+pub use public_key::PublicKey;
+pub use signature::Signature;
+pub mod integers;
+
 pub type BlockHeight = u64;
 pub type Nonce = u64;
-pub type PublicKey = omni_transaction::near::types::PublicKey;
-pub type Action = omni_transaction::near::types::Action;
-pub type SecretKey = near_crypto::SecretKey;
-pub type Signature = near_crypto::Signature;
 
 pub fn hash(bytes: &[u8]) -> CryptoHash {
     CryptoHash(sha2::Sha256::digest(bytes).into())

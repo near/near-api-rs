@@ -1,8 +1,9 @@
 use std::convert::Infallible;
 
 use near_types::{
-    AccessKey, AccessKeyPermission, AccountId, Action, AddKeyAction, Convert, CreateAccountAction,
-    NearGas, NearToken, PublicKey, TransferAction, transactions::PrepopulateTransaction,
+    AccessKey, AccessKeyPermission, AccountId, Action, NearGas, NearToken, PublicKey,
+    actions::{AddKeyAction, CreateAccountAction, TransferAction},
+    transactions::PrepopulateTransaction,
 };
 use reqwest::Response;
 use serde_json::json;
@@ -143,7 +144,7 @@ impl CreateAccountByFaucet {
     pub async fn send_to_faucet(self, url: &Url) -> Result<Response, FaucetError> {
         let mut data = std::collections::HashMap::new();
         data.insert("newAccountId", self.new_account_id.to_string());
-        data.insert("newAccountPublicKey", Convert(self.public_key).into());
+        data.insert("newAccountPublicKey", self.public_key.to_string());
 
         let client = reqwest::Client::new();
 

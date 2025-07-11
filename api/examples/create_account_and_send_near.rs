@@ -9,7 +9,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let network = NetworkConfig::sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&network);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 

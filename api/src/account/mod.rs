@@ -1,6 +1,7 @@
 use near_types::{
-    AccessKey, AccessKeyPermission, AccountId, Action, AddKeyAction, Convert, DeleteAccountAction,
-    DeleteKeyAction, PublicKey, Reference, U64,
+    AccessKeyPermission, AccountId, Action, PublicKey, Reference,
+    actions::{AccessKey, AddKeyAction, DeleteAccountAction, DeleteKeyAction},
+    integers::U64,
 };
 
 use crate::advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc};
@@ -75,7 +76,7 @@ impl Account {
     pub fn access_key(&self, signer_public_key: PublicKey) -> QueryBuilder<AccessKeyHandler> {
         let request = QueryRequest::ViewAccessKey {
             account_id: self.0.clone(),
-            public_key: Convert(signer_public_key).into(),
+            public_key: signer_public_key.into(),
         };
         RpcBuilder::new(
             SimpleQueryRpc { request },

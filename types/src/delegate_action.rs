@@ -6,17 +6,30 @@ use crate::{
     AccountId, Action, BlockHeight, Nonce, PublicKey, Signature, errors::SignedDelegateActionError,
 };
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NonDelegateAction(Action);
+
+impl TryFrom<Action> for NonDelegateAction {
+    type Error = ();
+    fn try_from(action: Action) -> Result<Self, Self::Error> {
+        if let Action::Delegate(_) = action {
+            return Err(());
+        }
+        Ok(Self(action))
+    }
+}
+
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DelegateAction {
     pub sender_id: AccountId,
     pub receiver_id: AccountId,
-    pub actions: Vec<Action>,
+    pub actions: Vec<NonDelegateAction>,
     pub nonce: Nonce,
     pub max_block_height: BlockHeight,
     pub public_key: PublicKey,
 }
 
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SignedDelegateAction {
     pub signature: Signature,
     pub delegate_action: DelegateAction,

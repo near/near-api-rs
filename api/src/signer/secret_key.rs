@@ -1,6 +1,6 @@
 use tracing::{instrument, trace};
 
-use near_types::{AccountId, Convert, PublicKey, SecretKey};
+use near_types::{AccountId, PublicKey, SecretKey};
 
 use crate::errors::SignerError;
 
@@ -37,7 +37,7 @@ impl SecretKeySigner {
         let public_key = secret_key.public_key();
         Self {
             secret_key,
-            public_key: Convert(public_key).into(),
+            public_key: public_key.into(),
         }
     }
 }

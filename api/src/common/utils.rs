@@ -12,14 +12,6 @@ pub fn from_base64(encoded: &str) -> Result<Vec<u8>, base64::DecodeError> {
     BASE64_STANDARD.decode(encoded)
 }
 
-pub fn from_base58(s: &str) -> Result<Vec<u8>, bs58::decode::Error> {
-    bs58::decode(s).into_vec()
-}
-
-pub fn to_base58(input: &[u8]) -> String {
-    bs58::encode(input).into_string()
-}
-
 /// Converts [crate::Data]<[u128]>] to [crate::NearToken].
 pub const fn near_data_to_near_token(data: near_types::Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)

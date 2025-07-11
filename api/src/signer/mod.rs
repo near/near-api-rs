@@ -11,8 +11,7 @@
 //!
 //! ## Creating a signer using a secret key
 //! ```rust,no_run
-//! use near_api::*;
-//! use near_crypto::SecretKey;
+//! use near_api::{*, types::SecretKey};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let secret_key: SecretKey = "ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?;
@@ -81,8 +80,7 @@
 //! By using, account key pooling, each transaction is signed with a different key, so that the nonce issue
 //! is mitigated as long as the keys are more or equal to the number of signed transactions.
 //! ```rust,no_run
-//! use near_api::*;
-//! use near_crypto::SecretKey;
+//! use near_api::{*, types::SecretKey};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let signer = Signer::new(Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?))?;
@@ -122,11 +120,9 @@ use std::{
 use near_types::{
     AccountId, BlockHeight, Convert, CryptoHash, ED25519SecretKey, InMemorySigner, Nonce,
     PublicKey, SecretKey, Signature,
-    delegate_action::SignedDelegateAction,
+    delegate_action::{NonDelegateAction, SignedDelegateAction},
     hash,
-    transactions::{
-        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0, TransactionV1,
-    },
+    transactions::{PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0},
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -185,10 +181,7 @@ pub struct NEP413Payload {
 impl From<NEP413Payload> for near_ledger::NEP413Payload {
     fn from(payload: NEP413Payload) -> Self {
         Self {
-            // TODO: fix after https://github.com/khorolets/near-ledger-rs/pull/25 is merged
-            //cspell:disable
-            messsage: payload.message,
-            //cspell:enable
+            message: payload.message,
             nonce: payload.nonce,
             recipient: payload.recipient,
             callback_url: payload.callback_url,
@@ -205,8 +198,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
-/// use near_crypto::{PublicKey, SecretKey};
+/// use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, PublicKey, SecretKey, CryptoHash}, errors::SignerError};
 /// use near_primitives::transaction::Transaction;
 ///
 /// struct CustomSigner {
@@ -231,15 +223,14 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, CryptoHash}, errors::SignerError};
-/// # use near_crypto::{PublicKey, SecretKey};
+/// # use near_api::{AccountId, signer::*, types::{transactions::PrepopulateTransaction, PublicKey, SecretKey, CryptoHash}, errors::SignerError};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
 /// #     fn new(_: SecretKey) -> Self { Self }
 /// # }
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
-/// #     async fn get_secret_key(&self, _: &AccountId, _: &near_crypto::PublicKey) -> Result<near_crypto::SecretKey, near_api::errors::SignerError> { unimplemented!() }
+/// #     async fn get_secret_key(&self, _: &AccountId, _: &PublicKey) -> Result<SecretKey, near_api::errors::SignerError> { unimplemented!() }
 /// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -277,7 +268,7 @@ pub trait SignerTrait {
             public_key,
             nonce,
             receiver_id: tr.receiver_id,
-            block_hash: block_hash.into(),
+            block_hash,
             actions: tr.actions,
         });
 
@@ -304,13 +295,16 @@ pub trait SignerTrait {
             public_key,
             nonce,
             receiver_id: tr.receiver_id,
-            block_hash: block_hash.into(),
+            block_hash,
             actions: tr.actions,
         });
 
         let signature = signer_secret_key.sign(unsigned_transaction.get_hash().0.as_ref());
 
-        Ok(SignedTransaction::new(signature, unsigned_transaction))
+        Ok(SignedTransaction::new(
+            signature.into(),
+            unsigned_transaction,
+        ))
     }
 
     /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is widely used for the [authentication](https://docs.near.org/build/web3-apps/backend/)
@@ -330,7 +324,7 @@ pub trait SignerTrait {
         let hash = hash(&bytes);
         let secret = self.get_secret_key(&signer_id, &public_key).await?;
         let signature = secret.sign(hash.0.as_ref());
-        Ok(signature)
+        Ok(signature.into())
     }
 
     /// Returns the secret key associated with this signer.
@@ -356,8 +350,8 @@ pub trait SignerTrait {
 ///
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
-    pool: tokio::sync::RwLock<HashMap<String, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, String), AtomicU64>>,
+    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, PublicKey), AtomicU64>>,
     current_public_key: AtomicUsize,
 }
 
@@ -370,7 +364,7 @@ impl Signer {
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
             pool: tokio::sync::RwLock::new(HashMap::from([(
-                Convert(public_key).into(),
+                public_key,
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
             nonce_cache: tokio::sync::RwLock::new(HashMap::new()),
@@ -387,10 +381,7 @@ impl Signer {
     ) -> Result<(), SignerError> {
         let public_key = signer.get_public_key()?;
         debug!(target: SIGNER_TARGET, "Adding signer to pool");
-        self.pool
-            .write()
-            .await
-            .insert(Convert(public_key).into(), Box::new(signer));
+        self.pool.write().await.insert(public_key, Box::new(signer));
         Ok(())
     }
 
@@ -405,15 +396,14 @@ impl Signer {
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
-        let public_key_str: String = Convert(public_key.clone()).into();
         let nonce_data = crate::account::Account(account_id.clone())
-            .access_key(public_key)
+            .access_key(public_key.clone())
             .fetch_from(network)
             .await
-            .map_err(SignerError::FetchNonceError)?;
+            .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
         let nonce_cache = self.nonce_cache.read().await;
 
-        if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key_str.clone())) {
+        if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key.clone())) {
             let nonce = nonce.fetch_add(1, Ordering::SeqCst);
             drop(nonce_cache);
             trace!(target: SIGNER_TARGET, "Nonce fetched from cache");
@@ -430,10 +420,10 @@ impl Signer {
             .nonce_cache
             .write()
             .await
-            .entry((account_id.clone(), public_key_str))
-            .or_insert_with(|| AtomicU64::new(nonce_data.data.nonce + 1))
-            .fetch_max(nonce_data.data.nonce + 1, Ordering::SeqCst)
-            .max(nonce_data.data.nonce + 1);
+            .entry((account_id.clone(), public_key))
+            .or_insert_with(|| AtomicU64::new(nonce_data.data.nonce.0 + 1))
+            .fetch_max(nonce_data.data.nonce.0 + 1, Ordering::SeqCst)
+            .max(nonce_data.data.nonce.0 + 1);
 
         info!(target: SIGNER_TARGET, "Nonce fetched and cached");
         Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
@@ -471,7 +461,7 @@ impl Signer {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
         debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
 
-        if keypair.public_key != Convert(keypair.private_key.public_key()).into() {
+        if keypair.public_key != keypair.private_key.public_key().into() {
             return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
         }
 
@@ -529,7 +519,7 @@ impl Signer {
                 .clone()
         };
         debug!(target: SIGNER_TARGET, "Public key retrieved");
-        Ok(Convert(public_key).into())
+        Ok(public_key)
     }
 
     #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
@@ -543,9 +533,8 @@ impl Signer {
     ) -> Result<SignedDelegateAction, MetaSignError> {
         let signer = self.pool.read().await;
 
-        let public_key_str: String = Convert(public_key.clone()).into();
         signer
-            .get(&public_key_str)
+            .get(&public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?
             .sign_meta(tr, public_key, nonce, block_hash, max_block_height)
             .await
@@ -561,8 +550,7 @@ impl Signer {
     ) -> Result<SignedTransaction, SignerError> {
         let pool = self.pool.read().await;
 
-        let public_key_str: String = Convert(public_key.clone()).into();
-        pool.get(&public_key_str)
+        pool.get(&public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?
             .sign(tr, public_key, nonce, block_hash)
             .await
@@ -586,8 +574,14 @@ fn get_signed_delegate_action(
         public_key: unsigned_transaction.public_key().clone(),
     };
 
-    delegate_action.actions = unsigned_transaction.take_actions();
-
+    let actions: Vec<NonDelegateAction> = unsigned_transaction
+        .take_actions()
+        .into_iter()
+        .map(|action| {
+            NonDelegateAction::try_from(action)
+                .map_err(|e| MetaSignError::DelegateActionIsNotSupported)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     // create a new signature here signing the delegate action + discriminant
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
     let signer = InMemorySigner::from_secret_key(delegate_action.sender_id.clone(), private_key);
@@ -597,7 +591,7 @@ fn get_signed_delegate_action(
 
     Ok(SignedDelegateAction {
         delegate_action,
-        signature,
+        signature: signature.into(),
     })
 }
 
@@ -643,7 +637,7 @@ pub fn generate_seed_phrase_custom(
     )?;
     let public_key = secret_key.public_key();
 
-    Ok((seed_phrase, Convert(public_key).into()))
+    Ok((seed_phrase, public_key.into()))
 }
 
 /// Generates a new seed phrase with default settings (12 words, [default HD path](`DEFAULT_HD_PATH`))

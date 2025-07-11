@@ -28,7 +28,6 @@ near-sdk = { version = "5.15.1", features = ["non-contract-usage"] }
 near-contract-standards = "5.15.1"
 
 near-openapi-types = "0.3.0"
-omni-transaction = "0.2.0"
 near-account-id = "1.1.0"
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }

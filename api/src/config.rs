@@ -162,7 +162,7 @@ impl NetworkConfig {
     }
 
     #[cfg(feature = "sandbox")]
-    pub fn sandbox(sandbox: &near_sandbox_utils::high_level::Sandbox) -> Self {
+    pub fn from_sandbox(sandbox: &near_sandbox_utils::high_level::Sandbox) -> Self {
         Self {
             network_name: "sandbox".to_string(),
             rpc_endpoints: vec![RPCEndpoint::new(

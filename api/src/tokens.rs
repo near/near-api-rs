@@ -1,7 +1,6 @@
-use std::str::FromStr;
-
 use near_types::{
-    AccountId, Action, Data, NearToken, Reference, TransferAction, U128,
+    AccountId, Action, Data, NearToken, Reference, U128,
+    actions::TransferAction,
     fungible_token::metadata::FungibleTokenMetadata,
     non_fungible_token::{Token, metadata::NFTContractMetadata},
     tokens::{FTBalance, STORAGE_COST_PER_BYTE, UserBalance},

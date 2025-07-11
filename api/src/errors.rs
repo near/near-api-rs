@@ -1,4 +1,5 @@
 use near_openapi_client::types::RpcError;
+use near_types::PublicKey;
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -22,6 +23,8 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     QueryError(RetryError<SendRequestError<RpcError>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
+    #[error("Failed to convert response: {0}")]
+    ConversionError(Box<dyn std::error::Error + Send + Sync>),
 }
 impl<RpcError: std::fmt::Debug + Send + Sync> From<RetryError<SendRequestError<RpcError>>>
     for QueryError<RpcError>
@@ -48,7 +51,7 @@ pub enum SignerError {
     #[error("Secret key is not available")]
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0:?}")]
-    FetchNonceError(QueryError<RpcError>),
+    FetchNonceError(Box<QueryError<RpcError>>),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
 
@@ -109,7 +112,9 @@ The status is tracked in `About` section."
     #[error("Task execution error: {0}")]
     TaskExecutionError(#[from] tokio::task::JoinError),
     #[error("Signature is not expected to fail on deserialization: {0}")]
-    SignatureDeserializationError(#[from] near_crypto::ParseSignatureError),
+    SignatureDeserializationError(String),
+    #[error("Failed to cache public key: {0}")]
+    SetPublicKeyError(#[from] tokio::sync::SetError<PublicKey>),
 }
 
 #[cfg(feature = "ledger")]

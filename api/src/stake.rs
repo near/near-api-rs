@@ -567,7 +567,12 @@ impl Staking {
                     },
                 ))
                 // TODO: fix this unwrap
-                .map(|(account_id, stake)| (account_id, NearToken::from_str(&stake).unwrap()))
+                .map(|(account_id, stake)| {
+                    (
+                        account_id,
+                        NearToken::from_yoctonear(stake.parse().unwrap()),
+                    )
+                })
                 .collect()
         })
     }
