@@ -468,7 +468,7 @@ impl Transactionable for FTTransactionable {
             .view_account_storage(self.receiver.clone())?
             .fetch_from(network)
             .await
-            .map_err(|e| ValidationError::QueryError(e))?;
+            .map_err(ValidationError::QueryError)?;
 
         if storage_balance.data.is_none() {
             Err(FTValidatorError::StorageDepositNeeded)?;
@@ -487,7 +487,7 @@ impl Transactionable for FTTransactionable {
             .view_account_storage(self.receiver.clone())?
             .fetch_from(network)
             .await
-            .map_err(|e| ValidationError::QueryError(e))?;
+            .map_err(ValidationError::QueryError)?;
 
         if storage_balance.data.is_none() {
             let mut action = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())

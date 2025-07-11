@@ -381,7 +381,7 @@ impl DeployBuilder {
         SetDeployActionBuilder::new(
             self.contract,
             Action::UseGlobalContract(Box::new(UseGlobalContractAction {
-                contract_identifier: GlobalContractIdentifier::CodeHash(global_hash.into()),
+                contract_identifier: GlobalContractIdentifier::CodeHash(global_hash),
             })),
         )
     }
@@ -548,7 +548,7 @@ impl GlobalDeployBuilder {
     pub fn as_hash(self) -> SelfActionBuilder {
         SelfActionBuilder::new().add_action(Action::DeployGlobalContract(
             DeployGlobalContractAction {
-                code: self.code.into(),
+                code: self.code,
                 deploy_mode: GlobalContractDeployMode::CodeHash,
             },
         ))
@@ -577,7 +577,7 @@ impl GlobalDeployBuilder {
     pub fn as_account_id(self, signer_id: AccountId) -> ConstructTransaction {
         Transaction::construct(signer_id.clone(), signer_id).add_action(
             Action::DeployGlobalContract(DeployGlobalContractAction {
-                code: self.code.into(),
+                code: self.code,
                 deploy_mode: GlobalContractDeployMode::AccountId,
             }),
         )

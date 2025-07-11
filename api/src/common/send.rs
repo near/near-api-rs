@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use near_openapi_client::types::{
-    FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
-    JsonRpcResponseForRpcTransactionResponseAndRpcError, RpcError, RpcSendTransactionRequest,
+    JsonRpcRequestForSendTx,
+    JsonRpcResponseForRpcTransactionResponseAndRpcError, RpcSendTransactionRequest,
     RpcTransactionResponse, TxExecutionStatus,
 };
 
@@ -18,7 +18,7 @@ use crate::{
     common::utils::is_critical_transaction_error,
     config::{NetworkConfig, RetryResponse, retry},
     errors::{
-        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, RetryError,
+        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError,
         SendRequestError, SignerError, ValidationError,
     },
     signer::Signer,

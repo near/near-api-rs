@@ -82,7 +82,7 @@ impl KeystoreSigner {
             .iter()
             // TODO: support functional access keys
             .filter(|key| matches!(key.access_key.permission, AccessKeyPermission::FullAccess))
-            .filter_map(|key| key.public_key.clone().try_into().ok())
+            .map(|key| key.public_key.clone())
             .map(|key| Self::get_secret_key(&account_id, key, &network.network_name));
         let potential_pubkeys: Vec<PublicKey> = join_all(potential_pubkeys)
             .await
@@ -103,7 +103,7 @@ impl KeystoreSigner {
         trace!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key from keyring");
         let service_name =
             std::borrow::Cow::Owned(format!("near-{}-{}", network_name, account_id.as_str()));
-        let user = format!("{account_id}:{}", public_key.to_string());
+        let user = format!("{account_id}:{}", public_key);
 
         // This can be a blocking operation (for example, if the keyring is locked in the OS and user needs to unlock it),
         // so we need to spawn a new task to get the password

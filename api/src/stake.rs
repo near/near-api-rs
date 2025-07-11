@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
 use near_openapi_client::types::{RpcError, RpcQueryResponse};
 use near_types::{

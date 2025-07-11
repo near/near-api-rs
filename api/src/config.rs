@@ -1,5 +1,6 @@
 use near_openapi_client::Client;
 use near_types::AccountId;
+use reqwest::header::{HeaderValue, InvalidHeaderValue};
 
 use crate::errors::RetryError;
 
@@ -27,7 +28,7 @@ pub struct RPCEndpoint {
     /// The URL of the RPC endpoint
     pub url: url::Url,
     /// Optional API key for authenticated requests
-    // pub api_key: Option<crate::types::ApiKey>,
+    pub bearer_header: Option<String>,
     /// Number of consecutive failures to move on to the next endpoint.
     pub retries: u8,
     /// The retry method to use
@@ -42,7 +43,7 @@ impl RPCEndpoint {
     pub fn new(url: url::Url) -> Self {
         Self {
             url,
-            // api_key: None,
+            bearer_header: None,
             retries: 5,
             // 10ms, 20ms, 40ms, 80ms, 160ms
             retry_method: RetryMethod::ExponentialBackoff {
@@ -63,10 +64,10 @@ impl RPCEndpoint {
     }
 
     /// Set API key for the endpoint.
-    // pub fn with_api_key(mut self, api_key: crate::types::ApiKey) -> Self {
-    //     self.api_key = Some(api_key);
-    //     self
-    // }
+    pub fn with_api_key(mut self, api_key: String) -> Self {
+        self.bearer_header = Some(format!("Bearer {}", api_key));
+        self
+    }
 
     /// Set number of retries for the endpoint before moving on to the next one.
     pub const fn with_retries(mut self, retries: u8) -> Self {
@@ -177,16 +178,31 @@ impl NetworkConfig {
         }
     }
 
-    pub(crate) fn client(&self, index: usize) -> Client {
+    pub(crate) fn client(&self, index: usize) -> Result<Client, InvalidHeaderValue> {
         let rpc_endpoint = &self.rpc_endpoints[index];
-        let mut client =
-            near_openapi_client::Client::new(rpc_endpoint.url.as_ref().trim_end_matches('/'));
-        // TODO: Api key
-        // if let Some(rpc_api_key) = &rpc_endpoint.api_key {
-        //     json_rpc_client =
-        //         json_rpc_client.header(near_openapi_client::auth::ApiKey::from(rpc_api_key.clone()))
-        // };
-        client
+
+        if let Some(rpc_api_key) = &rpc_endpoint.bearer_header {
+            let mut headers = reqwest::header::HeaderMap::new();
+
+            let mut header = HeaderValue::from_str(rpc_api_key)?;
+            header.set_sensitive(true);
+
+            headers.insert(
+                reqwest::header::HeaderName::from_static("x-api-key"),
+                header,
+            );
+            let client = reqwest::ClientBuilder::new()
+                .default_headers(headers)
+                .build()
+                .unwrap();
+            return Ok(near_openapi_client::Client::new_with_client(
+                rpc_endpoint.url.as_ref().trim_end_matches('/'),
+                client,
+            ));
+        };
+        Ok(near_openapi_client::Client::new(
+            rpc_endpoint.url.as_ref().trim_end_matches('/'),
+        ))
     }
 }
 
@@ -228,7 +244,9 @@ where
 
     let mut last_error = None;
     for (index, endpoint) in network.rpc_endpoints.iter().enumerate() {
-        let client = network.client(index);
+        let client = network
+            .client(index)
+            .map_err(|e| RetryError::InvalidApiKey(e))?;
         for retry in 0..endpoint.retries {
             let result = task(client.clone()).await;
             match result {

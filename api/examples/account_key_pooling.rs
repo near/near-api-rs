@@ -5,7 +5,7 @@
 /// using different keys.
 use near_api::{
     signer::generate_secret_key,
-    types::{AccessKeyPermission, AccountId, NearToken, RpcTransactionResponse},
+    types::{AccessKeyPermission, AccountId, NearToken},
     *,
 };
 use near_sandbox_utils::{

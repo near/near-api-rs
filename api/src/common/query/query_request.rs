@@ -58,28 +58,28 @@ impl QueryRequest {
             QueryRequest::ViewAccount { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewAccountByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Final,
                         request_type: ViewAccountByFinalityRequestType::ViewAccount,
                     },
                     Reference::NearFinal => RpcQueryRequest::ViewAccountByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::NearFinal,
                         request_type: ViewAccountByFinalityRequestType::ViewAccount,
                     },
                     Reference::Optimistic => RpcQueryRequest::ViewAccountByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Optimistic,
                         request_type: ViewAccountByFinalityRequestType::ViewAccount,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::ViewAccountByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         block_id: BlockId::BlockHeight(height),
                         request_type: ViewAccountByBlockIdRequestType::ViewAccount,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewAccountByBlockId {
-                        account_id: account_id.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        account_id,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: ViewAccountByBlockIdRequestType::ViewAccount,
                     },
                 }
@@ -87,28 +87,28 @@ impl QueryRequest {
             QueryRequest::ViewCode { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewCodeByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Final,
                         request_type: ViewCodeByFinalityRequestType::ViewCode,
                     },
                     Reference::NearFinal => RpcQueryRequest::ViewCodeByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::NearFinal,
                         request_type: ViewCodeByFinalityRequestType::ViewCode,
                     },
                     Reference::Optimistic => RpcQueryRequest::ViewCodeByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Optimistic,
                         request_type: ViewCodeByFinalityRequestType::ViewCode,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::ViewCodeByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         block_id: BlockId::BlockHeight(height),
                         request_type: ViewCodeByBlockIdRequestType::ViewCode,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewCodeByBlockId {
-                        account_id: account_id.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        account_id,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: ViewCodeByBlockIdRequestType::ViewCode,
                     },
                 }
@@ -116,38 +116,38 @@ impl QueryRequest {
             QueryRequest::ViewState { account_id, include_proof, prefix_base64 } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewStateByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Final,
                         include_proof,
-                        prefix_base64: prefix_base64.into(),
+                        prefix_base64,
                         request_type: ViewStateByFinalityRequestType::ViewState,
                     },
                     Reference::NearFinal => RpcQueryRequest::ViewStateByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::NearFinal,
                         include_proof,
-                        prefix_base64: prefix_base64.into(),
+                        prefix_base64,
                         request_type: ViewStateByFinalityRequestType::ViewState,
                     },
                     Reference::Optimistic => RpcQueryRequest::ViewStateByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Optimistic,
                         include_proof,
-                        prefix_base64: prefix_base64.into(),
+                        prefix_base64,
                         request_type: ViewStateByFinalityRequestType::ViewState,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::ViewStateByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         block_id: BlockId::BlockHeight(height),
                         include_proof,
-                        prefix_base64: prefix_base64.into(),
+                        prefix_base64,
                         request_type: ViewStateByBlockIdRequestType::ViewState,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewStateByBlockId {
-                        account_id: account_id.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        account_id,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         include_proof,
-                        prefix_base64: prefix_base64.into(),
+                        prefix_base64,
                         request_type: ViewStateByBlockIdRequestType::ViewState,
                     },
                 }
@@ -155,33 +155,33 @@ impl QueryRequest {
             QueryRequest::ViewAccessKey { account_id, public_key } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewAccessKeyByFinality {
-                        account_id: account_id.into(),
-                        public_key: public_key.into(),
+                        account_id,
+                        public_key,
                         finality: Finality::Final,
                         request_type: ViewAccessKeyByFinalityRequestType::ViewAccessKey,
                     },
                     Reference::Optimistic => RpcQueryRequest::ViewAccessKeyByFinality {
-                        account_id: account_id.into(),
-                        public_key: public_key.into(),
+                        account_id,
+                        public_key,
                         finality: Finality::Optimistic,
                         request_type: ViewAccessKeyByFinalityRequestType::ViewAccessKey,
                     },
                     Reference::NearFinal => RpcQueryRequest::ViewAccessKeyByFinality {
-                        account_id: account_id.into(),
-                        public_key: public_key.into(),
+                        account_id,
+                        public_key,
                         finality: Finality::NearFinal,
                         request_type: ViewAccessKeyByFinalityRequestType::ViewAccessKey,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::ViewAccessKeyByBlockId {
-                        account_id: account_id.into(),
-                        public_key: public_key.into(),
+                        account_id,
+                        public_key,
                         block_id: BlockId::BlockHeight(height),
                         request_type: ViewAccessKeyByBlockIdRequestType::ViewAccessKey,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewAccessKeyByBlockId {
-                        account_id: account_id.into(),
-                        public_key: public_key.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        account_id,
+                        public_key,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: ViewAccessKeyByBlockIdRequestType::ViewAccessKey,
                     },
                 }
@@ -189,28 +189,28 @@ impl QueryRequest {
             QueryRequest::ViewAccessKeyList { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewAccessKeyListByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Final,
                         request_type: ViewAccessKeyListByFinalityRequestType::ViewAccessKeyList,
                     },
                     Reference::Optimistic => RpcQueryRequest::ViewAccessKeyListByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Optimistic,
                         request_type: ViewAccessKeyListByFinalityRequestType::ViewAccessKeyList,
                     },
                     Reference::NearFinal => RpcQueryRequest::ViewAccessKeyListByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::NearFinal,
                         request_type: ViewAccessKeyListByFinalityRequestType::ViewAccessKeyList,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::ViewAccessKeyListByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         block_id: BlockId::BlockHeight(height),
                         request_type: ViewAccessKeyListByBlockIdRequestType::ViewAccessKeyList,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewAccessKeyListByBlockId {
-                        account_id: account_id.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        account_id,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: ViewAccessKeyListByBlockIdRequestType::ViewAccessKeyList,
                     },
                 }
@@ -218,38 +218,38 @@ impl QueryRequest {
             QueryRequest::CallFunction { account_id, method_name, args_base64 } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::CallFunctionByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         method_name,
-                        args_base64: args_base64.into(),
+                        args_base64,
                         finality: Finality::Final,
                         request_type: CallFunctionByFinalityRequestType::CallFunction,
                     },
                     Reference::Optimistic => RpcQueryRequest::CallFunctionByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         method_name,
-                        args_base64: args_base64.into(),
+                        args_base64,
                         finality: Finality::Optimistic,
                         request_type: CallFunctionByFinalityRequestType::CallFunction,
                     },
                     Reference::NearFinal => RpcQueryRequest::CallFunctionByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         method_name,
-                        args_base64: args_base64.into(),
+                        args_base64,
                         finality: Finality::NearFinal,
                         request_type: CallFunctionByFinalityRequestType::CallFunction,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::CallFunctionByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         method_name,
-                        args_base64: args_base64.into(),
+                        args_base64,
                         block_id: BlockId::BlockHeight(height),
                         request_type: CallFunctionByBlockIdRequestType::CallFunction,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::CallFunctionByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         method_name,
-                        args_base64: args_base64.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        args_base64,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: CallFunctionByBlockIdRequestType::CallFunction,
                     },
                 }
@@ -278,7 +278,7 @@ impl QueryRequest {
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewGlobalContractCodeByBlockId {
                         code_hash: code_hash.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: ViewGlobalContractCodeByBlockIdRequestType::ViewGlobalContractCode,
                     },
                 }
@@ -286,28 +286,28 @@ impl QueryRequest {
             QueryRequest::ViewGlobalContractCodeByAccountId { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Final,
                         request_type: ViewGlobalContractCodeByAccountIdByFinalityRequestType::ViewGlobalContractCodeByAccountId,
                     },
                     Reference::Optimistic => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::Optimistic,
                         request_type: ViewGlobalContractCodeByAccountIdByFinalityRequestType::ViewGlobalContractCodeByAccountId,
                     },
                     Reference::NearFinal => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
-                        account_id: account_id.into(),
+                        account_id,
                         finality: Finality::NearFinal,
                         request_type: ViewGlobalContractCodeByAccountIdByFinalityRequestType::ViewGlobalContractCodeByAccountId,
                     },
                     Reference::AtBlock(height) => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByBlockId {
-                        account_id: account_id.into(),
+                        account_id,
                         block_id: BlockId::BlockHeight(height),
                         request_type: ViewGlobalContractCodeByAccountIdByBlockIdRequestType::ViewGlobalContractCodeByAccountId,
                     },
                     Reference::AtBlockHash(hash) => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByBlockId {
-                        account_id: account_id.into(),
-                        block_id: BlockId::CryptoHash(hash.clone().into()),
+                        account_id,
+                        block_id: BlockId::CryptoHash(hash.into()),
                         request_type: ViewGlobalContractCodeByAccountIdByBlockIdRequestType::ViewGlobalContractCodeByAccountId,
                     },
                 }

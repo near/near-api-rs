@@ -28,13 +28,13 @@ impl RpcType for SimpleValidatorRpc {
         let request = match reference {
             EpochReference::Latest => RpcValidatorRequest::Latest,
             EpochReference::AtEpoch(epoch) => {
-                RpcValidatorRequest::EpochId(EpochId(epoch.clone().into()))
+                RpcValidatorRequest::EpochId(EpochId((*epoch).into()))
             }
             EpochReference::AtBlock(block) => {
                 RpcValidatorRequest::BlockId(BlockId::BlockHeight(*block))
             }
             EpochReference::AtBlockHash(block_hash) => {
-                RpcValidatorRequest::BlockId(BlockId::CryptoHash(block_hash.clone().into()))
+                RpcValidatorRequest::BlockId(BlockId::CryptoHash((*block_hash).into()))
             }
         };
         let response = client

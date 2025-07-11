@@ -30,7 +30,7 @@ impl RpcType for SimpleBlockRpc {
             Reference::Final => RpcBlockRequest::Finality(Finality::Final),
             Reference::AtBlock(block) => RpcBlockRequest::BlockId(BlockId::BlockHeight(*block)),
             Reference::AtBlockHash(block_hash) => {
-                RpcBlockRequest::BlockId(BlockId::CryptoHash(block_hash.clone().into()))
+                RpcBlockRequest::BlockId(BlockId::CryptoHash((*block_hash).into()))
             }
         };
         let response = client

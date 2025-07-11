@@ -563,24 +563,23 @@ fn get_signed_delegate_action(
     max_block_height: u64,
 ) -> core::result::Result<SignedDelegateAction, MetaSignError> {
     use near_types::signable_message::{SignableMessage, SignableMessageType};
-
-    let mut delegate_action = near_types::delegate_action::DelegateAction {
-        sender_id: unsigned_transaction.signer_id().clone(),
-        receiver_id: unsigned_transaction.receiver_id().clone(),
-        actions: vec![],
-        nonce: unsigned_transaction.nonce(),
-        max_block_height,
-        public_key: unsigned_transaction.public_key().clone(),
-    };
-
     let actions: Vec<NonDelegateAction> = unsigned_transaction
         .take_actions()
         .into_iter()
         .map(|action| {
             NonDelegateAction::try_from(action)
-                .map_err(|e| MetaSignError::DelegateActionIsNotSupported)
+                .map_err(|_| MetaSignError::DelegateActionIsNotSupported)
         })
         .collect::<Result<Vec<_>, _>>()?;
+    let delegate_action = near_types::delegate_action::DelegateAction {
+        sender_id: unsigned_transaction.signer_id().clone(),
+        receiver_id: unsigned_transaction.receiver_id().clone(),
+        actions,
+        nonce: unsigned_transaction.nonce(),
+        max_block_height,
+        public_key: unsigned_transaction.public_key().clone(),
+    };
+
     // create a new signature here signing the delegate action + discriminant
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
     let signer = InMemorySigner::from_secret_key(delegate_action.sender_id.clone(), private_key);

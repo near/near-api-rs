@@ -20,7 +20,7 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
     #[error("Query error: {0:?}")]
-    QueryError(RetryError<SendRequestError<RpcError>>),
+    QueryError(Box<RetryError<SendRequestError<RpcError>>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
     #[error("Failed to convert response: {0}")]
@@ -31,7 +31,7 @@ impl<RpcError: std::fmt::Debug + Send + Sync> From<RetryError<SendRequestError<R
     for QueryError<RpcError>
 {
     fn from(err: RetryError<SendRequestError<RpcError>>) -> Self {
-        Self::QueryError(err)
+        Self::QueryError(Box::new(err))
     }
 }
 
@@ -183,9 +183,11 @@ pub enum FaucetError {
 pub enum RetryError<E> {
     #[error("No RPC endpoints are defined in the network config")]
     NoRpcEndpoints,
-    #[error("Request failed. Retries exhausted. Last error: {0:?}")]
+    #[error("Invalid API key: {0}")]
+    InvalidApiKey(#[from] reqwest::header::InvalidHeaderValue),
+    #[error("Request failed. Retries exhausted. Last error: {0}")]
     RetriesExhausted(E),
-    #[error("Critical error: {0:?}")]
+    #[error("Critical error: {0}")]
     Critical(E),
 }
 
@@ -193,7 +195,7 @@ pub enum RetryError<E> {
 pub enum SendRequestError<E: std::fmt::Debug> {
     #[error("Client error: {0}")]
     ClientError(near_openapi_client::Error<()>),
-    #[error("Server returned an error: {0:?}")]
+    #[error("Server returned an error: {0}")]
     ServerError(E),
     #[error("Query creation error: {0}")]
     QueryCreationError(#[from] QueryCreationError),

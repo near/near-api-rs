@@ -35,11 +35,11 @@ pub trait RpcType: Send + Sync + std::fmt::Debug {
     ) -> RetryResponse<Self::Response, SendRequestError<Self::Error>>;
 }
 
-pub type QueryBuilder<T: ResponseHandler> = RpcBuilder<T::Query, T>;
-pub type MultiQueryBuilder<T: ResponseHandler> = MultiRpcBuilder<T::Query, T>;
+pub type QueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
+pub type MultiQueryBuilder<T> = MultiRpcBuilder<<T as ResponseHandler>::Query, T>;
 
-pub type ValidatorQueryBuilder<T: ResponseHandler> = RpcBuilder<T::Query, T>;
-pub type BlockQueryBuilder<T: ResponseHandler> = RpcBuilder<T::Query, T>;
+pub type ValidatorQueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
+pub type BlockQueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
 
 /// A builder for querying multiple items at once.
 ///
