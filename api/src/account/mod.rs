@@ -73,10 +73,13 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn access_key(&self, signer_public_key: PublicKey) -> QueryBuilder<AccessKeyHandler> {
+    pub fn access_key(
+        &self,
+        signer_public_key: impl Into<PublicKey>,
+    ) -> QueryBuilder<AccessKeyHandler> {
         let request = QueryRequest::ViewAccessKey {
             account_id: self.0.clone(),
-            public_key: signer_public_key.into(),
+            public_key: signer_public_key.into().into(),
         };
         RpcBuilder::new(
             SimpleQueryRpc { request },
@@ -130,7 +133,7 @@ impl Account {
     pub fn add_key(
         &self,
         permission: AccessKeyPermission,
-        public_key: PublicKey,
+        public_key: impl Into<PublicKey>,
     ) -> ConstructTransaction {
         ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::AddKey(
             Box::new(AddKeyAction {
@@ -138,7 +141,7 @@ impl Account {
                     nonce: U64::from(0),
                     permission,
                 },
-                public_key,
+                public_key: public_key.into(),
             }),
         ))
     }
@@ -159,9 +162,12 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn delete_key(&self, public_key: PublicKey) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone())
-            .add_action(Action::DeleteKey(Box::new(DeleteKeyAction { public_key })))
+    pub fn delete_key(&self, public_key: impl Into<PublicKey>) -> ConstructTransaction {
+        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::DeleteKey(
+            Box::new(DeleteKeyAction {
+                public_key: public_key.into(),
+            }),
+        ))
     }
 
     /// Deletes multiple access keys from the given account ID.

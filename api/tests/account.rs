@@ -2,8 +2,9 @@ use near_api::{
     types::{AccessKeyPermission, AccountId, NearToken},
     *,
 };
-use near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT;
-use near_types::Convert;
+use near_sandbox_utils::{
+    GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
+};
 use signer::generate_secret_key;
 
 #[tokio::test]
@@ -17,7 +18,7 @@ async fn create_and_delete_account() {
 
     let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
     let secret = generate_secret_key().unwrap();
-    let public_key = Convert(secret.public_key()).into();
+    let public_key = secret.public_key();
 
     Account::create_account(new_account.clone())
         .fund_myself(account_id.clone(), NearToken::from_near(1))
@@ -62,14 +63,21 @@ async fn create_and_delete_account() {
 
 #[tokio::test]
 async fn transfer_funds() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
-    let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
     let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
     let bob: AccountId = format!("{}.{}", "bob", DEFAULT_GENESIS_ACCOUNT)
         .parse()
         .unwrap();
+    let network =
+        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
+            additional_accounts: vec![GenesisAccount {
+                account_id: bob.to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
 
     Tokens::account(alice.clone())
         .send_to(bob.clone())
@@ -92,8 +100,8 @@ async fn transfer_funds() {
         .unwrap();
 
     // it's actually 49.99 because of the fee
-    assert_eq!(alice_balance.total.as_near(), 49);
-    assert_eq!(bob_balance.total.as_near(), 150);
+    assert_eq!(alice_balance.total.as_near(), 9949);
+    assert_eq!(bob_balance.total.as_near(), 10050);
 }
 
 #[tokio::test]
@@ -107,23 +115,23 @@ async fn access_key_management() {
     let alice_acc = Account(alice.clone());
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
-    assert_eq!(keys.data.keys.len(), 1);
+    assert_eq!(keys.data.len(), 1);
 
     let secret = generate_secret_key().unwrap();
-    let public_key = Convert(secret.public_key()).into();
+    let public_key = secret.public_key();
 
     alice_acc
-        .add_key(AccessKeyPermission::FullAccess, public_key)
+        .add_key(AccessKeyPermission::FullAccess, public_key.clone())
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
         .unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
-    assert_eq!(keys.data.keys.len(), 2);
+    assert_eq!(keys.data.len(), 2);
 
     let new_key_info = alice_acc
-        .access_key(public_key)
+        .access_key(public_key.clone())
         .fetch_from(&network)
         .await
         .unwrap();
@@ -135,15 +143,14 @@ async fn access_key_management() {
 
     alice_acc
         .delete_key(secret.public_key())
-        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
 
-    assert_eq!(keys.keys.len(), 1);
+    assert_eq!(keys.data.len(), 1);
 
     alice_acc
         .access_key(secret.public_key())
@@ -155,25 +162,23 @@ async fn access_key_management() {
         let secret = generate_secret_key().unwrap();
         alice_acc
             .add_key(AccessKeyPermission::FullAccess, secret.public_key())
-            .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+            .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
             .send_to(&network)
             .await
-            .unwrap()
-            .assert_success();
+            .unwrap();
     }
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
 
-    assert_eq!(keys.keys.len(), 11);
+    assert_eq!(keys.data.len(), 11);
 
     alice_acc
-        .delete_keys(keys.keys.into_iter().map(|k| k.public_key).collect())
-        .with_signer(Signer::new(Signer::from_workspace(&alice)).unwrap())
+        .delete_keys(keys.data.into_iter().map(|k| k.public_key).collect())
+        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
-    assert_eq!(keys.keys.len(), 0);
+    assert_eq!(keys.data.len(), 0);
 }

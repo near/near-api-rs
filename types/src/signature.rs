@@ -46,6 +46,15 @@ impl Serialize for Signature {
     }
 }
 
+impl std::fmt::Display for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ED25519(sig) => write!(f, "ed25519:{}", bs58::encode(&sig.r).into_string()),
+            Self::SECP256K1(sig) => write!(f, "secp256k1:{}", bs58::encode(&sig.0).into_string()),
+        }
+    }
+}
+
 impl TryFrom<&[u8]> for Signature {
     type Error = &'static str;
 

@@ -118,8 +118,8 @@ use std::{
 };
 
 use near_types::{
-    AccountId, BlockHeight, Convert, CryptoHash, ED25519SecretKey, InMemorySigner, Nonce,
-    PublicKey, SecretKey, Signature,
+    AccountId, BlockHeight, CryptoHash, ED25519SecretKey, InMemorySigner, Nonce, PublicKey,
+    SecretKey, Signature,
     delegate_action::{NonDelegateAction, SignedDelegateAction},
     hash,
     transactions::{PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0},
@@ -726,9 +726,10 @@ mod nep_413_tests {
             .await
             .unwrap();
 
-        let expected_signature = "zzZQ/GwAjrZVrTIFlvmmQbDQHllfzrr8urVWHaRt5cPfcXaCSZo35c5LDpPpTKivR6BxLyb3lcPM0FfCW5lcBQ==";
-        let signature = signature.to_string();
-        assert_eq!(signature, expected_signature);
+        let expected_signature = from_base64(
+            "zzZQ/GwAjrZVrTIFlvmmQbDQHllfzrr8urVWHaRt5cPfcXaCSZo35c5LDpPpTKivR6BxLyb3lcPM0FfCW5lcBQ==",
+        );
+        assert_eq!(signature, expected_signature.as_slice().try_into().unwrap());
     }
 
     // The mockup data is created using the sender/meteor NEP413 implementation.
@@ -758,8 +759,9 @@ mod nep_413_tests {
             .await
             .unwrap();
 
-        let expected_signature = "NnJgPU1Ql7ccRTITIoOVsIfElmvH1RV7QAT4a9Vh6ShCOnjIzRwxqX54JzoQ/nK02p7VBMI2vJn48rpImIJwAw==";
-        let signature = signature.to_string();
+        let expected_signature = from_base64(
+            "NnJgPU1Ql7ccRTITIoOVsIfElmvH1RV7QAT4a9Vh6ShCOnjIzRwxqX54JzoQ/nK02p7VBMI2vJn48rpImIJwAw==",
+        ).as_slice().try_into().unwrap();
         assert_eq!(signature, expected_signature);
     }
 }

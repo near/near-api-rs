@@ -1,50 +1,67 @@
 use near_api::*;
 
-use near_primitives::hash::hash;
+use near_sandbox_utils::{
+    GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
+};
+use near_types::{AccountId, Data, hash};
 
 #[tokio::test]
 async fn deploy_global_contract_as_account_id_and_use_it() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let global_contract = network.dev_create_account().await.unwrap();
-    let contract_acc = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let global_contract_id: AccountId = "global_contract.testnet".parse().unwrap();
+    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let global_signer = Signer::new(Signer::default_sandbox()).unwrap();
+
+    let network =
+        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
+            additional_accounts: vec![GenesisAccount {
+                account_id: global_contract_id.to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let network = NetworkConfig::from_sandbox(&network);
 
     Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
-        .as_account_id(global_contract.id().clone())
-        .with_signer(Signer::new(Signer::from_workspace(&global_contract)).unwrap())
+        .as_account_id(global_contract_id.clone())
+        .with_signer(global_signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
-    Contract::deploy(contract_acc.id().clone())
-        .use_global_account_id(global_contract.id().clone())
+    Contract::deploy(account_id.clone())
+        .use_global_account_id(global_contract_id.clone())
         .without_init_call()
-        .with_signer(Signer::new(Signer::from_workspace(&contract_acc)).unwrap())
+        .with_signer(account_signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
-    let contract = Contract(contract_acc.id().clone());
+    let contract = Contract(account_id.clone());
 
-    assert!(!contract
-        .wasm()
-        .fetch_from(&network)
-        .await
-        .unwrap()
-        .data
-        .code
-        .is_empty());
+    assert!(
+        !contract
+            .wasm()
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .code_base64
+            .is_empty()
+    );
 
-    assert!(contract
-        .contract_source_metadata()
-        .fetch_from(&network)
-        .await
-        .unwrap()
-        .data
-        .version
-        .is_some());
+    assert!(
+        contract
+            .contract_source_metadata()
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .version
+            .is_some()
+    );
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -59,14 +76,10 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(
-            contract_acc.id().clone(),
-            Signer::new(Signer::from_workspace(&contract_acc)).unwrap(),
-        )
+        .with_signer(account_id.clone(), account_signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -81,52 +94,64 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 
 #[tokio::test]
 async fn deploy_global_contract_as_hash_and_use_it() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let contract_acc = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let global_contract_id: AccountId = "global_contract.testnet".parse().unwrap();
+    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let global_signer = Signer::new(Signer::default_sandbox()).unwrap();
+
+    let network =
+        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
+            additional_accounts: vec![GenesisAccount {
+                account_id: global_contract_id.to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let network = NetworkConfig::from_sandbox(&network);
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
     let hash = hash(&code);
 
     Contract::deploy_global_contract_code(code.clone())
         .as_hash()
-        .with_signer(
-            contract_acc.id().clone(),
-            Signer::new(Signer::from_workspace(&contract_acc)).unwrap(),
-        )
+        .with_signer(global_contract_id.clone(), global_signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
-    Contract::deploy(contract_acc.id().clone())
-        .use_global_hash(hash.into())
+    Contract::deploy(account_id.clone())
+        .use_global_hash(hash)
         .without_init_call()
-        .with_signer(Signer::new(Signer::from_workspace(&contract_acc)).unwrap())
+        .with_signer(account_signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
-    let contract = Contract(contract_acc.id().clone());
+    let contract = Contract(account_id.clone());
 
-    assert!(!contract
-        .wasm()
-        .fetch_from(&network)
-        .await
-        .unwrap()
-        .data
-        .code
-        .is_empty());
+    assert!(
+        !contract
+            .wasm()
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .code_base64
+            .is_empty()
+    );
 
-    assert!(contract
-        .contract_source_metadata()
-        .fetch_from(&network)
-        .await
-        .unwrap()
-        .data
-        .version
-        .is_some());
+    assert!(
+        contract
+            .contract_source_metadata()
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .version
+            .is_some()
+    );
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -141,14 +166,10 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(
-            contract_acc.id().clone(),
-            Signer::new(Signer::from_workspace(&contract_acc)).unwrap(),
-        )
+        .with_signer(account_id.clone(), account_signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())

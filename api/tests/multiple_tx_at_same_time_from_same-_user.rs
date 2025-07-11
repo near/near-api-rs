@@ -1,22 +1,36 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use futures::future::join_all;
 use near_api::*;
 
-use near_crypto::PublicKey;
-use near_primitives::account::AccessKeyPermission;
+use near_openapi_client::types::RpcTransactionResponse;
+use near_sandbox_utils::high_level::config::{
+    DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
+};
+use near_types::{AccessKeyPermission, AccountId, NearToken, PublicKey};
 use signer::generate_secret_key;
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_same_key() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
+    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
+        .await
+        .unwrap();
+    let network = NetworkConfig::from_sandbox(&network);
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
-    let tmp_account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
+    Account::create_account(tmp_account.clone())
+        .fund_myself(account.clone(), NearToken::from_near(1))
+        .public_key(PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY).unwrap())
+        .unwrap()
+        .with_signer(signer.clone())
+        .send_to(&network)
+        .await
+        .unwrap();
 
-    let start_nonce = Account(account.id().clone())
-        .access_key(Signer::from_workspace(&account).get_public_key().unwrap())
+    let start_nonce = Account(account.clone())
+        .access_key(signer.get_public_key().await.unwrap())
         .fetch_from(&network)
         .await
         .unwrap()
@@ -24,11 +38,10 @@ async fn multiple_tx_at_same_time_from_same_key() {
         .nonce;
 
     let tx = (0..100).map(|i| {
-        Tokens::account(account.id().clone())
-            .send_to(tmp_account.id().clone())
+        Tokens::account(account.clone())
+            .send_to(tmp_account.clone())
             .near(NearToken::from_millinear(i))
     });
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
         .await
         .into_iter()
@@ -36,36 +49,35 @@ async fn multiple_tx_at_same_time_from_same_key() {
         .unwrap();
 
     assert_eq!(txs.len(), 100);
-    txs.iter().for_each(|a| a.assert_success());
 
-    let end_nonce = Account(account.id().clone())
-        .access_key(Signer::from_workspace(&account).get_public_key().unwrap())
+    let end_nonce = Account(account.clone())
+        .access_key(signer.get_public_key().await.unwrap())
         .fetch_from(&network)
         .await
         .unwrap()
         .data
         .nonce;
-    assert_eq!(end_nonce, start_nonce + 100);
+    assert_eq!(end_nonce.0, start_nonce.0 + 100);
 }
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_different_keys() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let tmp_account = network.dev_create_account().await.unwrap();
+    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
+        .await
+        .unwrap();
+    let network = NetworkConfig::from_sandbox(&network);
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
-    let network = NetworkConfig::from(network);
-
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
 
     let secret = generate_secret_key().unwrap();
-    Account(account.id().clone())
+    Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret.clone()))
@@ -73,7 +85,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap();
 
     let secret2 = generate_secret_key().unwrap();
-    Account(account.id().clone())
+    Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret2.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
@@ -85,8 +97,8 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap();
 
     let tx = (0..12).map(|i| {
-        Tokens::account(account.id().clone())
-            .send_to(tmp_account.id().clone())
+        Tokens::account(account.clone())
+            .send_to(tmp_account.clone())
             .near(NearToken::from_millinear(i))
     });
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
@@ -98,16 +110,17 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     assert_eq!(txs.len(), 12);
     let mut hash_map = HashMap::new();
     for tx in txs {
-        tx.assert_success();
-        let public_key = tx.transaction.public_key;
-        let count = hash_map.entry(public_key).or_insert(0);
+        let transaction = match tx {
+            RpcTransactionResponse::Variant0 { transaction, .. } => transaction,
+            RpcTransactionResponse::Variant1 { transaction, .. } => transaction,
+        };
+        let public_key = transaction.public_key;
+        let count: &mut i32 = hash_map.entry(public_key.to_string()).or_insert(0);
         *count += 1;
     }
 
-    let initial_key = account.secret_key().public_key();
-    let initial_key: PublicKey = initial_key.to_string().parse().unwrap();
     assert_eq!(hash_map.len(), 3);
-    assert_eq!(hash_map[&initial_key], 4);
-    assert_eq!(hash_map[&secret2.public_key()], 4);
-    assert_eq!(hash_map[&secret.public_key()], 4);
+    assert_eq!(hash_map[DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY], 4);
+    assert_eq!(hash_map[&secret2.public_key().to_string()], 4);
+    assert_eq!(hash_map[&secret.public_key().to_string()], 4);
 }

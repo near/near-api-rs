@@ -196,7 +196,7 @@ impl<T, E> PublicKeyProvider<T, E> {
         Self { next_step }
     }
 
-    pub fn public_key(self, pk: PublicKey) -> Result<T, E> {
-        (self.next_step)(pk)
+    pub fn public_key(self, pk: impl Into<PublicKey>) -> Result<T, E> {
+        (self.next_step)(pk.into())
     }
 }

@@ -1,7 +1,9 @@
-use near_api::{types::NearToken, *};
+use near_api::{
+    signer::generate_secret_key,
+    types::{AccountId, NearToken},
+    *,
+};
 use near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT;
-use near_types::{AccountId, Convert};
-use signer::generate_secret_key;
 
 #[tokio::main]
 async fn main() {
@@ -25,7 +27,7 @@ async fn main() {
 
     Account::create_account(new_account.clone())
         .fund_myself(account.clone(), NearToken::from_near(1))
-        .public_key(Convert(generate_secret_key().unwrap().public_key()).into())
+        .public_key(generate_secret_key().unwrap().public_key())
         .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)

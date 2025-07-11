@@ -1,15 +1,21 @@
-use near_api::*;
+use near_api::{
+    types::{AccountId, Data},
+    *,
+};
+use near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT;
 
 #[tokio::main]
 async fn main() {
-    let network = near_workspaces::sandbox().await.unwrap();
-    let account = network.dev_create_account().await.unwrap();
-    let network = NetworkConfig::from(network);
+    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
+        .await
+        .unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let network = NetworkConfig::from_sandbox(&network);
 
-    let signer = Signer::new(Signer::from_workspace(&account)).unwrap();
+    let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
-    Contract::deploy(account.id().clone())
+    Contract::deploy(account.clone())
         .use_code(include_bytes!("../resources/counter.wasm").to_vec())
         // You can add init call as well using `with_init_call`
         .without_init_call()
@@ -18,7 +24,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let contract = Contract(account.id().clone());
+    let contract = Contract(account.clone());
 
     // Let's fetch current value on a contract
     let current_value: Data<i8> = contract
@@ -38,11 +44,10 @@ async fn main() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(account.id().clone(), signer.clone())
+        .with_signer(account.clone(), signer.clone())
         .send_to(&network)
         .await
-        .unwrap()
-        .assert_success();
+        .unwrap();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())

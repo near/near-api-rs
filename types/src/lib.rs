@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::fmt;
 
@@ -22,8 +23,8 @@ pub use near_contract_standards::{fungible_token, non_fungible_token};
 pub use near_crypto::{ED25519SecretKey, InMemorySigner, SecretKey};
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
-    AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcValidatorResponse, StoreKey,
-    ViewStateResult,
+    AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
+    RpcValidatorResponse, StoreKey, ViewStateResult,
 };
 pub use near_sdk::json_types::U128;
 pub use near_token::NearToken;
@@ -71,14 +72,6 @@ impl<T> Data<T> {
     }
 }
 
-pub struct Convert<T>(pub T);
-
-impl<T> From<T> for Convert<T> {
-    fn from(value: T) -> Self {
-        Self(value)
-    }
-}
-
 /// A wrapper around [near_openapi_client::auth::ApiKey]
 ///
 /// This type is used to authenticate requests to the RPC node
@@ -90,52 +83,17 @@ impl<T> From<T> for Convert<T> {
 /// use std::str::FromStr;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let api_key = ApiKey::from_str("your_api_key")?;
+/// let api_key = ApiKey("your_api_key".to_string());
 /// # Ok(())
 /// # }
-/// ```
-// #[derive(Eq, Hash, Clone, Debug, PartialEq)]
-// pub struct ApiKey(near_openapi_client::auth::ApiKey);
+#[derive(Eq, Hash, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApiKey(String);
 
-// impl From<ApiKey> for near_openapi_client::auth::ApiKey {
-//     fn from(api_key: ApiKey) -> Self {
-//         api_key.0
-//     }
-// }
-
-// impl std::fmt::Display for ApiKey {
-//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         write!(f, "{}", self.0.to_str().map_err(|_| std::fmt::Error)?)
-//     }
-// }
-
-// impl std::str::FromStr for ApiKey {
-//     type Err = InvalidHeaderValue;
-
-//     fn from_str(api_key: &str) -> Result<Self, Self::Err> {
-//         Ok(Self(near_openapi_client::auth::ApiKey::new(api_key)?))
-//     }
-// }
-
-// impl serde::ser::Serialize for ApiKey {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::ser::Serializer,
-//     {
-//         serializer.serialize_str(self.0.to_str().map_err(serde::ser::Error::custom)?)
-//     }
-// }
-
-// impl<'de> serde::de::Deserialize<'de> for ApiKey {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: serde::de::Deserializer<'de>,
-//     {
-//         String::deserialize(deserializer)?
-//             .parse()
-//             .map_err(|err: InvalidHeaderValue| serde::de::Error::custom(err.to_string()))
-//     }
-// }
+impl std::fmt::Display for ApiKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// A type that represents a hash of the data.
 ///
