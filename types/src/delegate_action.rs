@@ -31,8 +31,8 @@ pub struct DelegateAction {
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SignedDelegateAction {
-    pub signature: Signature,
     pub delegate_action: DelegateAction,
+    pub signature: Signature,
 }
 
 /// A wrapper around [near_primitives::action::delegate::SignedDelegateAction] that allows for easy serialization and deserialization as base64 string
