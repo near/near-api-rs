@@ -1,7 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bs58;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::Debug;
+use std::{fmt::Debug, str::FromStr};
+
+use crate::errors::{DataConversionError, SignatureError};
 
 pub const COMPONENT_SIZE: usize = 32;
 pub const SECP256K1_SIGNATURE_LENGTH: usize = 65;
@@ -74,51 +76,53 @@ impl TryFrom<&[u8]> for Signature {
     }
 }
 
-impl<'de> Deserialize<'de> for Signature {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
+impl FromStr for Signature {
+    type Err = DataConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (key_type, sig_data) = s.split_at(
             s.find(':')
-                .ok_or_else(|| serde::de::Error::custom("Invalid signature format"))?,
+                .ok_or_else(|| SignatureError::InvalidSignatureFormat(s.to_string()))?,
         );
         let sig_data = &sig_data[1..]; // Skip the colon
 
         match key_type {
             "ed25519" => {
-                let bytes = bs58::decode(sig_data)
-                    .into_vec()
-                    .map_err(serde::de::Error::custom)?;
+                let bytes = bs58::decode(sig_data).into_vec()?;
 
                 let signature = ED25519Signature {
                     r: bytes[0..COMPONENT_SIZE]
                         .try_into()
-                        .map_err(serde::de::Error::custom)?,
+                        .map_err(|_| DataConversionError::IncorrectLength(bytes.len()))?,
                     s: bytes[COMPONENT_SIZE..]
                         .try_into()
-                        .map_err(serde::de::Error::custom)?,
+                        .map_err(|_| DataConversionError::IncorrectLength(bytes.len()))?,
                 };
                 Ok(Self::ED25519(signature))
             }
             "secp256k1" => {
-                let bytes = bs58::decode(sig_data)
-                    .into_vec()
-                    .map_err(serde::de::Error::custom)?;
+                let bytes = bs58::decode(sig_data).into_vec()?;
 
                 if bytes.len() != SECP256K1_SIGNATURE_LENGTH {
-                    return Err(serde::de::Error::custom(
-                        "Invalid SECP256K1 signature length",
-                    ));
+                    return Err(DataConversionError::IncorrectLength(bytes.len()));
                 }
 
                 let mut array = [0u8; SECP256K1_SIGNATURE_LENGTH];
                 array.copy_from_slice(&bytes);
                 Ok(Self::SECP256K1(Secp256K1Signature(array)))
             }
-            _ => Err(serde::de::Error::custom("Unknown key type")),
+            _ => Err(SignatureError::InvalidSignatureFormat(s.to_string()))?,
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for Signature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Signature::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -170,6 +174,12 @@ mod tests {
         let invalid = "\"secp256k1:2xVqteU8PWhadHTv99TGh3bSf\"";
 
         assert!(serde_json::from_str::<Signature>(invalid).is_err());
+    }
+
+    #[test]
+    fn test_deserialize_with_valid_data_from_str() {
+        let invalid = "secp256k1:5N5CB9H1dmB9yraLGCo4ZCQTcF24zj4v2NT14MHdH3aVhRoRXrX3AhprHr2w6iXNBZDmjMS1Ntzjzq8Bv6iBvwth6";
+        assert!(Signature::from_str(invalid).is_ok());
     }
 
     #[test]

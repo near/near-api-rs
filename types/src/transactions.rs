@@ -1,10 +1,12 @@
-use std::io::Write;
+use std::{cell::OnceCell, io::Write, str::FromStr};
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::{AccountId, Action, CryptoHash, Nonce, PublicKey, Signature, hash};
+use crate::{
+    AccountId, Action, CryptoHash, Nonce, PublicKey, Signature, errors::DataConversionError, hash,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct TransactionV0 {
@@ -27,7 +29,7 @@ pub struct TransactionV1 {
     pub priority_fee: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub enum Transaction {
     V0(TransactionV0),
     V1(TransactionV1),
@@ -103,12 +105,62 @@ impl BorshSerialize for Transaction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct SignedTransaction {
     pub transaction: Transaction,
     pub signature: Signature,
     #[borsh(skip)]
-    hash: CryptoHash,
+    #[serde(skip)]
+    hash: OnceCell<CryptoHash>,
+}
+
+impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
+    type Error = DataConversionError;
+
+    fn try_from(value: near_openapi_types::SignedTransactionView) -> Result<Self, Self::Error> {
+        let near_openapi_types::SignedTransactionView {
+            signer_id,
+            public_key,
+            nonce,
+            receiver_id,
+            actions,
+            priority_fee,
+            hash,
+            signature,
+        } = value;
+
+        let transaction = if priority_fee > 0 {
+            Transaction::V1(TransactionV1 {
+                signer_id,
+                public_key: public_key.try_into()?,
+                nonce,
+                receiver_id,
+                block_hash: hash.try_into()?,
+                actions: actions
+                    .into_iter()
+                    .map(Action::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
+                priority_fee,
+            })
+        } else {
+            Transaction::V0(TransactionV0 {
+                signer_id,
+                public_key: public_key.try_into()?,
+                nonce,
+                receiver_id,
+                block_hash: hash.try_into()?,
+                actions: actions
+                    .into_iter()
+                    .map(Action::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
+            })
+        };
+
+        Ok(SignedTransaction::new(
+            Signature::from_str(&signature)?,
+            transaction,
+        ))
+    }
 }
 
 impl From<SignedTransaction> for near_openapi_types::SignedTransaction {
@@ -130,16 +182,15 @@ impl From<SignedTransaction> for PrepopulateTransaction {
 
 impl SignedTransaction {
     pub fn new(signature: Signature, transaction: Transaction) -> Self {
-        let hash = transaction.get_hash();
         Self {
             signature,
             transaction,
-            hash,
+            hash: OnceCell::new(),
         }
     }
 
     pub fn get_hash(&self) -> CryptoHash {
-        self.hash
+        *self.hash.get_or_init(|| self.transaction.get_hash())
     }
 }
 

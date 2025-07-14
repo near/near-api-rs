@@ -1,8 +1,6 @@
 use sha2::Digest;
 use std::fmt;
 
-use crate::errors::CryptoHashError;
-
 pub mod account;
 pub mod actions;
 pub mod contract;
@@ -15,6 +13,7 @@ pub mod signature;
 pub mod stake;
 pub mod storage;
 pub mod tokens;
+pub mod transaction_result;
 pub mod transactions;
 
 pub use near_abi as abi;
@@ -36,6 +35,8 @@ pub use public_key::PublicKey;
 pub use signature::Signature;
 pub mod integers;
 pub use account::Account;
+
+use crate::errors::DataConversionError;
 
 pub type BlockHeight = u64;
 pub type Nonce = u64;
@@ -95,7 +96,7 @@ impl<T> Data<T> {
 pub struct CryptoHash(pub [u8; 32]);
 
 impl std::str::FromStr for CryptoHash {
-    type Err = CryptoHashError;
+    type Err = DataConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = bs58::decode(s).into_vec()?;
@@ -104,11 +105,11 @@ impl std::str::FromStr for CryptoHash {
 }
 
 impl TryFrom<&[u8]> for CryptoHash {
-    type Error = CryptoHashError;
+    type Error = DataConversionError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() != 32 {
-            return Err(CryptoHashError::IncorrectHashLength(bytes.len()));
+            return Err(DataConversionError::IncorrectLength(bytes.len()));
         }
         let mut buf = [0; 32];
         buf.copy_from_slice(bytes);
@@ -117,7 +118,7 @@ impl TryFrom<&[u8]> for CryptoHash {
 }
 
 impl TryFrom<Vec<u8>> for CryptoHash {
-    type Error = CryptoHashError;
+    type Error = DataConversionError;
 
     fn try_from(v: Vec<u8>) -> Result<Self, Self::Error> {
         <Self as TryFrom<&[u8]>>::try_from(v.as_ref())
@@ -125,7 +126,7 @@ impl TryFrom<Vec<u8>> for CryptoHash {
 }
 
 impl TryFrom<near_openapi_types::CryptoHash> for CryptoHash {
-    type Error = CryptoHashError;
+    type Error = DataConversionError;
 
     fn try_from(value: near_openapi_types::CryptoHash) -> Result<Self, Self::Error> {
         let near_openapi_types::CryptoHash(hash) = value;

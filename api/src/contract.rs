@@ -509,8 +509,8 @@ impl SetDeployActionWithInitCallBuilder {
             .add_action(Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: self.method_name.to_owned(),
                 args: self.args,
-                gas: gas.as_gas().into(),
-                deposit: deposit.as_yoctonear().into(),
+                gas,
+                deposit,
             })))
             .with_signer(signer)
     }
@@ -686,8 +686,8 @@ impl ContractTransactBuilder {
             FunctionCallAction {
                 method_name: self.method_name.to_owned(),
                 args: self.args,
-                gas: gas.as_gas().into(),
-                deposit: deposit.as_yoctonear().into(),
+                gas,
+                deposit,
             },
         )))
     }

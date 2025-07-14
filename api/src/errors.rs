@@ -1,5 +1,5 @@
 use near_openapi_client::types::RpcError;
-use near_types::PublicKey;
+use near_types::{PublicKey, errors::DataConversionError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -215,6 +215,8 @@ pub enum ExecuteTransactionError {
     TransactionError(RetryError<SendRequestError<RpcError>>),
     #[error(transparent)]
     NonEmptyVecError(#[from] NonEmptyVecError),
+    #[error("Data conversion error: {0}")]
+    DataConversionError(#[from] DataConversionError),
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -360,11 +360,8 @@ pub struct SendToBuilder {
 impl SendToBuilder {
     /// Prepares a new transaction for sending NEAR tokens to another account.
     pub fn near(self, amount: NearToken) -> ConstructTransaction {
-        ConstructTransaction::new(self.from, self.receiver_id).add_action(Action::Transfer(
-            TransferAction {
-                deposit: amount.as_yoctonear().into(),
-            },
-        ))
+        ConstructTransaction::new(self.from, self.receiver_id)
+            .add_action(Action::Transfer(TransferAction { deposit: amount }))
     }
 
     /// Prepares a new transaction contract call (`ft_transfer`, `ft_metadata`, `storage_balance_of`, `storage_deposit`) for sending FT tokens to another account.

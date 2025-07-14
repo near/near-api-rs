@@ -142,12 +142,12 @@ impl Transaction {
     /// )
     /// .add_action(Action::Transfer(
     ///     TransferAction {
-    ///         deposit: U128(NearToken::from_near(1).as_yoctonear()),
+    ///         deposit: NearToken::from_near(1),
     ///     },
     /// ))
     /// .add_action(Action::Transfer(
     ///     TransferAction {
-    ///         deposit: U128(NearToken::from_near(1).as_yoctonear()),
+    ///         deposit: NearToken::from_near(1),
     ///     },
     /// ))
     /// .with_signer(signer)

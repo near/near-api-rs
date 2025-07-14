@@ -37,7 +37,7 @@ impl CreateAccountBuilder {
                     vec![
                         Action::CreateAccount(CreateAccountAction {}),
                         Action::Transfer(TransferAction {
-                            deposit: initial_balance.as_yoctonear().into(),
+                            deposit: initial_balance,
                         }),
                         Action::AddKey(Box::new(AddKeyAction {
                             public_key,

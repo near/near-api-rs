@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::{AccountId, CryptoHash, NearToken, StorageUsage, errors::AccountViewError};
+use crate::{AccountId, CryptoHash, NearToken, StorageUsage, errors::DataConversionError};
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default,
@@ -39,7 +39,7 @@ pub struct Account {
 }
 
 impl TryFrom<near_openapi_types::AccountView> for Account {
-    type Error = AccountViewError;
+    type Error = DataConversionError;
 
     fn try_from(value: near_openapi_types::AccountView) -> Result<Self, Self::Error> {
         let near_openapi_types::AccountView {

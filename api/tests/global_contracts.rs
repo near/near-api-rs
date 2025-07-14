@@ -29,6 +29,8 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .with_signer(global_signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     Contract::deploy(account_id.clone())
@@ -37,6 +39,8 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .with_signer(account_signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let contract = Contract(account_id.clone());
@@ -79,6 +83,8 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .with_signer(account_id.clone(), account_signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let current_value: Data<i8> = contract
@@ -119,6 +125,8 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .with_signer(global_contract_id.clone(), global_signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     Contract::deploy(account_id.clone())
@@ -127,6 +135,8 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .with_signer(account_signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let contract = Contract(account_id.clone());
@@ -169,6 +179,8 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .with_signer(account_id.clone(), account_signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let current_value: Data<i8> = contract

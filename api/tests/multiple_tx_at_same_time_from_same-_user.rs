@@ -1,33 +1,30 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use near_api::*;
-
-use near_openapi_client::types::RpcTransactionResponse;
-use near_sandbox_utils::high_level::config::{
-    DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
+use near_sandbox_utils::{
+    GenesisAccount, SandboxConfig,
+    high_level::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY},
 };
-use near_types::{AccessKeyPermission, AccountId, NearToken, PublicKey};
+use near_types::{AccessKeyPermission, AccountId, NearToken};
 use signer::generate_secret_key;
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_same_key() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
+    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
+    let network =
+        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
+            additional_accounts: vec![GenesisAccount {
+                account_id: tmp_account.to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
         .await
         .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
-
-    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
-    Account::create_account(tmp_account.clone())
-        .fund_myself(account.clone(), NearToken::from_near(1))
-        .public_key(PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY).unwrap())
-        .unwrap()
-        .with_signer(signer.clone())
-        .send_to(&network)
-        .await
-        .unwrap();
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await.unwrap())
@@ -62,14 +59,20 @@ async fn multiple_tx_at_same_time_from_same_key() {
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_different_keys() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
+    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
+    let network =
+        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
+            additional_accounts: vec![GenesisAccount {
+                account_id: tmp_account.to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        })
         .await
         .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
-
-    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
 
     let secret = generate_secret_key().unwrap();
     Account(account.clone())
@@ -77,6 +80,8 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .with_signer(signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     signer
@@ -90,6 +95,8 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .with_signer(signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret2.clone()))
@@ -104,17 +111,13 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
         .await
         .into_iter()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
+        .map(|t| t.unwrap().into_result().unwrap())
+        .collect::<Vec<_>>();
 
     assert_eq!(txs.len(), 12);
     let mut hash_map = HashMap::new();
     for tx in txs {
-        let transaction = match tx {
-            RpcTransactionResponse::Variant0 { transaction, .. } => transaction,
-            RpcTransactionResponse::Variant1 { transaction, .. } => transaction,
-        };
-        let public_key = transaction.public_key;
+        let public_key = tx.transaction().public_key();
         let count: &mut i32 = hash_map.entry(public_key.to_string()).or_insert(0);
         *count += 1;
     }

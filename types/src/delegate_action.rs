@@ -1,9 +1,11 @@
+use std::str::FromStr;
+
 use base64::{Engine, prelude::BASE64_STANDARD};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccountId, Action, BlockHeight, Nonce, PublicKey, Signature, errors::SignedDelegateActionError,
+    AccountId, Action, BlockHeight, Nonce, PublicKey, Signature, errors::DataConversionError,
 };
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,10 +31,52 @@ pub struct DelegateAction {
     pub public_key: PublicKey,
 }
 
+impl TryFrom<near_openapi_types::DelegateAction> for DelegateAction {
+    type Error = DataConversionError;
+    fn try_from(value: near_openapi_types::DelegateAction) -> Result<Self, Self::Error> {
+        let near_openapi_types::DelegateAction {
+            sender_id,
+            receiver_id,
+            actions,
+            nonce,
+            max_block_height,
+            public_key,
+        } = value;
+
+        Ok(Self {
+            sender_id,
+            receiver_id,
+            actions: actions
+                .into_iter()
+                .map(|action| {
+                    NonDelegateAction::try_from(Action::try_from(action.0)?)
+                        .map_err(|_| DataConversionError::DelegateActionNotSupported)
+                })
+                .collect::<Result<Vec<_>, DataConversionError>>()?,
+            nonce,
+            max_block_height,
+            public_key: public_key.try_into()?,
+        })
+    }
+}
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SignedDelegateAction {
     pub delegate_action: DelegateAction,
     pub signature: Signature,
+}
+
+impl TryFrom<near_openapi_types::SignedDelegateAction> for SignedDelegateAction {
+    type Error = DataConversionError;
+    fn try_from(value: near_openapi_types::SignedDelegateAction) -> Result<Self, Self::Error> {
+        let near_openapi_types::SignedDelegateAction {
+            delegate_action,
+            signature,
+        } = value;
+        Ok(SignedDelegateAction {
+            delegate_action: delegate_action.try_into()?,
+            signature: Signature::from_str(&signature)?,
+        })
+    }
 }
 
 /// A wrapper around [near_primitives::action::delegate::SignedDelegateAction] that allows for easy serialization and deserialization as base64 string
@@ -45,14 +89,10 @@ pub struct SignedDelegateActionAsBase64 {
 }
 
 impl std::str::FromStr for SignedDelegateActionAsBase64 {
-    type Err = SignedDelegateActionError;
+    type Err = DataConversionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self {
-            inner: borsh::from_slice(
-                &bs58::decode(s)
-                    .into_vec()
-                    .map_err(|_| SignedDelegateActionError::Base64DecodingError)?,
-            )?,
+            inner: borsh::from_slice(&bs58::decode(s).into_vec()?)?,
         })
     }
 }

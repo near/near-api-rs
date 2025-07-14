@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use near_openapi_client::types::{
-    JsonRpcRequestForSendTx, JsonRpcResponseForRpcTransactionResponseAndRpcError,
-    RpcSendTransactionRequest, RpcTransactionResponse,
+    FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
+    JsonRpcResponseForRpcTransactionResponseAndRpcError, RpcSendTransactionRequest,
+    RpcTransactionResponse,
 };
 
 use near_types::{
     BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
     delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
+    transaction_result::ExecutionFinalResult,
     transactions::{PrepopulateTransaction, SignedTransaction},
 };
 use reqwest::Response;
@@ -181,7 +183,7 @@ impl ExecuteSignedTransaction {
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
-    ) -> Result<RpcTransactionResponse, ExecuteTransactionError> {
+    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
         let (signed, transactionable) = match &mut self.tr {
             TransactionableOrSigned::Transactionable(tr) => {
                 debug!(target: TX_EXECUTOR_TARGET, "Preparing unsigned transaction");
@@ -230,7 +232,7 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the default mainnet configuration.
     ///
     /// Please note that this will sign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
-    pub async fn send_to_mainnet(self) -> Result<RpcTransactionResponse, ExecuteTransactionError> {
+    pub async fn send_to_mainnet(self) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
@@ -238,7 +240,7 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the default testnet configuration.
     ///
     /// Please note that this will sign the transaction with the testnet's nonce and block hash if it's not presigned yet.
-    pub async fn send_to_testnet(self) -> Result<RpcTransactionResponse, ExecuteTransactionError> {
+    pub async fn send_to_testnet(self) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }
@@ -247,9 +249,11 @@ impl ExecuteSignedTransaction {
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
         wait_until: TxExecutionStatus,
-    ) -> Result<RpcTransactionResponse, ExecuteTransactionError> {
+    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+        let hash = signed_tr.get_hash();
+        let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
         let result = retry(network.clone(), |client| {
-            let signed_tr = signed_tr.clone();
+            let signed_tx_base64 = signed_tx_base64.clone();
             async move {
                 let result = match client
                     .send_tx(&JsonRpcRequestForSendTx {
@@ -257,7 +261,7 @@ impl ExecuteSignedTransaction {
                         jsonrpc: "2.0".to_string(),
                         method: near_openapi_client::types::JsonRpcRequestForSendTxMethod::SendTx,
                         params: RpcSendTransactionRequest {
-                            signed_tx_base64: signed_tr.clone().into(),
+                            signed_tx_base64,
                             wait_until,
                         },
                     })
@@ -285,7 +289,7 @@ impl ExecuteSignedTransaction {
                 tracing::debug!(
                     target: TX_EXECUTOR_TARGET,
                     "Broadcasting transaction {} resulted in {:?}",
-                    signed_tr.get_hash(),
+                    hash,
                     result
                 );
 
@@ -295,7 +299,41 @@ impl ExecuteSignedTransaction {
         .await
         .map_err(ExecuteTransactionError::TransactionError)?;
 
-        Ok(result)
+        println!("Sent transaction to network. Result: {:?}", result);
+
+        // TODO: check if we need to add support for that final_execution_status
+        let final_execution_outcome_view = match result {
+            // We don't use `experimental_tx`, so we can ignore that, but just to be safe
+            RpcTransactionResponse::Variant0 {
+                final_execution_status: _,
+                receipts: _,
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            } => FinalExecutionOutcomeView {
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            },
+            RpcTransactionResponse::Variant1 {
+                final_execution_status: _,
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            } => FinalExecutionOutcomeView {
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            },
+        };
+
+        Ok(ExecutionFinalResult::try_from(
+            final_execution_outcome_view,
+        )?)
     }
 }
 

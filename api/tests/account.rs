@@ -27,6 +27,8 @@ async fn create_and_delete_account() {
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let balance_before_del = Tokens::account(new_account.clone())
@@ -43,6 +45,8 @@ async fn create_and_delete_account() {
         .wait_until(TxExecutionStatus::Final)
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     Tokens::account(account_id.clone())
@@ -83,6 +87,8 @@ async fn transfer_funds() {
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let alice_balance = Tokens::account(alice.clone())
@@ -123,6 +129,8 @@ async fn access_key_management() {
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
@@ -144,6 +152,8 @@ async fn access_key_management() {
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
@@ -163,6 +173,8 @@ async fn access_key_management() {
             .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
             .send_to(&network)
             .await
+            .unwrap()
+            .into_result()
             .unwrap();
     }
 
@@ -175,6 +187,8 @@ async fn access_key_management() {
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();

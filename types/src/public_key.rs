@@ -5,7 +5,7 @@ use serde::ser::{SerializeTuple, Serializer};
 use std::io::{Error, Write};
 use std::str::FromStr;
 
-use crate::errors::PublicKeyError;
+use crate::errors::{DataConversionError, PublicKeyError};
 
 pub const ED25519_PUBLIC_KEY_LENGTH: usize = 32;
 pub const SECP256K1_PUBLIC_KEY_LENGTH: usize = 64;
@@ -96,7 +96,7 @@ impl std::fmt::Display for PublicKey {
 
 // TryFrom implementations for slices and vectors
 impl TryFrom<&[u8]> for PublicKey {
-    type Error = PublicKeyError;
+    type Error = DataConversionError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         match value.len() {
@@ -106,13 +106,13 @@ impl TryFrom<&[u8]> for PublicKey {
             SECP256K1_PUBLIC_KEY_LENGTH => Ok(Self::SECP256K1(Secp256K1PublicKey(
                 value.try_into().unwrap(),
             ))),
-            _ => Err(PublicKeyError::InvalidLength(value.len())),
+            _ => Err(DataConversionError::IncorrectLength(value.len())),
         }
     }
 }
 
 impl TryFrom<Vec<u8>> for PublicKey {
-    type Error = PublicKeyError;
+    type Error = DataConversionError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         Self::try_from(value.as_slice())
@@ -120,7 +120,7 @@ impl TryFrom<Vec<u8>> for PublicKey {
 }
 
 impl TryFrom<near_openapi_types::PublicKey> for PublicKey {
-    type Error = PublicKeyError;
+    type Error = DataConversionError;
     fn try_from(value: near_openapi_types::PublicKey) -> Result<Self, Self::Error> {
         let near_openapi_types::PublicKey(key) = value;
         Self::from_str(&key)
@@ -156,19 +156,19 @@ impl From<PublicKey> for near_crypto::PublicKey {
 }
 
 impl FromStr for PublicKey {
-    type Err = PublicKeyError;
+    type Err = DataConversionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (key_type, key_data) = s
-            .split_once(':')
-            .ok_or_else(|| PublicKeyError::InvalidKeyFormat(s.to_string()))?;
+        let (key_type, key_data) = s.split_once(':').ok_or_else(|| {
+            DataConversionError::InvalidPublicKey(PublicKeyError::InvalidKeyFormat(s.to_string()))
+        })?;
 
         let bytes = bs58::decode(key_data).into_vec()?;
 
         match key_type {
             "ed25519" => Ok(Self::ED25519(ED25519PublicKey(bytes.try_into()?))),
             "secp256k1" => Ok(Self::SECP256K1(Secp256K1PublicKey(bytes.try_into()?))),
-            _ => Err(PublicKeyError::InvalidPrefix(s.to_string())),
+            _ => Err(PublicKeyError::InvalidPrefix(s.to_string()))?,
         }
     }
 }

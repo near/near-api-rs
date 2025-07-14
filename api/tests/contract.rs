@@ -19,6 +19,8 @@ async fn contract_without_init_call() {
         .with_signer(signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let contract = Contract(account.clone());
@@ -61,6 +63,8 @@ async fn contract_without_init_call() {
         .with_signer(account.clone(), signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let current_value: Data<i8> = contract
@@ -96,6 +100,8 @@ async fn contract_with_init_call() {
         .with_signer(signer.clone())
         .send_to(&network)
         .await
+        .unwrap()
+        .into_result()
         .unwrap();
 
     let contract = Contract(account.clone());
