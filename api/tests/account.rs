@@ -1,5 +1,5 @@
 use near_api::{
-    types::{AccessKeyPermission, AccountId, NearToken},
+    types::{AccessKeyPermission, AccountId, NearToken, TxExecutionStatus},
     *,
 };
 use near_sandbox_utils::{
@@ -40,6 +40,7 @@ async fn create_and_delete_account() {
     Account(account_id.clone())
         .delete_account_with_beneficiary(new_account.clone())
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .wait_until(TxExecutionStatus::Final)
         .send_to(&network)
         .await
         .unwrap();
@@ -49,9 +50,6 @@ async fn create_and_delete_account() {
         .fetch_from(&network)
         .await
         .expect_err("Shouldn't exist");
-
-    // TODO: why do we need a sleep to wait for beneficiary transfer?
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let balance_after_del = Tokens::account(new_account.clone())
         .near_balance()

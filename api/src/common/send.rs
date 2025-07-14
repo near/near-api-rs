@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use near_openapi_client::types::{
-    JsonRpcRequestForSendTx,
-    JsonRpcResponseForRpcTransactionResponseAndRpcError, RpcSendTransactionRequest,
-    RpcTransactionResponse, TxExecutionStatus,
+    JsonRpcRequestForSendTx, JsonRpcResponseForRpcTransactionResponseAndRpcError,
+    RpcSendTransactionRequest, RpcTransactionResponse,
 };
 
 use near_types::{
-    BlockHeight, CryptoHash, Nonce, PublicKey,
+    BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
     delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
     transactions::{PrepopulateTransaction, SignedTransaction},
 };
@@ -18,8 +17,8 @@ use crate::{
     common::utils::is_critical_transaction_error,
     config::{NetworkConfig, RetryResponse, retry},
     errors::{
-        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError,
-        SendRequestError, SignerError, ValidationError,
+        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SendRequestError,
+        SignerError, ValidationError,
     },
     signer::Signer,
 };
@@ -77,6 +76,8 @@ pub struct ExecuteSignedTransaction {
     pub tr: TransactionableOrSigned<SignedTransaction>,
     /// The signer that will be used to sign the transaction.
     pub signer: Arc<Signer>,
+
+    pub wait_until: TxExecutionStatus,
 }
 
 impl ExecuteSignedTransaction {
@@ -84,6 +85,7 @@ impl ExecuteSignedTransaction {
         Self {
             tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
             signer,
+            wait_until: TxExecutionStatus::Final,
         }
     }
 
@@ -94,6 +96,11 @@ impl ExecuteSignedTransaction {
     /// is a different type of transaction.
     pub fn meta(self) -> ExecuteMetaTransaction {
         ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
+    }
+
+    pub fn wait_until(mut self, wait_until: TxExecutionStatus) -> Self {
+        self.wait_until = wait_until;
+        self
     }
 
     /// Signs the transaction offline without fetching the nonce or block hash from the network.
@@ -186,6 +193,8 @@ impl ExecuteSignedTransaction {
             }
         };
 
+        let wait_until = self.wait_until;
+
         if signed.is_none() {
             debug!(target: TX_EXECUTOR_TARGET, "Editing transaction with network config");
             transactionable.edit_with_network(network).await?;
@@ -215,7 +224,7 @@ impl ExecuteSignedTransaction {
             signed.transaction.nonce(),
         );
 
-        Self::send_impl(network, signed).await
+        Self::send_impl(network, signed, wait_until).await
     }
 
     /// Sends the transaction to the default mainnet configuration.
@@ -237,6 +246,7 @@ impl ExecuteSignedTransaction {
     async fn send_impl(
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
+        wait_until: TxExecutionStatus,
     ) -> Result<RpcTransactionResponse, ExecuteTransactionError> {
         let result = retry(network.clone(), |client| {
             let signed_tr = signed_tr.clone();
@@ -248,7 +258,7 @@ impl ExecuteSignedTransaction {
                         method: near_openapi_client::types::JsonRpcRequestForSendTxMethod::SendTx,
                         params: RpcSendTransactionRequest {
                             signed_tx_base64: signed_tr.clone().into(),
-                            wait_until: TxExecutionStatus::Final,
+                            wait_until,
                         },
                     })
                     .await

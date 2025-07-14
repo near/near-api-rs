@@ -3,6 +3,7 @@ use tracing::trace;
 use crate::{
     advanced::{RpcType, handlers::ResponseHandler},
     common::query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
+    errors::QueryError,
 };
 
 #[derive(Clone, Debug)]
@@ -119,5 +120,46 @@ where
 
     fn request_amount(&self) -> usize {
         self.handler.request_amount()
+    }
+}
+
+pub struct AndThenHandler<PostProcessed, Handler: ResponseHandler> {
+    post_process: Box<
+        dyn Fn(Handler::Response) -> Result<PostProcessed, Box<dyn std::error::Error + Send + Sync>>
+            + Send
+            + Sync,
+    >,
+    handler: Handler,
+}
+
+impl<PostProcessed, Handler: ResponseHandler> AndThenHandler<PostProcessed, Handler> {
+    pub fn new<F>(handler: Handler, post_process: F) -> Self
+    where
+        F: Fn(Handler::Response) -> Result<PostProcessed, Box<dyn std::error::Error + Send + Sync>>
+            + Send
+            + Sync
+            + 'static,
+    {
+        Self {
+            post_process: Box::new(post_process),
+            handler,
+        }
+    }
+}
+
+impl<PostProcessed, Handler> ResponseHandler for AndThenHandler<PostProcessed, Handler>
+where
+    Handler: ResponseHandler,
+{
+    type Response = PostProcessed;
+    type Query = Handler::Query;
+
+    fn process_response(
+        &self,
+        response: Vec<<Self::Query as RpcType>::Response>,
+    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+        Handler::process_response(&self.handler, response)
+            .map(|data| (self.post_process)(data))?
+            .map_err(QueryError::ConversionError)
     }
 }

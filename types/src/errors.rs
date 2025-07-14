@@ -49,3 +49,11 @@ pub enum AccessKeyError {
     #[error("Invalid access key: {0}")]
     InvalidAccessKey(#[from] std::num::ParseIntError),
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum AccountViewError {
+    #[error("Hash parsing error: {0}")]
+    HashParsingError(#[from] CryptoHashError),
+    #[error("Token parsing error: {0}")]
+    TokenParsingError(#[from] std::num::ParseIntError),
+}

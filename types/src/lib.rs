@@ -3,6 +3,7 @@ use std::fmt;
 
 use crate::errors::CryptoHashError;
 
+pub mod account;
 pub mod actions;
 pub mod contract;
 pub mod delegate_action;
@@ -23,7 +24,7 @@ pub use near_crypto::{ED25519SecretKey, InMemorySigner, SecretKey};
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
     AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
-    RpcValidatorResponse, StoreKey, ViewStateResult,
+    RpcValidatorResponse, StoreKey, TxExecutionStatus, ViewStateResult,
 };
 pub use near_sdk::json_types::U128;
 pub use near_token::NearToken;
@@ -34,9 +35,11 @@ pub use actions::{AccessKey, AccessKeyPermission, Action};
 pub use public_key::PublicKey;
 pub use signature::Signature;
 pub mod integers;
+pub use account::Account;
 
 pub type BlockHeight = u64;
 pub type Nonce = u64;
+pub type StorageUsage = u64;
 
 pub fn hash(bytes: &[u8]) -> CryptoHash {
     CryptoHash(sha2::Sha256::digest(bytes).into())
@@ -121,6 +124,15 @@ impl TryFrom<Vec<u8>> for CryptoHash {
     }
 }
 
+impl TryFrom<near_openapi_types::CryptoHash> for CryptoHash {
+    type Error = CryptoHashError;
+
+    fn try_from(value: near_openapi_types::CryptoHash) -> Result<Self, Self::Error> {
+        let bytes = bs58::decode(value.0).into_vec()?;
+        Self::try_from(bytes)
+    }
+}
+
 impl std::fmt::Debug for CryptoHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
@@ -130,13 +142,6 @@ impl std::fmt::Debug for CryptoHash {
 impl std::fmt::Display for CryptoHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         std::fmt::Display::fmt(&bs58::encode(self.0).into_string(), f)
-    }
-}
-
-impl From<near_openapi_types::CryptoHash> for CryptoHash {
-    fn from(hash: near_openapi_types::CryptoHash) -> Self {
-        // TODO: handle error
-        hash.0.parse().unwrap()
     }
 }
 

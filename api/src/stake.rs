@@ -9,8 +9,8 @@ use near_types::{
 use crate::{
     NetworkConfig,
     advanced::{
-        ResponseHandler, RpcBuilder, query_request::QueryRequest, query_rpc::SimpleQueryRpc,
-        validator_rpc::SimpleValidatorRpc,
+        AndThenHandler, ResponseHandler, RpcBuilder, query_request::QueryRequest,
+        query_rpc::SimpleQueryRpc, validator_rpc::SimpleValidatorRpc,
     },
     common::{
         query::{
@@ -535,16 +535,16 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake() -> ValidatorQueryBuilder<
-        PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>,
-    > {
+    pub fn validators_stake()
+    -> ValidatorQueryBuilder<AndThenHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>>
+    {
         ValidatorQueryBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,
             RpcValidatorHandler,
         )
-        .map(|validator_response| {
-            validator_response
+        .and_then(|validator_response| {
+            Ok(validator_response
                 .current_proposals
                 .into_iter()
                 .map(|validator_stake_view| {
@@ -566,14 +566,10 @@ impl Staking {
                         )
                     },
                 ))
-                // TODO: fix this unwrap
                 .map(|(account_id, stake)| {
-                    (
-                        account_id,
-                        NearToken::from_yoctonear(stake.parse().unwrap()),
-                    )
+                    Ok((account_id, NearToken::from_yoctonear(stake.parse()?)))
                 })
-                .collect()
+                .collect::<::core::result::Result<_, Box<dyn std::error::Error + Send + Sync>>>()?)
         })
     }
 

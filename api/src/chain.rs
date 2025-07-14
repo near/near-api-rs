@@ -1,7 +1,7 @@
 use near_types::{BlockHeight, CryptoHash, Reference};
 
 use crate::{
-    advanced::block_rpc::SimpleBlockRpc,
+    advanced::{AndThenHandler, block_rpc::SimpleBlockRpc},
     common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler},
 };
 
@@ -79,9 +79,9 @@ impl Chain {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn block_hash() -> BlockQueryBuilder<PostprocessHandler<CryptoHash, RpcBlockHandler>> {
+    pub fn block_hash() -> BlockQueryBuilder<AndThenHandler<CryptoHash, RpcBlockHandler>> {
         BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
-            .map(|data| data.header.hash.into())
+            .and_then(|data| Ok(CryptoHash::try_from(data.header.hash)?))
     }
 
     /// Set ups a query to fetch the [RpcBlockResponse][near_types::RpcBlockResponse]

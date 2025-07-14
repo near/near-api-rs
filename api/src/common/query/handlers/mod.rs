@@ -1,7 +1,7 @@
 use near_openapi_client::types::RpcQueryResponse;
 use near_types::{
-    AccessKey, AccountView, ContractCodeView, Data, RpcBlockResponse, RpcValidatorResponse,
-    ViewStateResult, actions::AccessKeyInfo, integers::U64,
+    AccessKey, Account, AccountView, ContractCodeView, Data, RpcBlockResponse,
+    RpcValidatorResponse, ViewStateResult, actions::AccessKeyInfo, integers::U64,
 };
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
@@ -80,7 +80,9 @@ where
             Ok(Data {
                 data,
                 block_height,
-                block_hash: block_hash.into(),
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -97,7 +99,7 @@ pub struct AccountViewHandler;
 
 impl ResponseHandler for AccountViewHandler {
     type Query = SimpleQueryRpc;
-    type Response = Data<AccountView>;
+    type Response = Data<Account>;
 
     fn process_response(
         &self,
@@ -134,9 +136,13 @@ impl ResponseHandler for AccountViewHandler {
                     storage_paid_at,
                     global_contract_account_id,
                     global_contract_hash,
-                },
+                }
+                .try_into()
+                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
                 block_height,
-                block_hash: block_hash.into(),
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -184,7 +190,9 @@ impl ResponseHandler for AccessKeyListHandler {
                     .filter_map(|key| key.try_into().ok())
                     .collect(),
                 block_height,
-                block_hash: block_hash.into(),
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -236,7 +244,9 @@ impl ResponseHandler for AccessKeyHandler {
                         .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
                 },
                 block_height,
-                block_hash: block_hash.into(),
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -279,7 +289,9 @@ impl ResponseHandler for ViewStateHandler {
             Ok(Data {
                 data: ViewStateResult { proof, values },
                 block_height,
-                block_hash: block_hash.into(),
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -322,7 +334,9 @@ impl ResponseHandler for ViewCodeHandler {
             Ok(Data {
                 data: ContractCodeView { code_base64, hash },
                 block_height,
-                block_hash: block_hash.into(),
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);

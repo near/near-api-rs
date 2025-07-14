@@ -149,6 +149,41 @@ where
         }
     }
 
+    /// Post-process the response of the query with error handling
+    ///
+    /// This is useful if you want to convert one type to another but your function might fail.
+    ///
+    /// The error will be wrapped in a `QueryError::ConversionError` and returned to the caller.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    ///         .call_function("get_balance", ())?
+    ///         .read_only()
+    ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
+    ///         .fetch_from_testnet()
+    ///         .await?;
+    /// println!("Balance: {}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn and_then<MappedType>(
+        self,
+        map: impl Fn(Handler::Response) -> Result<MappedType, Box<dyn std::error::Error + Send + Sync>>
+        + Send
+        + Sync
+        + 'static,
+    ) -> RpcBuilder<Query, AndThenHandler<MappedType, Handler>> {
+        RpcBuilder {
+            handler: AndThenHandler::new(self.handler, map),
+            request: self.request,
+            reference: self.reference,
+        }
+    }
+
     /// Add a query to the queried items. Sometimes you might need to query multiple items at once.
     /// To combine the result of multiple queries into one.
     pub fn add_query(
@@ -311,6 +346,41 @@ where
     ) -> RpcBuilder<Query, PostprocessHandler<MappedType, Handler>> {
         RpcBuilder {
             handler: PostprocessHandler::new(self.handler, map),
+            request: self.request,
+            reference: self.reference,
+        }
+    }
+
+    /// Post-process the response of the query with error handling
+    ///
+    /// This is useful if you want to convert one type to another but your function might fail.
+    ///
+    /// The error will be wrapped in a `QueryError::ConversionError` and returned to the caller.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    ///         .call_function("get_balance", ())?
+    ///         .read_only()
+    ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
+    ///         .fetch_from_testnet()
+    ///         .await?;
+    /// println!("Balance: {}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn and_then<MappedType>(
+        self,
+        map: impl Fn(Handler::Response) -> Result<MappedType, Box<dyn std::error::Error + Send + Sync>>
+        + Send
+        + Sync
+        + 'static,
+    ) -> RpcBuilder<Query, AndThenHandler<MappedType, Handler>> {
+        RpcBuilder {
+            handler: AndThenHandler::new(self.handler, map),
             request: self.request,
             reference: self.reference,
         }
