@@ -84,9 +84,14 @@ pub struct AccessKeyInfo {
 impl TryFrom<near_openapi_types::AccessKeyInfoView> for AccessKeyInfo {
     type Error = AccessKeyError;
     fn try_from(val: near_openapi_types::AccessKeyInfoView) -> Result<Self, Self::Error> {
+        let near_openapi_types::AccessKeyInfoView {
+            public_key,
+            access_key,
+        } = val;
+
         Ok(AccessKeyInfo {
-            public_key: val.public_key.try_into()?,
-            access_key: val.access_key.try_into()?,
+            public_key: public_key.try_into()?,
+            access_key: access_key.try_into()?,
         })
     }
 }
@@ -103,9 +108,10 @@ pub struct AccessKey {
 impl TryFrom<near_openapi_types::AccessKeyView> for AccessKey {
     type Error = std::num::ParseIntError;
     fn try_from(val: near_openapi_types::AccessKeyView) -> Result<Self, Self::Error> {
+        let near_openapi_types::AccessKeyView { nonce, permission } = val;
         Ok(AccessKey {
-            nonce: U64(val.nonce),
-            permission: val.permission.try_into()?,
+            nonce: U64(nonce),
+            permission: permission.try_into()?,
         })
     }
 }

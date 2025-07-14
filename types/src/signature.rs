@@ -36,11 +36,11 @@ impl Serialize for Signature {
                 bytes.extend_from_slice(&sig.s);
 
                 let encoded = bs58::encode(&bytes).into_string();
-                serializer.serialize_str(&format!("ed25519:{}", encoded))
+                serializer.serialize_str(&format!("ed25519:{encoded}"))
             }
             Self::SECP256K1(sig) => {
                 let encoded = bs58::encode(&sig.0).into_string();
-                serializer.serialize_str(&format!("secp256k1:{}", encoded))
+                serializer.serialize_str(&format!("secp256k1:{encoded}"))
             }
         }
     }

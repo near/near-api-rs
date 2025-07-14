@@ -122,7 +122,8 @@ impl TryFrom<Vec<u8>> for PublicKey {
 impl TryFrom<near_openapi_types::PublicKey> for PublicKey {
     type Error = PublicKeyError;
     fn try_from(value: near_openapi_types::PublicKey) -> Result<Self, Self::Error> {
-        Self::from_str(&value.0)
+        let near_openapi_types::PublicKey(key) = value;
+        Self::from_str(&key)
     }
 }
 

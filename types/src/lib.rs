@@ -128,7 +128,8 @@ impl TryFrom<near_openapi_types::CryptoHash> for CryptoHash {
     type Error = CryptoHashError;
 
     fn try_from(value: near_openapi_types::CryptoHash) -> Result<Self, Self::Error> {
-        let bytes = bs58::decode(value.0).into_vec()?;
+        let near_openapi_types::CryptoHash(hash) = value;
+        let bytes = bs58::decode(hash).into_vec()?;
         Self::try_from(bytes)
     }
 }
