@@ -544,7 +544,7 @@ impl Staking {
             RpcValidatorHandler,
         )
         .and_then(|validator_response| {
-            Ok(validator_response
+            validator_response
                 .current_proposals
                 .into_iter()
                 .map(|validator_stake_view| {
@@ -569,7 +569,7 @@ impl Staking {
                 .map(|(account_id, stake)| {
                     Ok((account_id, NearToken::from_yoctonear(stake.parse()?)))
                 })
-                .collect::<::core::result::Result<_, Box<dyn std::error::Error + Send + Sync>>>()?)
+                .collect::<::core::result::Result<_, Box<dyn std::error::Error + Send + Sync>>>()
         })
     }
 

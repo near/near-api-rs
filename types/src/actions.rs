@@ -250,8 +250,7 @@ mod tests {
 
             assert_eq!(
                 action, deserialized,
-                "Serialization/Deserialization mismatch: original action: {:?}, deserialized action: {:?}",
-                action, deserialized
+                "Serialization/Deserialization mismatch: original action: {action:?}, deserialized action: {deserialized:?}"
             );
         }
     }
@@ -268,8 +267,7 @@ mod tests {
 
             assert_eq!(
                 action, deserialized,
-                "Serialization/Deserialization mismatch: original action: {:?}, deserialized action: {:?}",
-                action, deserialized
+                "Serialization/Deserialization mismatch: original action: {action:?}, deserialized action: {deserialized:?}"
             );
         }
     }

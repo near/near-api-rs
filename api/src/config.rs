@@ -65,7 +65,7 @@ impl RPCEndpoint {
 
     /// Set API key for the endpoint.
     pub fn with_api_key(mut self, api_key: String) -> Self {
-        self.bearer_header = Some(format!("Bearer {}", api_key));
+        self.bearer_header = Some(format!("Bearer {api_key}"));
         self
     }
 

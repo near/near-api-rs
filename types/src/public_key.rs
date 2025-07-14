@@ -245,10 +245,7 @@ impl<'de> Deserialize<'de> for Secp256K1PublicKey {
             type Value = Secp256K1PublicKey;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str(&format!(
-                    "an array of {} bytes",
-                    SECP256K1_PUBLIC_KEY_LENGTH
-                ))
+                formatter.write_str(&format!("an array of {SECP256K1_PUBLIC_KEY_LENGTH} bytes"))
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
