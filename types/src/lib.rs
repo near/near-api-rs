@@ -21,7 +21,6 @@ pub mod vector;
 
 pub use near_abi as abi;
 pub use near_account_id::AccountId;
-pub use near_crypto::{ED25519SecretKey, InMemorySigner, SecretKey};
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
     AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
@@ -35,9 +34,11 @@ pub use actions::{AccessKey, AccessKeyPermission, Action};
 pub use public_key::PublicKey;
 pub use signature::Signature;
 pub mod integers;
+pub mod secret_key;
 pub use account::Account;
 
 use crate::errors::DataConversionError;
+pub use secret_key::SecretKey;
 
 pub type BlockHeight = u64;
 pub type Nonce = u64;

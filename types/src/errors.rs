@@ -13,17 +13,15 @@ pub enum DecimalNumberParsingError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum PublicKeyError {
-    #[error("Invalid key format. Expected: [ed25519:..., secp256k1:...] but got: {0}")]
+pub enum InvalidFormatError {
+    #[error("Invalid key format. Expected: [ed25519, secp256k1] but got: {0}")]
     InvalidKeyFormat(String),
-    #[error("Invalid prefix. Expected: [ed25519, secp256k1] but got: {0}")]
-    InvalidPrefix(String),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SignatureError {
-    #[error("Invalid signature format. Expected: [ed25519:..., secp256k1:...] but got: {0}")]
-    InvalidSignatureFormat(String),
+pub enum ParseKeyTypeError {
+    #[error("Unknown key type: {0}")]
+    UnknownKeyType(String),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -41,11 +39,11 @@ pub enum DataConversionError {
     #[error("Incorrect length: {0}")]
     IncorrectLength(usize),
     #[error("Invalid public key: {0}")]
-    InvalidPublicKey(#[from] PublicKeyError),
+    InvalidKeyFormat(#[from] InvalidFormatError),
     #[error("Delegate action is not supported")]
     DelegateActionNotSupported,
-    #[error("Signature error: {0}")]
-    SignatureError(#[from] SignatureError),
+    #[error("Invalid data: {0}")]
+    InvalidData(String),
 }
 
 impl From<Vec<u8>> for DataConversionError {

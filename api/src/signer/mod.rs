@@ -118,10 +118,10 @@ use std::{
 };
 
 use near_types::{
-    AccountId, BlockHeight, CryptoHash, ED25519SecretKey, InMemorySigner, Nonce, PublicKey,
-    SecretKey, Signature,
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
     delegate_action::{NonDelegateAction, SignedDelegateAction},
     hash,
+    secret_key::ED25519SecretKey,
     transactions::{PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0},
 };
 
@@ -582,10 +582,9 @@ fn get_signed_delegate_action(
 
     // create a new signature here signing the delegate action + discriminant
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
-    let signer = InMemorySigner::from_secret_key(delegate_action.sender_id.clone(), private_key);
     let bytes = borsh::to_vec(&signable).expect("Failed to serialize");
     let hash = hash(&bytes);
-    let signature = signer.sign(hash.0.as_ref());
+    let signature = private_key.sign(hash.0.as_ref());
 
     Ok(SignedDelegateAction {
         delegate_action,
@@ -687,6 +686,7 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 #[cfg(test)]
 mod nep_413_tests {
     use base64::{Engine, prelude::BASE64_STANDARD};
+    use near_types::{Signature, secret_key::KeyType};
 
     use crate::SignerTrait;
 
@@ -727,7 +727,10 @@ mod nep_413_tests {
         let expected_signature = from_base64(
             "zzZQ/GwAjrZVrTIFlvmmQbDQHllfzrr8urVWHaRt5cPfcXaCSZo35c5LDpPpTKivR6BxLyb3lcPM0FfCW5lcBQ==",
         );
-        assert_eq!(signature, expected_signature.as_slice().try_into().unwrap());
+        assert_eq!(
+            signature,
+            Signature::from_parts(KeyType::ED25519, expected_signature.as_slice()).unwrap()
+        );
     }
 
     // The mockup data is created using the sender/meteor NEP413 implementation.
@@ -759,7 +762,10 @@ mod nep_413_tests {
 
         let expected_signature = from_base64(
             "NnJgPU1Ql7ccRTITIoOVsIfElmvH1RV7QAT4a9Vh6ShCOnjIzRwxqX54JzoQ/nK02p7VBMI2vJn48rpImIJwAw==",
-        ).as_slice().try_into().unwrap();
-        assert_eq!(signature, expected_signature);
+        );
+        assert_eq!(
+            signature,
+            Signature::from_parts(KeyType::ED25519, expected_signature.as_slice()).unwrap()
+        );
     }
 }

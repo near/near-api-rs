@@ -2,6 +2,7 @@ use near_types::{
     AccountId, BlockHeight, Nonce, PublicKey, SecretKey, Signature,
     delegate_action::{DelegateAction, NonDelegateAction, SignedDelegateAction},
     public_key,
+    secret_key::KeyType,
     transactions::{SignedTransaction, Transaction, TransactionV0},
 };
 use slipped10::BIP32Path;
@@ -68,7 +69,7 @@ impl SignerTrait for LedgerSigner {
         let signature = signature?;
 
         debug!(target: LEDGER_SIGNER_TARGET, "Creating Signature object");
-        let signature = Signature::try_from(signature.as_ref())
+        let signature = Signature::from_parts(KeyType::ED25519, signature.as_ref())
             .map_err(|e| LedgerError::SignatureDeserializationError(e.to_string()))?;
 
         info!(target: LEDGER_SIGNER_TARGET, "Transaction signed successfully");
@@ -121,9 +122,10 @@ impl SignerTrait for LedgerSigner {
         let signature = signature.map_err(SignerError::from)?;
 
         debug!(target: LEDGER_SIGNER_TARGET, "Creating Signature object for delegate action");
-        let signature = Signature::try_from(signature.as_ref()).map_err(|e| {
-            SignerError::LedgerError(LedgerError::SignatureDeserializationError(e.to_string()))
-        })?;
+        let signature =
+            Signature::from_parts(KeyType::ED25519, signature.as_ref()).map_err(|e| {
+                SignerError::LedgerError(LedgerError::SignatureDeserializationError(e.to_string()))
+            })?;
 
         info!(target: LEDGER_SIGNER_TARGET, "Delegate action signed successfully");
         Ok(SignedDelegateAction {
@@ -153,9 +155,10 @@ impl SignerTrait for LedgerSigner {
         .unwrap_or_else(|tokio_join_error| Err(LedgerError::from(tokio_join_error)))?;
 
         debug!(target: LEDGER_SIGNER_TARGET, "Creating Signature object for NEP413");
-        let signature = Signature::try_from(signature.as_ref()).map_err(|e| {
-            SignerError::LedgerError(LedgerError::SignatureDeserializationError(e.to_string()))
-        })?;
+        let signature =
+            Signature::from_parts(KeyType::ED25519, signature.as_ref()).map_err(|e| {
+                SignerError::LedgerError(LedgerError::SignatureDeserializationError(e.to_string()))
+            })?;
 
         Ok(signature)
     }

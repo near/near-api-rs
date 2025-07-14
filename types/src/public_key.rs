@@ -1,11 +1,13 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::{self};
 use serde::ser::{SerializeTuple, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::hash::{Hash, Hasher};
 use std::io::{Error, Write};
 use std::str::FromStr;
 
-use crate::errors::{DataConversionError, PublicKeyError};
+use crate::errors::DataConversionError;
+use crate::secret_key::{KeyType, split_key_type_data};
 
 pub const ED25519_PUBLIC_KEY_LENGTH: usize = 32;
 pub const SECP256K1_PUBLIC_KEY_LENGTH: usize = 64;
@@ -16,7 +18,7 @@ pub struct Secp256K1PublicKey(pub [u8; SECP256K1_PUBLIC_KEY_LENGTH]);
 #[derive(Serialize, Deserialize, BorshDeserialize, PartialEq, Eq, Debug, Clone, Hash)]
 pub struct ED25519PublicKey(pub [u8; ED25519_PUBLIC_KEY_LENGTH]);
 
-#[derive(Serialize, PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum PublicKey {
     /// 256 bit elliptic curve based public-key.
     ED25519(ED25519PublicKey),
@@ -94,6 +96,21 @@ impl std::fmt::Display for PublicKey {
     }
 }
 
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            PublicKey::ED25519(public_key) => {
+                state.write_u8(0u8);
+                state.write(&public_key.0);
+            }
+            PublicKey::SECP256K1(public_key) => {
+                state.write_u8(1u8);
+                state.write(&public_key.0);
+            }
+        }
+    }
+}
+
 // TryFrom implementations for slices and vectors
 impl TryFrom<&[u8]> for PublicKey {
     type Error = DataConversionError;
@@ -133,90 +150,42 @@ impl From<PublicKey> for near_openapi_types::PublicKey {
     }
 }
 
-impl From<near_crypto::PublicKey> for PublicKey {
-    fn from(val: near_crypto::PublicKey) -> Self {
-        match val {
-            near_crypto::PublicKey::ED25519(key) => Self::ED25519(ED25519PublicKey(key.0)),
-            near_crypto::PublicKey::SECP256K1(key) => Self::SECP256K1(Secp256K1PublicKey(
-                key.as_ref()
-                    .try_into()
-                    .expect("Invalid SECP256K1 public key"),
-            )),
-        }
-    }
-}
-
-impl From<PublicKey> for near_crypto::PublicKey {
-    fn from(val: PublicKey) -> Self {
-        match val {
-            PublicKey::ED25519(key) => near_crypto::PublicKey::ED25519(key.0.into()),
-            PublicKey::SECP256K1(key) => near_crypto::PublicKey::SECP256K1(key.0.into()),
-        }
-    }
-}
-
 impl FromStr for PublicKey {
     type Err = DataConversionError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (key_type, key_data) = s.split_once(':').ok_or_else(|| {
-            DataConversionError::InvalidPublicKey(PublicKeyError::InvalidKeyFormat(s.to_string()))
-        })?;
-
-        let bytes = bs58::decode(key_data).into_vec()?;
-
-        match key_type {
-            "ed25519" => Ok(Self::ED25519(ED25519PublicKey(bytes.try_into()?))),
-            "secp256k1" => Ok(Self::SECP256K1(Secp256K1PublicKey(bytes.try_into()?))),
-            _ => Err(PublicKeyError::InvalidPrefix(s.to_string()))?,
-        }
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (key_type, key_data) = split_key_type_data(value)?;
+        Ok(match key_type {
+            KeyType::ED25519 => Self::ED25519(ED25519PublicKey(
+                bs58::decode(key_data).into_vec()?.try_into()?,
+            )),
+            KeyType::SECP256K1 => Self::SECP256K1(Secp256K1PublicKey(
+                bs58::decode(key_data).into_vec()?.try_into()?,
+            )),
+        })
     }
 }
 
-// Serialization
-impl<'de> Deserialize<'de> for PublicKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+impl serde::Serialize for PublicKey {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
     where
-        D: Deserializer<'de>,
+        S: serde::Serializer,
     {
-        struct PublicKeyOrBytes;
+        serializer.collect_str(self)
+    }
+}
 
-        impl<'de> serde::de::Visitor<'de> for PublicKeyOrBytes {
-            type Value = PublicKey;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a string or byte array representing a public key")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                value.parse().map_err(de::Error::custom)
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<PublicKey, V::Error>
-            where
-                V: de::MapAccess<'de>,
-            {
-                let key = map
-                    .next_key::<String>()?
-                    .ok_or_else(|| de::Error::missing_field("key type"))?;
-                match key.as_str() {
-                    "ED25519" => {
-                        let bytes: Vec<u8> = map.next_value()?;
-                        PublicKey::try_from(bytes.as_slice()).map_err(de::Error::custom)
-                    }
-                    "SECP256K1" => {
-                        let bytes: Vec<u8> = map.next_value()?;
-                        PublicKey::try_from(bytes.as_slice()).map_err(de::Error::custom)
-                    }
-                    _ => Err(de::Error::unknown_field(&key, &["ED25519", "SECP256K1"])),
-                }
-            }
-        }
-
-        deserializer.deserialize_any(PublicKeyOrBytes)
+impl<'de> serde::Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        s.parse()
+            .map_err(|err: DataConversionError| serde::de::Error::custom(err.to_string()))
     }
 }
 
@@ -266,11 +235,23 @@ impl<'de> Deserialize<'de> for Secp256K1PublicKey {
     }
 }
 
+impl From<ED25519PublicKey> for PublicKey {
+    fn from(ed25519: ED25519PublicKey) -> Self {
+        Self::ED25519(ed25519)
+    }
+}
+
+impl From<Secp256K1PublicKey> for PublicKey {
+    fn from(secp256k1: Secp256K1PublicKey) -> Self {
+        Self::SECP256K1(secp256k1)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use borsh;
-    use near_sdk::serde_json;
+    use serde_json;
 
     #[test]
     fn test_public_key_serde_json_serialization() {

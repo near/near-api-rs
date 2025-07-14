@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
+use crate::AccountId;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use crate::AccountId;
 
 use crate::delegate_action::SignedDelegateAction;
 use crate::errors::DataConversionError;
@@ -509,7 +509,7 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
 mod tests {
     use super::*;
     use crate::public_key::{ED25519_PUBLIC_KEY_LENGTH, ED25519PublicKey};
-    use near_sdk::serde_json;
+    use serde_json;
 
     fn get_actions() -> Vec<Action> {
         vec![

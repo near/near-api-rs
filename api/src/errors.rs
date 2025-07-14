@@ -114,7 +114,7 @@ The status is tracked in `About` section."
     #[error("Signature is not expected to fail on deserialization: {0}")]
     SignatureDeserializationError(String),
     #[error("Failed to cache public key: {0}")]
-    SetPublicKeyError(#[from] tokio::sync::SetError<PublicKey>),
+    SetPublicKeyError(#[from] tokio::sync::SetError<crate::PublicKey>),
 }
 
 #[cfg(feature = "ledger")]
