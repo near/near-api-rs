@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::{self};
 use serde::ser::{SerializeTuple, Serializer};
 use std::io::{Error, Write};

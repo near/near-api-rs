@@ -1,4 +1,4 @@
-use near_sdk::NearToken;
+use crate::NearToken;
 use serde::de::{Deserialize, Deserializer};
 
 /// A type that represents the storage balance. Please note that this type is not part of the NEP-145 standard.

@@ -6,6 +6,8 @@ pub mod actions;
 pub mod contract;
 pub mod delegate_action;
 pub mod errors;
+pub mod ft;
+pub mod nft;
 pub mod public_key;
 pub mod reference;
 pub mod signable_message;
@@ -15,17 +17,16 @@ pub mod storage;
 pub mod tokens;
 pub mod transaction_result;
 pub mod transactions;
+pub mod vector;
 
 pub use near_abi as abi;
 pub use near_account_id::AccountId;
-pub use near_contract_standards::{fungible_token, non_fungible_token};
 pub use near_crypto::{ED25519SecretKey, InMemorySigner, SecretKey};
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
     AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
     RpcValidatorResponse, StoreKey, TxExecutionStatus, ViewStateResult,
 };
-pub use near_sdk::json_types::U128;
 pub use near_token::NearToken;
 pub use reference::{EpochReference, Reference};
 pub use storage::{StorageBalance, StorageBalanceInternal};

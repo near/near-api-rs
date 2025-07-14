@@ -3,8 +3,8 @@ use std::str::FromStr;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::AccountId;
-use near_sdk::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+use crate::AccountId;
 
 use crate::delegate_action::SignedDelegateAction;
 use crate::errors::DataConversionError;
@@ -12,7 +12,6 @@ use crate::integers::U64;
 use crate::{CryptoHash, NearGas, NearToken, PublicKey, Signature};
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
-#[serde(crate = "near_sdk::serde")]
 pub enum Action {
     /// Create an (sub)account using a transaction `receiver_id` as an ID for
     /// a new account ID must pass validation rules described here

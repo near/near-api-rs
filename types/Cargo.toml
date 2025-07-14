@@ -23,10 +23,6 @@ thiserror = "2"
 base64 = "0.22"
 sha2 = "0.10"
 
-# TODO: remove this dependencies
-near-sdk = { version = "5.15.1", features = ["non-contract-usage"] }
-near-contract-standards = "5.15.1"
-
 near-openapi-types = "0.3.0"
 near-account-id = "1.1.0"
 near-gas = { version = "0.3", features = ["serde", "borsh"] }

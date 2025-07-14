@@ -1,8 +1,9 @@
 use near_types::{
-    AccountId, Action, Data, NearToken, Reference, U128,
+    AccountId, Action, Data, NearToken, Reference,
     actions::TransferAction,
-    fungible_token::metadata::FungibleTokenMetadata,
-    non_fungible_token::{Token, metadata::NFTContractMetadata},
+    ft::FungibleTokenMetadata,
+    integers::U128,
+    nft::{NFTContractMetadata, Token},
     tokens::{FTBalance, STORAGE_COST_PER_BYTE, UserBalance},
     transactions::PrepopulateTransaction,
 };
