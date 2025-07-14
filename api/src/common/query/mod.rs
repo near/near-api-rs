@@ -176,10 +176,10 @@ where
         + Send
         + Sync
         + 'static,
-    ) -> RpcBuilder<Query, AndThenHandler<MappedType, Handler>> {
-        RpcBuilder {
+    ) -> MultiRpcBuilder<Query, AndThenHandler<MappedType, Handler>> {
+        MultiRpcBuilder {
             handler: AndThenHandler::new(self.handler, map),
-            request: self.request,
+            requests: self.requests,
             reference: self.reference,
         }
     }
