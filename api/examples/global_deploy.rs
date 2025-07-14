@@ -37,14 +37,16 @@ async fn main() {
         .with_signer(global.clone(), global_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     Contract::deploy_global_contract_code(code)
         .as_account_id(global.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     Contract::deploy(instance_of_global.clone())
         .use_global_account_id(global.clone())
@@ -52,7 +54,8 @@ async fn main() {
         .with_signer(instance_of_global_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     Contract::deploy(instance_of_global.clone())
         .use_global_hash(contract_hash)
@@ -60,7 +63,8 @@ async fn main() {
         .with_signer(instance_of_global_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     println!(
         "Successfully deployed contract using both global hash and global account ID methods!"

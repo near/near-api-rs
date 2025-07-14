@@ -81,8 +81,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret.clone()))
@@ -96,8 +95,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret2.clone()))
         .await
@@ -111,7 +109,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
         .await
         .into_iter()
-        .map(|t| t.unwrap().into_result().unwrap())
+        .map(|t| t.unwrap().assert_success())
         .collect::<Vec<_>>();
 
     assert_eq!(txs.len(), 12);

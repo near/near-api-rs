@@ -24,7 +24,8 @@ async fn main() {
         .with_signer(Signer::new(Signer::from_secret_key(current_secret_key.clone())).unwrap())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     // Let's add ledger to the account with the new seed phrase
     let ledger_pubkey = Signer::from_ledger().get_public_key().unwrap();
@@ -36,7 +37,8 @@ async fn main() {
         )
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     println!("Signing with ledger");
     // Let's sign some tx with the ledger key
@@ -45,7 +47,8 @@ async fn main() {
         .with_signer(Signer::new(Signer::from_ledger()).unwrap())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let keys = Account(account.clone())
         .list_keys()

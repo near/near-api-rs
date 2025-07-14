@@ -39,7 +39,7 @@ pub struct Execution<T> {
 }
 
 impl<T> Execution<T> {
-    pub fn unwrap(self) -> T {
+    pub fn assert_success(self) -> T {
         self.into_result().unwrap()
     }
 
@@ -244,7 +244,7 @@ impl ExecutionFinalResult {
     /// to call into [`into_result`] then pattern matching and handle the Err case explicitly.
     ///
     /// [`into_result`]: crate::result::ExecutionFinalResult::into_result
-    pub fn unwrap(self) -> ExecutionSuccess {
+    pub fn assert_success(self) -> ExecutionSuccess {
         self.into_result().unwrap()
     }
 

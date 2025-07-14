@@ -45,7 +45,8 @@ async fn main() {
         .with_signer(Arc::clone(&signer))
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret_key))

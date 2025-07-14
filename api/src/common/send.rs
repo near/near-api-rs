@@ -299,8 +299,6 @@ impl ExecuteSignedTransaction {
         .await
         .map_err(ExecuteTransactionError::TransactionError)?;
 
-        println!("Sent transaction to network. Result: {:?}", result);
-
         // TODO: check if we need to add support for that final_execution_status
         let final_execution_outcome_view = match result {
             // We don't use `experimental_tx`, so we can ignore that, but just to be safe

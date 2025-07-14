@@ -426,7 +426,7 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::ActionView) -> Result<Self, Self::Error> {
         match val {
-            near_openapi_types::ActionView::CreateAccount {} => {
+            near_openapi_types::ActionView::CreateAccount => {
                 Ok(Action::CreateAccount(CreateAccountAction {}))
             }
             near_openapi_types::ActionView::DeployContract { code } => {

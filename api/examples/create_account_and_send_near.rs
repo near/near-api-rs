@@ -32,7 +32,8 @@ async fn main() {
         .with_signer(signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     Tokens::account(account.clone())
         .send_to(new_account.clone())
@@ -40,7 +41,8 @@ async fn main() {
         .with_signer(signer)
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let new_account_balance = Tokens::account(account.clone())
         .near_balance()

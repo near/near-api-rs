@@ -39,7 +39,8 @@ async fn main() {
         .with_signer(nft_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let contract = Contract(nft.clone());
 
@@ -63,7 +64,8 @@ async fn main() {
         .with_signer(nft.clone(), nft_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     // Verifying that account has our nft token
     let tokens = Tokens::account(account.clone())
@@ -83,7 +85,8 @@ async fn main() {
         .with_signer(account_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     // Verifying that account doesn't have nft anymore
     let tokens = Tokens::account(account.clone())

@@ -30,8 +30,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     Contract::deploy(account_id.clone())
         .use_global_account_id(global_contract_id.clone())
@@ -40,8 +39,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let contract = Contract(account_id.clone());
 
@@ -84,8 +82,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -126,8 +123,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     Contract::deploy(account_id.clone())
         .use_global_hash(hash)
@@ -136,8 +132,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let contract = Contract(account_id.clone());
 
@@ -180,8 +175,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())

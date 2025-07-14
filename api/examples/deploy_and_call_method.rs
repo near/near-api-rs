@@ -22,7 +22,8 @@ async fn main() {
         .with_signer(signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let contract = Contract(account.clone());
 
@@ -47,7 +48,8 @@ async fn main() {
         .with_signer(account.clone(), signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())

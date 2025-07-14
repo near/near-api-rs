@@ -20,8 +20,7 @@ async fn contract_without_init_call() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let contract = Contract(account.clone());
 
@@ -64,8 +63,7 @@ async fn contract_without_init_call() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -101,8 +99,7 @@ async fn contract_with_init_call() {
         .send_to(&network)
         .await
         .unwrap()
-        .into_result()
-        .unwrap();
+        .assert_success();
 
     let contract = Contract(account.clone());
 

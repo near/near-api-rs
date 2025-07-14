@@ -40,7 +40,8 @@ async fn main() {
         .with_signer(token_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     // Verifying that user has 1000 tokens
     let tokens = Tokens::account(token.clone())
@@ -65,7 +66,8 @@ async fn main() {
         .with_signer(token_signer.clone())
         .send_to(&network)
         .await
-        .unwrap();
+        .unwrap()
+        .assert_success();
 
     let tokens = Tokens::account(account.clone())
         .ft_balance(token.clone())
