@@ -102,7 +102,7 @@ impl ExecuteSignedTransaction {
         ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
     }
 
-    pub fn wait_until(mut self, wait_until: TxExecutionStatus) -> Self {
+    pub const fn wait_until(mut self, wait_until: TxExecutionStatus) -> Self {
         self.wait_until = wait_until;
         self
     }

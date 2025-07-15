@@ -40,52 +40,52 @@ pub enum Transaction {
 }
 
 impl Transaction {
-    pub fn signer_id(&self) -> &AccountId {
+    pub const fn signer_id(&self) -> &AccountId {
         match self {
-            Transaction::V0(tx) => &tx.signer_id,
-            Transaction::V1(tx) => &tx.signer_id,
+            Self::V0(tx) => &tx.signer_id,
+            Self::V1(tx) => &tx.signer_id,
         }
     }
 
-    pub fn receiver_id(&self) -> &AccountId {
+    pub const fn receiver_id(&self) -> &AccountId {
         match self {
-            Transaction::V0(tx) => &tx.receiver_id,
-            Transaction::V1(tx) => &tx.receiver_id,
+            Self::V0(tx) => &tx.receiver_id,
+            Self::V1(tx) => &tx.receiver_id,
         }
     }
 
-    pub fn nonce(&self) -> Nonce {
+    pub const fn nonce(&self) -> Nonce {
         match self {
-            Transaction::V0(tx) => tx.nonce,
-            Transaction::V1(tx) => tx.nonce,
+            Self::V0(tx) => tx.nonce,
+            Self::V1(tx) => tx.nonce,
         }
     }
 
-    pub fn public_key(&self) -> &PublicKey {
+    pub const fn public_key(&self) -> &PublicKey {
         match self {
-            Transaction::V0(tx) => &tx.public_key,
-            Transaction::V1(tx) => &tx.public_key,
+            Self::V0(tx) => &tx.public_key,
+            Self::V1(tx) => &tx.public_key,
         }
     }
 
     pub fn actions(&self) -> &[Action] {
         match self {
-            Transaction::V0(tx) => &tx.actions,
-            Transaction::V1(tx) => &tx.actions,
+            Self::V0(tx) => &tx.actions,
+            Self::V1(tx) => &tx.actions,
         }
     }
 
-    pub fn actions_mut(&mut self) -> &mut Vec<Action> {
+    pub const fn actions_mut(&mut self) -> &mut Vec<Action> {
         match self {
-            Transaction::V0(tx) => &mut tx.actions,
-            Transaction::V1(tx) => &mut tx.actions,
+            Self::V0(tx) => &mut tx.actions,
+            Self::V1(tx) => &mut tx.actions,
         }
     }
 
     pub fn take_actions(&mut self) -> Vec<Action> {
         let actions = match self {
-            Transaction::V0(tx) => &mut tx.actions,
-            Transaction::V1(tx) => &mut tx.actions,
+            Self::V0(tx) => &mut tx.actions,
+            Self::V1(tx) => &mut tx.actions,
         };
         std::mem::take(actions)
     }
@@ -99,8 +99,8 @@ impl Transaction {
 impl BorshSerialize for Transaction {
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
         match self {
-            Transaction::V0(tx) => BorshSerialize::serialize(tx, writer)?,
-            Transaction::V1(tx) => {
+            Self::V0(tx) => BorshSerialize::serialize(tx, writer)?,
+            Self::V1(tx) => {
                 BorshSerialize::serialize(&1_u8, writer)?;
                 BorshSerialize::serialize(tx, writer)?;
             }
@@ -160,17 +160,14 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
             })
         };
 
-        Ok(SignedTransaction::new(
-            Signature::from_str(&signature)?,
-            transaction,
-        ))
+        Ok(Self::new(Signature::from_str(&signature)?, transaction))
     }
 }
 
 impl From<SignedTransaction> for near_openapi_types::SignedTransaction {
     fn from(tr: SignedTransaction) -> Self {
         let bytes = borsh::to_vec(&tr).expect("Failed to serialize");
-        near_openapi_types::SignedTransaction(BASE64_STANDARD.encode(bytes))
+        Self(BASE64_STANDARD.encode(bytes))
     }
 }
 
@@ -185,7 +182,7 @@ impl From<SignedTransaction> for PrepopulateTransaction {
 }
 
 impl SignedTransaction {
-    pub fn new(signature: Signature, transaction: Transaction) -> Self {
+    pub const fn new(signature: Signature, transaction: Transaction) -> Self {
         Self {
             signature,
             transaction,

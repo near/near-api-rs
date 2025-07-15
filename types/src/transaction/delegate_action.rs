@@ -72,7 +72,7 @@ impl TryFrom<near_openapi_types::SignedDelegateAction> for SignedDelegateAction 
             delegate_action,
             signature,
         } = value;
-        Ok(SignedDelegateAction {
+        Ok(Self {
             delegate_action: delegate_action.try_into()?,
             signature: Signature::from_str(&signature)?,
         })

@@ -51,13 +51,13 @@ impl<T> Execution<T> {
 
     /// Checks whether the transaction was successful. Returns true if
     /// the transaction has a status of FinalExecutionStatus::Success.
-    pub fn is_success(&self) -> bool {
+    pub const fn is_success(&self) -> bool {
         self.details.is_success()
     }
 
     /// Checks whether the transaction has failed. Returns true if
     /// the transaction has a status of FinalExecutionStatus::Failure.
-    pub fn is_failure(&self) -> bool {
+    pub const fn is_failure(&self) -> bool {
         self.details.is_failure()
     }
 }
@@ -74,15 +74,15 @@ pub(crate) struct ExecutionDetails {
 
 impl ExecutionDetails {
     /// Returns just the transaction outcome.
-    pub fn outcome(&self) -> &ExecutionOutcome {
+    pub const fn outcome(&self) -> &ExecutionOutcome {
         &self.transaction_outcome
     }
 
-    pub fn transaction(&self) -> &Transaction {
+    pub const fn transaction(&self) -> &Transaction {
         &self.transaction.transaction
     }
 
-    pub fn signature(&self) -> &Signature {
+    pub const fn signature(&self) -> &Signature {
         &self.transaction.signature
     }
 
@@ -290,23 +290,23 @@ impl ExecutionFinalResult {
 
     /// Checks whether the transaction was successful. Returns true if
     /// the transaction has a status of [`FinalExecutionStatus::SuccessValue`].
-    pub fn is_success(&self) -> bool {
+    pub const fn is_success(&self) -> bool {
         matches!(self.status, FinalExecutionStatus::SuccessValue(_))
     }
 
     /// Checks whether the transaction has failed. Returns true if
     /// the transaction has a status of [`FinalExecutionStatus::Failure`].
-    pub fn is_failure(&self) -> bool {
+    pub const fn is_failure(&self) -> bool {
         matches!(self.status, FinalExecutionStatus::Failure(_))
     }
 
     /// Returns just the transaction outcome.
-    pub fn outcome(&self) -> &ExecutionOutcome {
+    pub const fn outcome(&self) -> &ExecutionOutcome {
         self.details.outcome()
     }
 
     /// Returns the transaction that was executed.
-    pub fn transaction(&self) -> &Transaction {
+    pub const fn transaction(&self) -> &Transaction {
         self.details.transaction()
     }
 
@@ -365,16 +365,16 @@ impl ExecutionSuccess {
 
 impl<T> ExecutionResult<T> {
     /// Returns just the transaction outcome.
-    pub fn outcome(&self) -> &ExecutionOutcome {
+    pub const fn outcome(&self) -> &ExecutionOutcome {
         self.details.outcome()
     }
 
     /// Returns the transaction that was executed.
-    pub fn transaction(&self) -> &Transaction {
+    pub const fn transaction(&self) -> &Transaction {
         self.details.transaction()
     }
 
-    pub fn signature(&self) -> &Signature {
+    pub const fn signature(&self) -> &Signature {
         self.details.signature()
     }
 
@@ -475,7 +475,7 @@ pub struct ExecutionOutcome {
 impl ExecutionOutcome {
     /// Checks whether this execution outcome was a success. Returns true if a success value or
     /// receipt id is present.
-    pub fn is_success(&self) -> bool {
+    pub const fn is_success(&self) -> bool {
         matches!(
             self.status,
             ExecutionStatusView::SuccessValue(_) | ExecutionStatusView::SuccessReceiptId(_)
@@ -484,7 +484,7 @@ impl ExecutionOutcome {
 
     /// Checks whether this execution outcome was a failure. Returns true if it failed with
     /// an error or the execution state was unknown or pending.
-    pub fn is_failure(&self) -> bool {
+    pub const fn is_failure(&self) -> bool {
         matches!(
             self.status,
             ExecutionStatusView::Failure(_) | ExecutionStatusView::Unknown
@@ -528,7 +528,7 @@ pub struct Value {
 }
 
 impl Value {
-    fn from_string(value: String) -> Self {
+    const fn from_string(value: String) -> Self {
         Self { repr: value }
     }
 

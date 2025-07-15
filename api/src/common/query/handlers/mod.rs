@@ -18,7 +18,7 @@ use crate::{
 pub mod transformers;
 pub use transformers::*;
 
-fn query_to_kind(response: &RpcQueryResponse) -> &'static str {
+const fn query_to_kind(response: &RpcQueryResponse) -> &'static str {
     match response {
         RpcQueryResponse::Variant0 { .. } => "ViewAccount",
         RpcQueryResponse::Variant1 { .. } => "ViewCode",

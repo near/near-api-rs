@@ -40,7 +40,7 @@ impl TryFrom<near_openapi_types::DeployGlobalContractAction> for DeployGlobalCon
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::DeployGlobalContractAction) -> Result<Self, Self::Error> {
         let near_openapi_types::DeployGlobalContractAction { code, deploy_mode } = val;
-        Ok(DeployGlobalContractAction {
+        Ok(Self {
             code: BASE64_STANDARD.decode(code)?,
             deploy_mode: deploy_mode.into(),
         })
@@ -57,7 +57,7 @@ impl TryFrom<near_openapi_types::UseGlobalContractAction> for UseGlobalContractA
         let near_openapi_types::UseGlobalContractAction {
             contract_identifier,
         } = val;
-        Ok(UseGlobalContractAction {
+        Ok(Self {
             contract_identifier: contract_identifier.try_into()?,
         })
     }
@@ -68,7 +68,7 @@ pub struct CreateAccountAction {}
 
 impl From<near_openapi_types::CreateAccountAction> for CreateAccountAction {
     fn from(_: near_openapi_types::CreateAccountAction) -> Self {
-        CreateAccountAction {}
+        Self {}
     }
 }
 
@@ -81,7 +81,7 @@ impl TryFrom<near_openapi_types::DeployContractAction> for DeployContractAction 
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::DeployContractAction) -> Result<Self, Self::Error> {
         let near_openapi_types::DeployContractAction { code } = val;
-        Ok(DeployContractAction {
+        Ok(Self {
             code: BASE64_STANDARD.decode(code)?,
         })
     }
@@ -104,7 +104,7 @@ impl TryFrom<near_openapi_types::FunctionCallAction> for FunctionCallAction {
             gas,
             deposit,
         } = val;
-        Ok(FunctionCallAction {
+        Ok(Self {
             method_name,
             args: BASE64_STANDARD.decode(args)?,
             gas: NearGas::from_gas(gas),
@@ -122,7 +122,7 @@ impl TryFrom<near_openapi_types::TransferAction> for TransferAction {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::TransferAction) -> Result<Self, Self::Error> {
         let near_openapi_types::TransferAction { deposit } = val;
-        Ok(TransferAction {
+        Ok(Self {
             deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
         })
     }
@@ -140,7 +140,7 @@ impl TryFrom<near_openapi_types::StakeAction> for StakeAction {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::StakeAction) -> Result<Self, Self::Error> {
         let near_openapi_types::StakeAction { public_key, stake } = val;
-        Ok(StakeAction {
+        Ok(Self {
             public_key: public_key.try_into()?,
             stake: NearToken::from_yoctonear(stake.parse::<u128>()?),
         })
@@ -162,7 +162,7 @@ impl TryFrom<near_openapi_types::AddKeyAction> for AddKeyAction {
             public_key,
             access_key,
         } = val;
-        Ok(AddKeyAction {
+        Ok(Self {
             public_key: public_key.try_into()?,
             access_key: access_key.try_into()?,
         })
@@ -183,7 +183,7 @@ impl TryFrom<near_openapi_types::AccessKeyInfoView> for AccessKeyInfo {
             access_key,
         } = val;
 
-        Ok(AccessKeyInfo {
+        Ok(Self {
             public_key: public_key.try_into()?,
             access_key: access_key.try_into()?,
         })
@@ -204,7 +204,7 @@ impl TryFrom<near_openapi_types::AccessKeyView> for AccessKey {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::AccessKeyView) -> Result<Self, Self::Error> {
         let near_openapi_types::AccessKeyView { nonce, permission } = val;
-        Ok(AccessKey {
+        Ok(Self {
             nonce: U64(nonce),
             permission: permission.try_into()?,
         })
@@ -215,7 +215,7 @@ impl TryFrom<near_openapi_types::AccessKey> for AccessKey {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::AccessKey) -> Result<Self, Self::Error> {
         let near_openapi_types::AccessKey { nonce, permission } = val;
-        Ok(AccessKey {
+        Ok(Self {
             nonce: U64(nonce),
             permission: permission.try_into()?,
         })
@@ -244,15 +244,13 @@ impl TryFrom<near_openapi_types::AccessKeyPermissionView> for AccessKeyPermissio
                 } else {
                     None
                 };
-                Ok(AccessKeyPermission::FunctionCall(FunctionCallPermission {
+                Ok(Self::FunctionCall(FunctionCallPermission {
                     allowance,
                     receiver_id,
                     method_names,
                 }))
             }
-            near_openapi_types::AccessKeyPermissionView::FullAccess => {
-                Ok(AccessKeyPermission::FullAccess)
-            }
+            near_openapi_types::AccessKeyPermissionView::FullAccess => Ok(Self::FullAccess),
         }
     }
 }
@@ -261,12 +259,10 @@ impl TryFrom<near_openapi_types::AccessKeyPermission> for AccessKeyPermission {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::AccessKeyPermission) -> Result<Self, Self::Error> {
         match val {
-            near_openapi_types::AccessKeyPermission::FunctionCall(function_call_permission) => Ok(
-                AccessKeyPermission::FunctionCall(function_call_permission.try_into()?),
-            ),
-            near_openapi_types::AccessKeyPermission::FullAccess => {
-                Ok(AccessKeyPermission::FullAccess)
+            near_openapi_types::AccessKeyPermission::FunctionCall(function_call_permission) => {
+                Ok(Self::FunctionCall(function_call_permission.try_into()?))
             }
+            near_openapi_types::AccessKeyPermission::FullAccess => Ok(Self::FullAccess),
         }
     }
 }
@@ -286,7 +282,7 @@ impl TryFrom<near_openapi_types::FunctionCallPermission> for FunctionCallPermiss
             receiver_id,
             method_names,
         } = val;
-        Ok(FunctionCallPermission {
+        Ok(Self {
             allowance: if let Some(val) = allowance {
                 Some(NearToken::from_yoctonear(val.parse::<u128>()?))
             } else {
@@ -308,7 +304,7 @@ impl TryFrom<near_openapi_types::DeleteKeyAction> for DeleteKeyAction {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::DeleteKeyAction) -> Result<Self, Self::Error> {
         let near_openapi_types::DeleteKeyAction { public_key } = val;
-        Ok(DeleteKeyAction {
+        Ok(Self {
             public_key: public_key.try_into()?,
         })
     }
@@ -322,7 +318,7 @@ pub struct DeleteAccountAction {
 impl From<near_openapi_types::DeleteAccountAction> for DeleteAccountAction {
     fn from(val: near_openapi_types::DeleteAccountAction) -> Self {
         let near_openapi_types::DeleteAccountAction { beneficiary_id } = val;
-        DeleteAccountAction { beneficiary_id }
+        Self { beneficiary_id }
     }
 }
 
@@ -351,12 +347,8 @@ pub enum GlobalContractDeployMode {
 impl From<near_openapi_types::GlobalContractDeployMode> for GlobalContractDeployMode {
     fn from(val: near_openapi_types::GlobalContractDeployMode) -> Self {
         match val {
-            near_openapi_types::GlobalContractDeployMode::CodeHash => {
-                GlobalContractDeployMode::CodeHash
-            }
-            near_openapi_types::GlobalContractDeployMode::AccountId => {
-                GlobalContractDeployMode::AccountId
-            }
+            near_openapi_types::GlobalContractDeployMode::CodeHash => Self::CodeHash,
+            near_openapi_types::GlobalContractDeployMode::AccountId => Self::AccountId,
         }
     }
 }
@@ -371,10 +363,10 @@ impl TryFrom<near_openapi_types::GlobalContractIdentifier> for GlobalContractIde
     fn try_from(val: near_openapi_types::GlobalContractIdentifier) -> Result<Self, Self::Error> {
         match val {
             near_openapi_types::GlobalContractIdentifier::CodeHash(code_hash) => {
-                Ok(GlobalContractIdentifier::CodeHash(code_hash.try_into()?))
+                Ok(Self::CodeHash(code_hash.try_into()?))
             }
             near_openapi_types::GlobalContractIdentifier::AccountId(account_id) => {
-                Ok(GlobalContractIdentifier::AccountId(account_id))
+                Ok(Self::AccountId(account_id))
             }
         }
     }
@@ -385,37 +377,37 @@ impl TryFrom<near_openapi_types::Action> for Action {
     fn try_from(val: near_openapi_types::Action) -> Result<Self, Self::Error> {
         match val {
             near_openapi_types::Action::CreateAccount(create_account_action) => {
-                Ok(Action::CreateAccount(create_account_action.into()))
+                Ok(Self::CreateAccount(create_account_action.into()))
             }
             near_openapi_types::Action::DeployContract(deploy_contract_action) => {
-                Ok(Action::DeployContract(deploy_contract_action.try_into()?))
+                Ok(Self::DeployContract(deploy_contract_action.try_into()?))
             }
             near_openapi_types::Action::FunctionCall(function_call_action) => Ok(
-                Action::FunctionCall(Box::new(function_call_action.try_into()?)),
+                Self::FunctionCall(Box::new(function_call_action.try_into()?)),
             ),
             near_openapi_types::Action::Transfer(transfer_action) => {
-                Ok(Action::Transfer(transfer_action.try_into()?))
+                Ok(Self::Transfer(transfer_action.try_into()?))
             }
             near_openapi_types::Action::Stake(stake_action) => {
-                Ok(Action::Stake(Box::new(stake_action.try_into()?)))
+                Ok(Self::Stake(Box::new(stake_action.try_into()?)))
             }
             near_openapi_types::Action::AddKey(add_key_action) => {
-                Ok(Action::AddKey(Box::new(add_key_action.try_into()?)))
+                Ok(Self::AddKey(Box::new(add_key_action.try_into()?)))
             }
             near_openapi_types::Action::DeleteKey(delete_key_action) => {
-                Ok(Action::DeleteKey(Box::new(delete_key_action.try_into()?)))
+                Ok(Self::DeleteKey(Box::new(delete_key_action.try_into()?)))
             }
             near_openapi_types::Action::DeleteAccount(delete_account_action) => {
-                Ok(Action::DeleteAccount(delete_account_action.into()))
+                Ok(Self::DeleteAccount(delete_account_action.into()))
             }
             near_openapi_types::Action::Delegate(delegate_action) => {
-                Ok(Action::Delegate(Box::new(delegate_action.try_into()?)))
+                Ok(Self::Delegate(Box::new(delegate_action.try_into()?)))
             }
             near_openapi_types::Action::DeployGlobalContract(deploy_global_contract_action) => Ok(
-                Action::DeployGlobalContract(deploy_global_contract_action.try_into()?),
+                Self::DeployGlobalContract(deploy_global_contract_action.try_into()?),
             ),
             near_openapi_types::Action::UseGlobalContract(use_global_contract_action) => Ok(
-                Action::UseGlobalContract(Box::new(use_global_contract_action.try_into()?)),
+                Self::UseGlobalContract(Box::new(use_global_contract_action.try_into()?)),
             ),
         }
     }
@@ -426,10 +418,10 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
     fn try_from(val: near_openapi_types::ActionView) -> Result<Self, Self::Error> {
         match val {
             near_openapi_types::ActionView::CreateAccount => {
-                Ok(Action::CreateAccount(CreateAccountAction {}))
+                Ok(Self::CreateAccount(CreateAccountAction {}))
             }
             near_openapi_types::ActionView::DeployContract { code } => {
-                Ok(Action::DeployContract(DeployContractAction {
+                Ok(Self::DeployContract(DeployContractAction {
                     code: BASE64_STANDARD.decode(code)?,
                 }))
             }
@@ -438,19 +430,19 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
                 args,
                 gas,
                 deposit,
-            } => Ok(Action::FunctionCall(Box::new(FunctionCallAction {
+            } => Ok(Self::FunctionCall(Box::new(FunctionCallAction {
                 method_name,
                 args: BASE64_STANDARD.decode(args.0)?,
                 gas: NearGas::from_gas(gas),
                 deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
             }))),
             near_openapi_types::ActionView::Transfer { deposit } => {
-                Ok(Action::Transfer(TransferAction {
+                Ok(Self::Transfer(TransferAction {
                     deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
                 }))
             }
             near_openapi_types::ActionView::Stake { public_key, stake } => {
-                Ok(Action::Stake(Box::new(StakeAction {
+                Ok(Self::Stake(Box::new(StakeAction {
                     public_key: public_key.try_into()?,
                     stake: NearToken::from_yoctonear(stake.parse::<u128>()?),
                 })))
@@ -458,49 +450,47 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
             near_openapi_types::ActionView::AddKey {
                 access_key,
                 public_key,
-            } => Ok(Action::AddKey(Box::new(AddKeyAction {
+            } => Ok(Self::AddKey(Box::new(AddKeyAction {
                 public_key: public_key.try_into()?,
                 access_key: access_key.try_into()?,
             }))),
             near_openapi_types::ActionView::DeleteKey { public_key } => {
-                Ok(Action::DeleteKey(Box::new(DeleteKeyAction {
+                Ok(Self::DeleteKey(Box::new(DeleteKeyAction {
                     public_key: public_key.try_into()?,
                 })))
             }
             near_openapi_types::ActionView::DeleteAccount { beneficiary_id } => {
-                Ok(Action::DeleteAccount(DeleteAccountAction {
-                    beneficiary_id,
-                }))
+                Ok(Self::DeleteAccount(DeleteAccountAction { beneficiary_id }))
             }
             near_openapi_types::ActionView::Delegate {
                 delegate_action,
                 signature,
-            } => Ok(Action::Delegate(Box::new(SignedDelegateAction {
+            } => Ok(Self::Delegate(Box::new(SignedDelegateAction {
                 delegate_action: delegate_action.try_into()?,
                 signature: Signature::from_str(&signature)?,
             }))),
             near_openapi_types::ActionView::DeployGlobalContract { code } => {
-                Ok(Action::DeployGlobalContract(DeployGlobalContractAction {
+                Ok(Self::DeployGlobalContract(DeployGlobalContractAction {
                     code: BASE64_STANDARD.decode(code)?,
                     deploy_mode: GlobalContractDeployMode::CodeHash,
                 }))
             }
             near_openapi_types::ActionView::DeployGlobalContractByAccountId { code } => {
-                Ok(Action::DeployGlobalContract(DeployGlobalContractAction {
+                Ok(Self::DeployGlobalContract(DeployGlobalContractAction {
                     code: BASE64_STANDARD.decode(code)?,
                     deploy_mode: GlobalContractDeployMode::AccountId,
                 }))
             }
-            near_openapi_types::ActionView::UseGlobalContract { code_hash } => Ok(
-                Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+            near_openapi_types::ActionView::UseGlobalContract { code_hash } => {
+                Ok(Self::UseGlobalContract(Box::new(UseGlobalContractAction {
                     contract_identifier: GlobalContractIdentifier::CodeHash(code_hash.try_into()?),
-                })),
-            ),
-            near_openapi_types::ActionView::UseGlobalContractByAccountId { account_id } => Ok(
-                Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                })))
+            }
+            near_openapi_types::ActionView::UseGlobalContractByAccountId { account_id } => {
+                Ok(Self::UseGlobalContract(Box::new(UseGlobalContractAction {
                     contract_identifier: GlobalContractIdentifier::AccountId(account_id),
-                })),
-            ),
+                })))
+            }
         }
     }
 }

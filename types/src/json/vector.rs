@@ -17,7 +17,7 @@ impl From<Vec<u8>> for Base64VecU8 {
 }
 
 impl From<Base64VecU8> for Vec<u8> {
-    fn from(v: Base64VecU8) -> Vec<u8> {
+    fn from(v: Base64VecU8) -> Self {
         v.0
     }
 }

@@ -79,7 +79,6 @@ where
     Query: RpcType,
     Query::Response: std::fmt::Debug + Send + Sync,
     Query::Error: std::fmt::Debug + Send + Sync,
-    Handler: Send + Sync,
 {
     pub fn with_reference(reference: impl Into<Query::RpcReference>) -> Self {
         Self {
@@ -96,7 +95,6 @@ where
     Query: RpcType,
     Query::Response: std::fmt::Debug + Send + Sync,
     Query::Error: std::fmt::Debug + Send + Sync,
-    Handler: Send + Sync,
 {
     pub fn new(handler: Handler, reference: impl Into<Query::RpcReference>) -> Self {
         Self {

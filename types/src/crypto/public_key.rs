@@ -25,7 +25,7 @@ pub enum PublicKey {
 impl PublicKey {
     // `is_empty` always returns false, so there is no point in adding it
     #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         const ED25519_LEN: usize = ed25519_dalek::PUBLIC_KEY_LENGTH + 1;
         match self {
             Self::ED25519(_) => ED25519_LEN,
@@ -33,37 +33,37 @@ impl PublicKey {
         }
     }
 
-    pub fn empty(key_type: KeyType) -> Self {
+    pub const fn empty(key_type: KeyType) -> Self {
         match key_type {
             KeyType::ED25519 => {
-                PublicKey::ED25519(ED25519PublicKey([0u8; ed25519_dalek::PUBLIC_KEY_LENGTH]))
+                Self::ED25519(ED25519PublicKey([0u8; ed25519_dalek::PUBLIC_KEY_LENGTH]))
             }
-            KeyType::SECP256K1 => PublicKey::SECP256K1(Secp256K1PublicKey([0u8; 64])),
+            KeyType::SECP256K1 => Self::SECP256K1(Secp256K1PublicKey([0u8; 64])),
         }
     }
 
-    pub fn key_type(&self) -> KeyType {
+    pub const fn key_type(&self) -> KeyType {
         match self {
             Self::ED25519(_) => KeyType::ED25519,
             Self::SECP256K1(_) => KeyType::SECP256K1,
         }
     }
 
-    pub fn key_data(&self) -> &[u8] {
+    pub const fn key_data(&self) -> &[u8] {
         match self {
             Self::ED25519(key) => &key.0,
             Self::SECP256K1(key) => &key.0,
         }
     }
 
-    pub fn unwrap_as_ed25519(&self) -> &ED25519PublicKey {
+    pub const fn unwrap_as_ed25519(&self) -> &ED25519PublicKey {
         match self {
             Self::ED25519(key) => key,
             Self::SECP256K1(_) => panic!(),
         }
     }
 
-    pub fn unwrap_as_secp256k1(&self) -> &Secp256K1PublicKey {
+    pub const fn unwrap_as_secp256k1(&self) -> &Secp256K1PublicKey {
         match self {
             Self::SECP256K1(key) => key,
             Self::ED25519(_) => panic!(),
@@ -74,13 +74,13 @@ impl PublicKey {
 impl TryFrom<near_openapi_types::PublicKey> for PublicKey {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::PublicKey) -> Result<Self, Self::Error> {
-        PublicKey::from_str(&val.0)
+        Self::from_str(&val.0)
     }
 }
 
 impl From<PublicKey> for near_openapi_types::PublicKey {
     fn from(val: PublicKey) -> Self {
-        near_openapi_types::PublicKey(val.to_string())
+        Self(val.to_string())
     }
 }
 
@@ -89,11 +89,11 @@ impl From<PublicKey> for near_openapi_types::PublicKey {
 impl Hash for PublicKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            PublicKey::ED25519(public_key) => {
+            Self::ED25519(public_key) => {
                 state.write_u8(0u8);
                 state.write(&public_key.0);
             }
-            PublicKey::SECP256K1(public_key) => {
+            Self::SECP256K1(public_key) => {
                 state.write_u8(1u8);
                 state.write(&public_key.0);
             }
@@ -104,8 +104,8 @@ impl Hash for PublicKey {
 impl Display for PublicKey {
     fn fmt(&self, fmt: &mut Formatter) -> std::fmt::Result {
         let (key_type, key_data) = match self {
-            PublicKey::ED25519(public_key) => (KeyType::ED25519, &public_key.0[..]),
-            PublicKey::SECP256K1(public_key) => (KeyType::SECP256K1, &public_key.0[..]),
+            Self::ED25519(public_key) => (KeyType::ED25519, &public_key.0[..]),
+            Self::SECP256K1(public_key) => (KeyType::SECP256K1, &public_key.0[..]),
         };
         write!(fmt, "{}:{}", key_type, bs58::encode(key_data).into_string())
     }
@@ -120,11 +120,11 @@ impl Debug for PublicKey {
 impl BorshSerialize for PublicKey {
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         match self {
-            PublicKey::ED25519(public_key) => {
+            Self::ED25519(public_key) => {
                 BorshSerialize::serialize(&0u8, writer)?;
                 writer.write_all(&public_key.0)?;
             }
-            PublicKey::SECP256K1(public_key) => {
+            Self::SECP256K1(public_key) => {
                 BorshSerialize::serialize(&1u8, writer)?;
                 writer.write_all(&public_key.0)?;
             }
@@ -138,10 +138,10 @@ impl BorshDeserialize for PublicKey {
         let key_type = KeyType::try_from(u8::deserialize_reader(rd)?)
             .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?;
         match key_type {
-            KeyType::ED25519 => Ok(PublicKey::ED25519(ED25519PublicKey(
+            KeyType::ED25519 => Ok(Self::ED25519(ED25519PublicKey(
                 BorshDeserialize::deserialize_reader(rd)?,
             ))),
-            KeyType::SECP256K1 => Ok(PublicKey::SECP256K1(Secp256K1PublicKey(
+            KeyType::SECP256K1 => Ok(Self::SECP256K1(Secp256K1PublicKey(
                 BorshDeserialize::deserialize_reader(rd)?,
             ))),
         }

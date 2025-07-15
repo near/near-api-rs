@@ -60,7 +60,7 @@ impl From<SignableMessageType> for MessageDiscriminant {
     fn from(ty: SignableMessageType) -> Self {
         // unwrapping here is ok, we know the constant NEP numbers used are in range
         match ty {
-            SignableMessageType::DelegateAction => MessageDiscriminant {
+            SignableMessageType::DelegateAction => Self {
                 discriminant: NEP_366_META_TRANSACTIONS,
             },
         }

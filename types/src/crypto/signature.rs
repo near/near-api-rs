@@ -31,8 +31,8 @@ pub enum Signature {
 impl Hash for Signature {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Signature::ED25519(sig) => sig.to_bytes().hash(state),
-            Signature::SECP256K1(sig) => sig.hash(state),
+            Self::ED25519(sig) => sig.to_bytes().hash(state),
+            Self::SECP256K1(sig) => sig.hash(state),
         };
     }
 }
@@ -44,10 +44,10 @@ impl Signature {
         signature_data: &[u8],
     ) -> Result<Self, DataConversionError> {
         match signature_type {
-            KeyType::ED25519 => Ok(Signature::ED25519(ed25519_dalek::Signature::from_bytes(
+            KeyType::ED25519 => Ok(Self::ED25519(ed25519_dalek::Signature::from_bytes(
                 <&[u8; ed25519_dalek::SIGNATURE_LENGTH]>::try_from(signature_data)?,
             ))),
-            KeyType::SECP256K1 => Ok(Signature::SECP256K1(Secp256K1Signature::try_from(
+            KeyType::SECP256K1 => Ok(Self::SECP256K1(Secp256K1Signature::try_from(
                 signature_data,
             )?)),
         }
@@ -57,13 +57,11 @@ impl Signature {
     /// Also if public key doesn't match on the curve returns `false`.
     pub fn verify(&self, data: &[u8], public_key: &PublicKey) -> bool {
         match (&self, public_key) {
-            (Signature::ED25519(signature), PublicKey::ED25519(public_key)) => {
-                match ed25519_dalek::VerifyingKey::from_bytes(&public_key.0) {
-                    Err(_) => false,
-                    Ok(public_key) => public_key.verify(data, signature).is_ok(),
-                }
+            (Self::ED25519(signature), PublicKey::ED25519(public_key)) => {
+                ed25519_dalek::VerifyingKey::from_bytes(&public_key.0)
+                    .is_ok_and(|public_key| public_key.verify(data, signature).is_ok())
             }
-            (Signature::SECP256K1(signature), PublicKey::SECP256K1(public_key)) => {
+            (Self::SECP256K1(signature), PublicKey::SECP256K1(public_key)) => {
                 // cspell:ignore rsig pdata
                 let rec_id =
                     match secp256k1::ecdsa::RecoveryId::from_i32(i32::from(signature.0[64])) {
@@ -98,10 +96,10 @@ impl Signature {
         }
     }
 
-    pub fn key_type(&self) -> KeyType {
+    pub const fn key_type(&self) -> KeyType {
         match self {
-            Signature::ED25519(_) => KeyType::ED25519,
-            Signature::SECP256K1(_) => KeyType::SECP256K1,
+            Self::ED25519(_) => KeyType::ED25519,
+            Self::SECP256K1(_) => KeyType::SECP256K1,
         }
     }
 }
@@ -109,11 +107,11 @@ impl Signature {
 impl BorshSerialize for Signature {
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         match self {
-            Signature::ED25519(signature) => {
+            Self::ED25519(signature) => {
                 BorshSerialize::serialize(&0u8, writer)?;
                 writer.write_all(&signature.to_bytes())?;
             }
-            Signature::SECP256K1(signature) => {
+            Self::SECP256K1(signature) => {
                 BorshSerialize::serialize(&1u8, writer)?;
                 writer.write_all(&signature.0)?;
             }
@@ -137,13 +135,11 @@ impl BorshDeserialize for Signature {
                 if array[ed25519_dalek::SIGNATURE_LENGTH - 1] & 0b1110_0000 != 0 {
                     return Err(Error::new(ErrorKind::InvalidData, "signature error"));
                 }
-                Ok(Signature::ED25519(ed25519_dalek::Signature::from_bytes(
-                    &array,
-                )))
+                Ok(Self::ED25519(ed25519_dalek::Signature::from_bytes(&array)))
             }
             KeyType::SECP256K1 => {
                 let array: [u8; 65] = BorshDeserialize::deserialize_reader(rd)?;
-                Ok(Signature::SECP256K1(Secp256K1Signature(array)))
+                Ok(Self::SECP256K1(Secp256K1Signature(array)))
             }
         }
     }
@@ -153,11 +149,11 @@ impl Display for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let buf;
         let (key_type, key_data) = match self {
-            Signature::ED25519(signature) => {
+            Self::ED25519(signature) => {
                 buf = signature.to_bytes();
                 (KeyType::ED25519, &buf[..])
             }
-            Signature::SECP256K1(signature) => (KeyType::SECP256K1, &signature.0[..]),
+            Self::SECP256K1(signature) => (KeyType::SECP256K1, &signature.0[..]),
         };
         write!(f, "{}:{}", key_type, bs58::encode(key_data).into_string())
     }
@@ -193,9 +189,9 @@ impl FromStr for Signature {
                     .map_err(DataConversionError::from)?
                     .try_into()?;
                 let sig = ed25519_dalek::Signature::from_bytes(&data);
-                Signature::ED25519(sig)
+                Self::ED25519(sig)
             }
-            KeyType::SECP256K1 => Signature::SECP256K1(Secp256K1Signature(
+            KeyType::SECP256K1 => Self::SECP256K1(Secp256K1Signature(
                 bs58::decode(sig_data)
                     .into_vec()
                     .map_err(DataConversionError::from)?

@@ -40,7 +40,7 @@ impl RPCEndpoint {
     ///
     /// The default retry method is `ExponentialBackoff` with an initial sleep of 10ms and a factor of 2.
     /// The delays will be 10ms, 20ms, 40ms, 80ms, 160ms.
-    pub fn new(url: url::Url) -> Self {
+    pub const fn new(url: url::Url) -> Self {
         Self {
             url,
             bearer_header: None,

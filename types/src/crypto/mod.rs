@@ -24,8 +24,8 @@ pub enum KeyType {
 impl Display for KeyType {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.write_str(match self {
-            KeyType::ED25519 => "ed25519",
-            KeyType::SECP256K1 => "secp256k1",
+            Self::ED25519 => "ed25519",
+            Self::SECP256K1 => "secp256k1",
         })
     }
 }
@@ -36,8 +36,8 @@ impl FromStr for KeyType {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let lowercase_key_type = value.to_ascii_lowercase();
         match lowercase_key_type.as_str() {
-            "ed25519" => Ok(KeyType::ED25519),
-            "secp256k1" => Ok(KeyType::SECP256K1),
+            "ed25519" => Ok(Self::ED25519),
+            "secp256k1" => Ok(Self::SECP256K1),
             _ => Err(KeyTypeError::InvalidKeyFormat(
                 lowercase_key_type.to_string(),
             )),
@@ -50,8 +50,8 @@ impl TryFrom<u8> for KeyType {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(KeyType::ED25519),
-            1 => Ok(KeyType::SECP256K1),
+            0 => Ok(Self::ED25519),
+            1 => Ok(Self::SECP256K1),
             unknown_key_type => Err(KeyTypeError::InvalidKeyTypeByteIndex(unknown_key_type)),
         }
     }

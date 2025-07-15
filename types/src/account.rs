@@ -15,11 +15,11 @@ pub enum ContractState {
 }
 
 impl ContractState {
-    pub fn from_global_contract_hash(hash: CryptoHash) -> Self {
+    pub const fn from_global_contract_hash(hash: CryptoHash) -> Self {
         Self::GlobalHash(hash)
     }
 
-    pub fn from_local_hash(hash: CryptoHash) -> Self {
+    pub const fn from_local_hash(hash: CryptoHash) -> Self {
         Self::LocalHash(hash)
     }
 }

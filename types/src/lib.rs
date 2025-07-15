@@ -89,7 +89,7 @@ pub struct CryptoHash(pub [u8; 32]);
 
 impl CryptoHash {
     pub fn hash(bytes: &[u8]) -> Self {
-        CryptoHash(sha2::Sha256::digest(bytes).into())
+        Self(sha2::Sha256::digest(bytes).into())
     }
 }
 
@@ -147,6 +147,6 @@ impl std::fmt::Display for CryptoHash {
 
 impl From<CryptoHash> for near_openapi_types::CryptoHash {
     fn from(hash: CryptoHash) -> Self {
-        near_openapi_types::CryptoHash(hash.to_string())
+        Self(hash.to_string())
     }
 }

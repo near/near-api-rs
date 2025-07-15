@@ -24,22 +24,22 @@ pub enum SecretKey {
 }
 
 impl SecretKey {
-    pub fn key_type(&self) -> KeyType {
+    pub const fn key_type(&self) -> KeyType {
         match self {
-            SecretKey::ED25519(_) => KeyType::ED25519,
-            SecretKey::SECP256K1(_) => KeyType::SECP256K1,
+            Self::ED25519(_) => KeyType::ED25519,
+            Self::SECP256K1(_) => KeyType::SECP256K1,
         }
     }
 
     pub fn sign(&self, data: &[u8]) -> Signature {
         match &self {
-            SecretKey::ED25519(secret_key) => {
+            Self::ED25519(secret_key) => {
                 let mut keypair =
                     ed25519_dalek::SigningKey::from_keypair_bytes(&secret_key.0).unwrap();
                 Signature::ED25519(keypair.sign(data))
             }
 
-            SecretKey::SECP256K1(secret_key) => {
+            Self::SECP256K1(secret_key) => {
                 let signature = SECP256K1.sign_ecdsa_recoverable(
                     &secp256k1::Message::from_slice(data).expect("32 bytes"),
                     secret_key,
@@ -55,12 +55,12 @@ impl SecretKey {
 
     pub fn public_key(&self) -> PublicKey {
         match &self {
-            SecretKey::ED25519(secret_key) => PublicKey::ED25519(ED25519PublicKey(
+            Self::ED25519(secret_key) => PublicKey::ED25519(ED25519PublicKey(
                 secret_key.0[ed25519_dalek::SECRET_KEY_LENGTH..]
                     .try_into()
                     .unwrap(),
             )),
-            SecretKey::SECP256K1(secret_key) => {
+            Self::SECP256K1(secret_key) => {
                 let pk = secp256k1::PublicKey::from_secret_key(&SECP256K1, secret_key);
                 let serialized = pk.serialize_uncompressed();
                 let mut public_key = Secp256K1PublicKey([0; 64]);
@@ -72,8 +72,8 @@ impl SecretKey {
 
     pub fn unwrap_as_ed25519(&self) -> &ED25519SecretKey {
         match self {
-            SecretKey::ED25519(key) => key,
-            SecretKey::SECP256K1(_) => panic!("Secret key is not an ED25519 secret key"),
+            Self::ED25519(key) => key,
+            Self::SECP256K1(_) => panic!("Secret key is not an ED25519 secret key"),
         }
     }
 }
@@ -81,8 +81,8 @@ impl SecretKey {
 impl std::fmt::Display for SecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let (key_type, key_data) = match self {
-            SecretKey::ED25519(secret_key) => (KeyType::ED25519, &secret_key.0[..]),
-            SecretKey::SECP256K1(secret_key) => (KeyType::SECP256K1, &secret_key[..]),
+            Self::ED25519(secret_key) => (KeyType::ED25519, &secret_key.0[..]),
+            Self::SECP256K1(secret_key) => (KeyType::SECP256K1, &secret_key[..]),
         };
         write!(f, "{}:{}", key_type, bs58::encode(key_data).into_string())
     }

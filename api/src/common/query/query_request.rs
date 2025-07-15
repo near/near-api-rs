@@ -55,7 +55,7 @@ impl QueryRequest {
         reference: Reference,
     ) -> near_openapi_client::types::RpcQueryRequest {
         match self {
-            QueryRequest::ViewAccount { account_id } => {
+            Self::ViewAccount { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewAccountByFinality {
                         account_id,
@@ -84,7 +84,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::ViewCode { account_id } => {
+            Self::ViewCode { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewCodeByFinality {
                         account_id,
@@ -113,7 +113,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::ViewState { account_id, include_proof, prefix_base64 } => {
+            Self::ViewState { account_id, include_proof, prefix_base64 } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewStateByFinality {
                         account_id,
@@ -152,7 +152,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::ViewAccessKey { account_id, public_key } => {
+            Self::ViewAccessKey { account_id, public_key } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewAccessKeyByFinality {
                         account_id,
@@ -186,7 +186,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::ViewAccessKeyList { account_id } => {
+            Self::ViewAccessKeyList { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewAccessKeyListByFinality {
                         account_id,
@@ -215,7 +215,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::CallFunction { account_id, method_name, args_base64 } => {
+            Self::CallFunction { account_id, method_name, args_base64 } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::CallFunctionByFinality {
                         account_id,
@@ -254,7 +254,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::ViewGlobalContractCode { code_hash } => {
+            Self::ViewGlobalContractCode { code_hash } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewGlobalContractCodeByFinality {
                         code_hash: code_hash.into(),
@@ -283,7 +283,7 @@ impl QueryRequest {
                     },
                 }
             },
-            QueryRequest::ViewGlobalContractCodeByAccountId { account_id } => {
+            Self::ViewGlobalContractCodeByAccountId { account_id } => {
                 match reference {
                     Reference::Final => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
                         account_id,
