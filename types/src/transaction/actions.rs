@@ -6,9 +6,9 @@ use base64::prelude::BASE64_STANDARD;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::delegate_action::SignedDelegateAction;
 use crate::errors::DataConversionError;
-use crate::integers::U64;
+use crate::json::U64;
+use crate::transaction::delegate_action::SignedDelegateAction;
 use crate::{CryptoHash, NearGas, NearToken, PublicKey, Signature};
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -508,7 +508,7 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::public_key::{ED25519_PUBLIC_KEY_LENGTH, ED25519PublicKey};
+    use crate::crypto::{ED25519_PUBLIC_KEY_LENGTH, public_key::ED25519PublicKey};
     use serde_json;
 
     fn get_actions() -> Vec<Action> {

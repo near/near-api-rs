@@ -1,48 +1,55 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use bs58;
-use ed25519_dalek::ed25519::signature::Verifier;
-use primitive_types::U256;
-use secp256k1::Message;
-use serde::{Deserialize, Deserializer};
 use std::{
-    fmt::Debug,
-    io::{Read, Write},
+    fmt::{Debug, Display, Formatter},
+    hash::{Hash, Hasher},
+    io::{Error, ErrorKind, Read, Write},
     str::FromStr,
 };
 
+use borsh::{BorshDeserialize, BorshSerialize};
+use ed25519_dalek::Verifier;
+use primitive_types::U256;
+use secp256k1::Message;
+
 use crate::{
     PublicKey,
-    errors::DataConversionError,
-    public_key::Secp256K1PublicKey,
-    secret_key::{KeyType, SECP256K1, split_key_type_data},
+    crypto::{
+        KeyType, SECP256K1_SIGNATURE_LENGTH, public_key::Secp256K1PublicKey, secret_key::SECP256K1,
+        split_key_type_data,
+    },
+    errors::{DataConversionError, SignatureErrors},
 };
 
-pub const COMPONENT_SIZE: usize = 32;
-pub const SECP256K1_SIGNATURE_LENGTH: usize = 65;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Signature container supporting different curves.
+#[derive(Clone, PartialEq, Eq)]
 pub enum Signature {
     ED25519(ed25519_dalek::Signature),
     SECP256K1(Secp256K1Signature),
 }
 
+// This `Hash` implementation is safe since it retains the property
+// `k1 == k2 ⇒ hash(k1) == hash(k2)`.
+impl Hash for Signature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Signature::ED25519(sig) => sig.to_bytes().hash(state),
+            Signature::SECP256K1(sig) => sig.hash(state),
+        };
+    }
+}
+
 impl Signature {
+    /// Construct Signature from key type and raw signature blob
     pub fn from_parts(
         signature_type: KeyType,
         signature_data: &[u8],
     ) -> Result<Self, DataConversionError> {
         match signature_type {
             KeyType::ED25519 => Ok(Signature::ED25519(ed25519_dalek::Signature::from_bytes(
-                <&[u8; ed25519_dalek::SIGNATURE_LENGTH]>::try_from(signature_data)
-                    .map_err(|err| DataConversionError::InvalidData(err.to_string()))?,
+                <&[u8; ed25519_dalek::SIGNATURE_LENGTH]>::try_from(signature_data)?,
             ))),
-            KeyType::SECP256K1 => Ok(Signature::SECP256K1(
-                Secp256K1Signature::try_from(signature_data).map_err(|_| {
-                    DataConversionError::InvalidData(
-                        "invalid Secp256k1 signature length".to_string(),
-                    )
-                })?,
-            )),
+            KeyType::SECP256K1 => Ok(Signature::SECP256K1(Secp256K1Signature::try_from(
+                signature_data,
+            )?)),
         }
     }
 
@@ -100,7 +107,7 @@ impl Signature {
 }
 
 impl BorshSerialize for Signature {
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         match self {
             Signature::ED25519(signature) => {
                 BorshSerialize::serialize(&0u8, writer)?;
@@ -118,7 +125,7 @@ impl BorshSerialize for Signature {
 impl BorshDeserialize for Signature {
     fn deserialize_reader<R: Read>(rd: &mut R) -> std::io::Result<Self> {
         let key_type = KeyType::try_from(u8::deserialize_reader(rd)?)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err.to_string()))?;
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?;
         match key_type {
             KeyType::ED25519 => {
                 let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] =
@@ -128,10 +135,7 @@ impl BorshDeserialize for Signature {
                 // it here in case we need to keep backward compatibility. Maybe this check is not
                 // actually required, but please think carefully before removing it.
                 if array[ed25519_dalek::SIGNATURE_LENGTH - 1] & 0b1110_0000 != 0 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "signature error",
-                    ));
+                    return Err(Error::new(ErrorKind::InvalidData, "signature error"));
                 }
                 Ok(Signature::ED25519(ed25519_dalek::Signature::from_bytes(
                     &array,
@@ -145,17 +149,72 @@ impl BorshDeserialize for Signature {
     }
 }
 
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
-pub struct ED25519Signature {
-    pub r: ComponentBytes,
-    pub s: ComponentBytes,
+impl Display for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let buf;
+        let (key_type, key_data) = match self {
+            Signature::ED25519(signature) => {
+                buf = signature.to_bytes();
+                (KeyType::ED25519, &buf[..])
+            }
+            Signature::SECP256K1(signature) => (KeyType::SECP256K1, &signature.0[..]),
+        };
+        write!(f, "{}:{}", key_type, bs58::encode(key_data).into_string())
+    }
 }
 
-/// Size of an `R` or `s` component of an Ed25519 signature when serialized as bytes.
-pub type ComponentBytes = [u8; COMPONENT_SIZE];
+impl Debug for Signature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        Display::fmt(self, f)
+    }
+}
 
-#[derive(Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
-pub struct Secp256K1Signature(pub [u8; SECP256K1_SIGNATURE_LENGTH]);
+impl serde::Serialize for Signature {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl FromStr for Signature {
+    type Err = DataConversionError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (sig_type, sig_data) = split_key_type_data(value)?;
+        Ok(match sig_type {
+            KeyType::ED25519 => {
+                let data = bs58::decode(sig_data)
+                    .into_vec()
+                    .map_err(DataConversionError::from)?
+                    .try_into()?;
+                let sig = ed25519_dalek::Signature::from_bytes(&data);
+                Signature::ED25519(sig)
+            }
+            KeyType::SECP256K1 => Signature::SECP256K1(Secp256K1Signature(
+                bs58::decode(sig_data)
+                    .into_vec()
+                    .map_err(DataConversionError::from)?
+                    .try_into()?,
+            )),
+        })
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Signature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        s.parse()
+            .map_err(|err: DataConversionError| serde::de::Error::custom(err.to_string()))
+    }
+}
 
 const SECP256K1_N: U256 = U256([
     0xbfd25e8cd0364141,
@@ -171,6 +230,9 @@ const SECP256K1_N_HALF_ONE: U256 = U256([
     0xffffffffffffffff,
     0x7fffffffffffffff,
 ]);
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct Secp256K1Signature(pub [u8; SECP256K1_SIGNATURE_LENGTH]);
 
 impl Secp256K1Signature {
     pub fn check_signature_values(&self, reject_upper: bool) -> bool {
@@ -192,81 +254,36 @@ impl Secp256K1Signature {
         r < SECP256K1_N && s < s_check
     }
 
-    pub fn recover(&self, msg: [u8; 32]) -> Result<Secp256K1PublicKey, DataConversionError> {
+    pub fn recover(&self, msg: [u8; 32]) -> Result<Secp256K1PublicKey, SignatureErrors> {
         let recoverable_sig = secp256k1::ecdsa::RecoverableSignature::from_compact(
             &self.0[0..64],
             secp256k1::ecdsa::RecoveryId::from_i32(i32::from(self.0[64])).unwrap(),
-        )
-        .map_err(|err| DataConversionError::InvalidData(err.to_string()))?;
+        )?;
         let msg = Message::from_slice(&msg).unwrap();
 
         let res = SECP256K1
-            .recover_ecdsa(&msg, &recoverable_sig)
-            .map_err(|err| DataConversionError::InvalidData(err.to_string()))?
+            .recover_ecdsa(&msg, &recoverable_sig)?
             .serialize_uncompressed();
 
-        // Can not fail
-        let pk = Secp256K1PublicKey(res[1..65].try_into().unwrap());
+        let pk = Secp256K1PublicKey::try_from(&res[1..65]).expect("cannot fail");
 
         Ok(pk)
     }
 }
 
-impl serde::Serialize for Signature {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
+impl TryFrom<&[u8]> for Secp256K1Signature {
+    type Error = DataConversionError;
+
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Self(
+            data.try_into()
+                .map_err(|_| Self::Error::IncorrectLength(data.len()))?,
+        ))
     }
 }
 
-impl FromStr for Signature {
-    type Err = DataConversionError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (sig_type, sig_data) = split_key_type_data(value)?;
-        match sig_type {
-            KeyType::ED25519 => {
-                let data = bs58::decode(sig_data).into_vec()?;
-                let bytes: [u8; ed25519_dalek::SIGNATURE_LENGTH] = data
-                    .try_into()
-                    .map_err(|data: Vec<u8>| DataConversionError::IncorrectLength(data.len()))?;
-                let sig = ed25519_dalek::Signature::from_bytes(&bytes);
-                Ok(Signature::ED25519(sig))
-            }
-            KeyType::SECP256K1 => {
-                let data = bs58::decode(sig_data).into_vec()?;
-                let bytes: [u8; SECP256K1_SIGNATURE_LENGTH] = data
-                    .try_into()
-                    .map_err(|data: Vec<u8>| DataConversionError::IncorrectLength(data.len()))?;
-                let sig = Secp256K1Signature(bytes);
-                Ok(Signature::SECP256K1(sig))
-            }
-        }
-    }
-}
-
-impl std::fmt::Display for Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ED25519(sig) => {
-                write!(f, "ed25519:{}", bs58::encode(&sig.to_bytes()).into_string())
-            }
-            Self::SECP256K1(sig) => write!(f, "secp256k1:{}", bs58::encode(&sig.0).into_string()),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Signature {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        Signature::from_str(&s).map_err(serde::de::Error::custom)
+impl Debug for Secp256K1Signature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        Display::fmt(&bs58::encode(&self.0).into_string(), f)
     }
 }

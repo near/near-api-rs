@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use near_types::{AccountId, Action, transactions::PrepopulateTransaction};
+use near_types::{AccountId, Action, transaction::PrepopulateTransaction};
 
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
@@ -131,7 +131,7 @@ impl Transaction {
     /// This example constructs a transaction with a two transfer actions.
     ///
     /// ```rust,no_run
-    /// use near_api::{*, types::{actions::{Action, TransferAction}, integers::U128}};
+    /// use near_api::{*, types::{transaction::actions::{Action, TransferAction}, json::U128}};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;

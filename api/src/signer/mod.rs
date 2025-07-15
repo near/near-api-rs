@@ -119,10 +119,10 @@ use std::{
 
 use near_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
-    delegate_action::{NonDelegateAction, SignedDelegateAction},
-    hash,
-    secret_key::ED25519SecretKey,
-    transactions::{PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0},
+    transaction::{
+        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
+        delegate_action::{NonDelegateAction, SignedDelegateAction},
+    },
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -198,7 +198,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{*, signer::*, types::transactions::{PrepopulateTransaction, Transaction}, errors::SignerError};
+/// use near_api::{*, signer::*, types::transaction::{PrepopulateTransaction, Transaction}, errors::SignerError};
 ///
 /// struct CustomSigner {
 ///     secret_key: SecretKey,
@@ -222,7 +222,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{AccountId, signer::*, types::{transactions::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::SignerError};
+/// # use near_api::{AccountId, signer::*, types::{transaction::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::SignerError};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
 /// #     fn new(_: SecretKey) -> Self { Self }
@@ -300,10 +300,7 @@ pub trait SignerTrait {
 
         let signature = signer_secret_key.sign(unsigned_transaction.get_hash().0.as_ref());
 
-        Ok(SignedTransaction::new(
-            signature.into(),
-            unsigned_transaction,
-        ))
+        Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
 
     /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message that is widely used for the [authentication](https://docs.near.org/build/web3-apps/backend/)
@@ -320,10 +317,10 @@ pub trait SignerTrait {
         const NEP413_413_SIGN_MESSAGE_PREFIX: u32 = (1u32 << 31u32) + 413u32;
         let mut bytes = NEP413_413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
         borsh::to_writer(&mut bytes, &payload)?;
-        let hash = hash(&bytes);
+        let hash = CryptoHash::hash(&bytes);
         let secret = self.get_secret_key(&signer_id, &public_key).await?;
         let signature = secret.sign(hash.0.as_ref());
-        Ok(signature.into())
+        Ok(signature)
     }
 
     /// Returns the secret key associated with this signer.
@@ -460,7 +457,7 @@ impl Signer {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
         debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
 
-        if keypair.public_key != keypair.private_key.public_key().into() {
+        if keypair.public_key != keypair.private_key.public_key() {
             return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
         }
 
@@ -571,7 +568,7 @@ fn get_signed_delegate_action(
                 .map_err(|_| MetaSignError::DelegateActionIsNotSupported)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let delegate_action = near_types::delegate_action::DelegateAction {
+    let delegate_action = near_types::transaction::delegate_action::DelegateAction {
         sender_id: unsigned_transaction.signer_id().clone(),
         receiver_id: unsigned_transaction.receiver_id().clone(),
         actions,
@@ -583,12 +580,12 @@ fn get_signed_delegate_action(
     // create a new signature here signing the delegate action + discriminant
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
     let bytes = borsh::to_vec(&signable).expect("Failed to serialize");
-    let hash = hash(&bytes);
+    let hash = CryptoHash::hash(&bytes);
     let signature = private_key.sign(hash.0.as_ref());
 
     Ok(SignedDelegateAction {
         delegate_action,
-        signature: signature.into(),
+        signature,
     })
 }
 
@@ -611,9 +608,11 @@ pub fn get_secret_key_from_seed(
     .map_err(|_| SecretError::DeriveKeyInvalidIndex)?;
 
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived_private_key.key);
-    let secret_key = ED25519SecretKey(signing_key.to_keypair_bytes());
+    let secret_key = SecretKey::ED25519(near_types::crypto::secret_key::ED25519SecretKey(
+        signing_key.to_keypair_bytes(),
+    ));
 
-    Ok(SecretKey::ED25519(secret_key))
+    Ok(secret_key)
 }
 
 /// Generates a new seed phrase with optional customization.
@@ -634,7 +633,7 @@ pub fn generate_seed_phrase_custom(
     )?;
     let public_key = secret_key.public_key();
 
-    Ok((seed_phrase, public_key.into()))
+    Ok((seed_phrase, public_key))
 }
 
 /// Generates a new seed phrase with default settings (12 words, [default HD path](`DEFAULT_HD_PATH`))
@@ -686,7 +685,7 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 #[cfg(test)]
 mod nep_413_tests {
     use base64::{Engine, prelude::BASE64_STANDARD};
-    use near_types::{Signature, secret_key::KeyType};
+    use near_types::{Signature, crypto::KeyType};
 
     use crate::SignerTrait;
 

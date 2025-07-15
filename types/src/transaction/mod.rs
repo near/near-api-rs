@@ -1,11 +1,15 @@
 use std::{cell::OnceCell, io::Write, str::FromStr};
 
+pub mod actions;
+pub mod delegate_action;
+pub mod result;
+
 use base64::{Engine, prelude::BASE64_STANDARD};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccountId, Action, CryptoHash, Nonce, PublicKey, Signature, errors::DataConversionError, hash,
+    AccountId, Action, CryptoHash, Nonce, PublicKey, Signature, errors::DataConversionError,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
@@ -88,7 +92,7 @@ impl Transaction {
 
     pub fn get_hash(&self) -> CryptoHash {
         let bytes = borsh::to_vec(&self).expect("Failed to deserialize");
-        hash(&bytes)
+        CryptoHash::hash(&bytes)
     }
 }
 

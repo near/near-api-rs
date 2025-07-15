@@ -2,22 +2,18 @@ use sha2::Digest;
 use std::fmt;
 
 pub mod account;
-pub mod actions;
 pub mod contract;
-pub mod delegate_action;
+pub mod crypto;
 pub mod errors;
 pub mod ft;
+pub mod json;
 pub mod nft;
-pub mod public_key;
 pub mod reference;
 pub mod signable_message;
-pub mod signature;
 pub mod stake;
 pub mod storage;
 pub mod tokens;
-pub mod transaction_result;
-pub mod transactions;
-pub mod vector;
+pub mod transaction;
 
 pub use near_abi as abi;
 pub use near_account_id::AccountId;
@@ -30,23 +26,17 @@ pub use near_token::NearToken;
 pub use reference::{EpochReference, Reference};
 pub use storage::{StorageBalance, StorageBalanceInternal};
 
-pub use actions::{AccessKey, AccessKeyPermission, Action};
-pub use public_key::PublicKey;
-pub use signature::Signature;
-pub mod integers;
-pub mod secret_key;
 pub use account::Account;
+pub use crypto::public_key::PublicKey;
+pub use crypto::secret_key::SecretKey;
+pub use crypto::signature::Signature;
+pub use transaction::actions::{AccessKey, AccessKeyPermission, Action};
 
 use crate::errors::DataConversionError;
-pub use secret_key::SecretKey;
 
 pub type BlockHeight = u64;
 pub type Nonce = u64;
 pub type StorageUsage = u64;
-
-pub fn hash(bytes: &[u8]) -> CryptoHash {
-    CryptoHash(sha2::Sha256::digest(bytes).into())
-}
 
 /// A wrapper around a generic query result that includes the block height and block hash
 /// at which the query was executed
@@ -96,6 +86,12 @@ impl<T> Data<T> {
     borsh::BorshSerialize,
 )]
 pub struct CryptoHash(pub [u8; 32]);
+
+impl CryptoHash {
+    pub fn hash(bytes: &[u8]) -> Self {
+        CryptoHash(sha2::Sha256::digest(bytes).into())
+    }
+}
 
 impl std::str::FromStr for CryptoHash {
     type Err = DataConversionError;

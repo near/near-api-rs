@@ -1,5 +1,5 @@
 use near_api::{
-    types::{AccountId, hash},
+    types::{AccountId, CryptoHash},
     *,
 };
 use near_sandbox_utils::{GenesisAccount, SandboxConfig};
@@ -30,7 +30,7 @@ async fn main() {
     let instance_of_global_signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     let code: Vec<u8> = include_bytes!("../resources/counter.wasm").to_vec();
-    let contract_hash = hash(&code);
+    let contract_hash = CryptoHash::hash(&code);
 
     Contract::deploy_global_contract_code(code.clone())
         .as_hash()

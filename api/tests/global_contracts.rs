@@ -3,7 +3,7 @@ use near_api::*;
 use near_sandbox_utils::{
     GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
 };
-use near_types::{AccountId, Data, hash};
+use near_types::{AccountId, CryptoHash, Data};
 
 #[tokio::test]
 async fn deploy_global_contract_as_account_id_and_use_it() {
@@ -115,7 +115,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     let network = NetworkConfig::from_sandbox(&network);
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
-    let hash = hash(&code);
+    let hash = CryptoHash::hash(&code);
 
     Contract::deploy_global_contract_code(code.clone())
         .as_hash()

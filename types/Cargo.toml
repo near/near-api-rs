@@ -42,5 +42,4 @@ curve25519-dalek = { version = "4.1.3", default-features = false, features = [
     "alloc",
 ] }
 
-[features]
-rand = []
+bolero = "0.13"

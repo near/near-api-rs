@@ -1,11 +1,11 @@
 use near_types::{
     AccountId, Action, Data, NearToken, Reference,
-    actions::TransferAction,
     ft::FungibleTokenMetadata,
-    integers::U128,
+    json::U128,
     nft::{NFTContractMetadata, Token},
     tokens::{FTBalance, STORAGE_COST_PER_BYTE, UserBalance},
-    transactions::PrepopulateTransaction,
+    transaction::PrepopulateTransaction,
+    transaction::actions::TransferAction,
 };
 use serde_json::json;
 

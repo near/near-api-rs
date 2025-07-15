@@ -2,8 +2,10 @@ use std::convert::Infallible;
 
 use near_types::{
     AccessKey, AccessKeyPermission, AccountId, Action, NearGas, NearToken, PublicKey,
-    actions::{AddKeyAction, CreateAccountAction, TransferAction},
-    transactions::PrepopulateTransaction,
+    transaction::{
+        PrepopulateTransaction,
+        actions::{AddKeyAction, CreateAccountAction, TransferAction},
+    },
 };
 use reqwest::Response;
 use serde_json::json;

@@ -1,7 +1,7 @@
 use near_types::{
     AccessKeyPermission, AccountId, Action, PublicKey, Reference,
-    actions::{AccessKey, AddKeyAction, DeleteAccountAction, DeleteKeyAction},
-    integers::U64,
+    json::U64,
+    transaction::actions::{AccessKey, AddKeyAction, DeleteAccountAction, DeleteKeyAction},
 };
 
 use crate::advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc};

@@ -1,18 +1,16 @@
 use near_types::{
-    AccountId, BlockHeight, Nonce, PublicKey, SecretKey, Signature,
-    delegate_action::{DelegateAction, NonDelegateAction, SignedDelegateAction},
-    public_key,
-    secret_key::KeyType,
-    transactions::{SignedTransaction, Transaction, TransactionV0},
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
+    crypto::KeyType,
+    transaction::{
+        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
+        delegate_action::{DelegateAction, NonDelegateAction, SignedDelegateAction},
+    },
 };
 use slipped10::BIP32Path;
 use tokio::sync::OnceCell;
 use tracing::{debug, info, instrument, warn};
 
-use crate::{
-    errors::{LedgerError, MetaSignError, SignerError},
-    types::{CryptoHash, transactions::PrepopulateTransaction},
-};
+use crate::errors::{LedgerError, MetaSignError, SignerError};
 
 use super::{NEP413Payload, SignerTrait};
 
@@ -179,8 +177,9 @@ impl SignerTrait for LedgerSigner {
         } else {
             let public_key = near_ledger::get_wallet_id(self.hd_path.clone())
                 .map_err(|_| SignerError::PublicKeyIsNotAvailable)?;
-            let public_key =
-                PublicKey::ED25519(public_key::ED25519PublicKey(*public_key.as_bytes()));
+            let public_key = PublicKey::ED25519(near_types::crypto::public_key::ED25519PublicKey(
+                *public_key.as_bytes(),
+            ));
             self.public_key
                 .set(public_key.clone())
                 .map_err(LedgerError::from)?;

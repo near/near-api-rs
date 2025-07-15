@@ -12,7 +12,7 @@ use near_openapi_types::{
 use crate::{
     AccountId, CryptoHash, NearGas, NearToken, Signature,
     errors::{DataConversionError, ExecutionError},
-    transactions::{SignedTransaction, Transaction},
+    transaction::{SignedTransaction, Transaction},
 };
 
 /// Execution related info as a result of performing a successful transaction

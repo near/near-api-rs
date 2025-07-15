@@ -8,9 +8,11 @@ use near_openapi_client::types::{
 
 use near_types::{
     BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
-    delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
-    transaction_result::ExecutionFinalResult,
-    transactions::{PrepopulateTransaction, SignedTransaction},
+    transaction::{
+        PrepopulateTransaction, SignedTransaction,
+        delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
+        result::ExecutionFinalResult,
+    },
 };
 use reqwest::Response;
 use tracing::{debug, info};

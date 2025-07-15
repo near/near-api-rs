@@ -1,5 +1,5 @@
 use near_api::{
-    types::{AccountId, NearToken, non_fungible_token::metadata::TokenMetadata},
+    types::{AccountId, NearToken, nft::TokenMetadata},
     *,
 };
 use near_sandbox_utils::{GenesisAccount, SandboxConfig};

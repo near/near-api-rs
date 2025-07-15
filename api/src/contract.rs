@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use near_types::{
     AccountId, Action, CryptoHash, Data, FunctionArgs, NearGas, NearToken, Reference, StoreKey,
-    actions::{
+    contract::ContractSourceMetadata,
+    transaction::actions::{
         DeployContractAction, DeployGlobalContractAction, FunctionCallAction,
         GlobalContractDeployMode, GlobalContractIdentifier, UseGlobalContractAction,
     },
-    contract::ContractSourceMetadata,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 

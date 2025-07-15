@@ -1,7 +1,7 @@
 use near_openapi_client::types::RpcQueryResponse;
 use near_types::{
     AccessKey, Account, AccountView, ContractCodeView, Data, RpcBlockResponse,
-    RpcValidatorResponse, ViewStateResult, actions::AccessKeyInfo, integers::U64,
+    RpcValidatorResponse, ViewStateResult, json::U64, transaction::actions::AccessKeyInfo,
 };
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;

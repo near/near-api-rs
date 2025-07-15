@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::{AccountId, vector::Base64VecU8};
+use crate::{AccountId, json::Base64VecU8};
 
 pub type TokenId = String;
 

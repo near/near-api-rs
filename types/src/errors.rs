@@ -1,6 +1,8 @@
+use std::array::TryFromSliceError;
+
 use near_openapi_types::TxExecutionError;
 
-use crate::transaction_result::ExecutionFailure;
+use crate::transaction::result::ExecutionFailure;
 
 #[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum DecimalNumberParsingError {
@@ -13,9 +15,11 @@ pub enum DecimalNumberParsingError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum InvalidFormatError {
+pub enum KeyTypeError {
     #[error("Invalid key format. Expected: [ed25519, secp256k1] but got: {0}")]
     InvalidKeyFormat(String),
+    #[error("Invalid key type byte index: {0}")]
+    InvalidKeyTypeByteIndex(u8),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -39,16 +43,20 @@ pub enum DataConversionError {
     #[error("Incorrect length: {0}")]
     IncorrectLength(usize),
     #[error("Invalid public key: {0}")]
-    InvalidKeyFormat(#[from] InvalidFormatError),
+    InvalidKeyFormat(#[from] KeyTypeError),
     #[error("Delegate action is not supported")]
     DelegateActionNotSupported,
-    #[error("Invalid data: {0}")]
-    InvalidData(String),
 }
 
 impl From<Vec<u8>> for DataConversionError {
     fn from(value: Vec<u8>) -> Self {
         Self::IncorrectLength(value.len())
+    }
+}
+
+impl From<TryFromSliceError> for DataConversionError {
+    fn from(_: TryFromSliceError) -> Self {
+        Self::IncorrectLength(0)
     }
 }
 
@@ -75,5 +83,43 @@ impl From<ExecutionFailure> for ExecutionError {
 impl From<TxExecutionError> for ExecutionError {
     fn from(value: TxExecutionError) -> Self {
         Self::TransactionExecutionFailed(Box::new(value))
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SecretKeyError {
+    #[error("Invalid secret key: {0}")]
+    InvalidSecp256k1SecretKey(secp256k1::Error),
+    #[error("Invalid conversion: {0}")]
+    InvalidConversion(#[from] DataConversionError),
+}
+
+impl From<secp256k1::Error> for SecretKeyError {
+    fn from(value: secp256k1::Error) -> Self {
+        Self::InvalidSecp256k1SecretKey(value)
+    }
+}
+
+impl From<Vec<u8>> for SecretKeyError {
+    fn from(value: Vec<u8>) -> Self {
+        Self::InvalidConversion(value.into())
+    }
+}
+
+impl From<TryFromSliceError> for SecretKeyError {
+    fn from(error: TryFromSliceError) -> Self {
+        Self::InvalidConversion(error.into())
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SignatureErrors {
+    #[error("Invalid signature data: {0}")]
+    InvalidSignatureData(secp256k1::Error),
+}
+
+impl From<secp256k1::Error> for SignatureErrors {
+    fn from(value: secp256k1::Error) -> Self {
+        Self::InvalidSignatureData(value)
     }
 }
