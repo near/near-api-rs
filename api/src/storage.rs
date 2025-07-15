@@ -57,7 +57,7 @@ impl StorageDeposit {
     /// # Ok(())
     /// # }
     /// ```
-    #[allow(clippy::complexity)]
+    #[allow(clippy::type_complexity)]
     pub fn view_account_storage(
         &self,
         account_id: AccountId,

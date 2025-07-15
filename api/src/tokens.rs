@@ -254,7 +254,7 @@ impl Tokens {
     /// # Ok(())
     /// # }
     /// ```
-    #[allow(clippy::complexity)]
+    #[allow(clippy::type_complexity)]
     pub fn ft_balance(
         &self,
         ft_contract: AccountId,

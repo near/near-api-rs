@@ -124,6 +124,7 @@ where
 }
 
 pub struct AndThenHandler<PostProcessed, Handler: ResponseHandler> {
+    #[allow(clippy::complexity)]
     post_process: Box<
         dyn Fn(Handler::Response) -> Result<PostProcessed, Box<dyn std::error::Error + Send + Sync>>
             + Send

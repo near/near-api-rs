@@ -79,7 +79,7 @@ impl TryFrom<near_openapi_types::SignedDelegateAction> for SignedDelegateAction 
     }
 }
 
-/// A wrapper around [near_primitives::action::delegate::SignedDelegateAction] that allows for easy serialization and deserialization as base64 string
+/// A wrapper around [crate::transaction::delegate_action::SignedDelegateAction] that allows for easy serialization and deserialization as base64 string
 ///
 /// The type implements [std::str::FromStr] and [std::fmt::Display] to serialize and deserialize the type as base64 string
 #[derive(Debug, Clone)]

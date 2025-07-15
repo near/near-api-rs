@@ -60,6 +60,7 @@ where
     Handler: Send + Sync,
 {
     reference: Query::RpcReference,
+    #[allow(clippy::type_complexity)]
     requests: Vec<
         Arc<
             dyn RpcType<

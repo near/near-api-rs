@@ -189,7 +189,7 @@ impl Contract {
         GlobalDeployBuilder::new(code)
     }
 
-    /// Prepares a query to fetch the [ABI](near_abi::AbiRoot) of the contract using the following [standard](https://github.com/near/near-abi-rs).
+    /// Prepares a query to fetch the [ABI](near_types::abi::AbiRoot) of the contract using the following [standard](https://github.com/near/near-abi-rs).
     ///
     /// Please be aware that not all the contracts provide the ABI.
     ///

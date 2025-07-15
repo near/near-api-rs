@@ -149,7 +149,7 @@ impl Delegation {
     /// # Ok(())
     /// # }
     /// ```
-    #[allow(clippy::complexity)]
+    #[allow(clippy::type_complexity)]
     pub fn view_balance(
         &self,
         pool: AccountId,
@@ -573,7 +573,7 @@ impl Staking {
         })
     }
 
-    /// Prepares a new contract query (`get_reward_fee_fraction`) for fetching the reward fee fraction of the staking pool ([Data](crate::Data)<[RewardFeeFraction]>).
+    /// Prepares a new contract query (`get_reward_fee_fraction`) for fetching the reward fee fraction of the staking pool ([Data]<[RewardFeeFraction]>).
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -597,7 +597,7 @@ impl Staking {
             .read_only()
     }
 
-    /// Prepares a new contract query (`get_number_of_accounts`) for fetching the number of delegators of the staking pool ([Data](crate::Data)<[u64]>).
+    /// Prepares a new contract query (`get_number_of_accounts`) for fetching the number of delegators of the staking pool ([Data]<[u64]>).
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
     ///
@@ -663,7 +663,7 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    #[allow(clippy::complexity)]
+    #[allow(clippy::type_complexity)]
     pub fn staking_pool_info(
         pool: AccountId,
     ) -> MultiQueryBuilder<

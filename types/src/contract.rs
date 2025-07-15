@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Contract source metadata follows [**NEP-330 standard**](https://github.com/near/NEPs/blob/master/neps/nep-0330.md) for smart contracts
 ///
-/// See the documentation of [`Contract::contract_source_metadata`](crate::Contract::contract_source_metadata) on how to query this for a contract via this crate
+/// See the documentation of [`Contract::contract_source_metadata`](near-api::Contract::contract_source_metadata) on how to query this for a contract via this crate
 // `rustdoc` clearly lacks functionality of automatic backlinks within a single crate
 #[derive(Debug, Clone, PartialEq, Default, Eq, Serialize, Deserialize)]
 pub struct ContractSourceMetadata {

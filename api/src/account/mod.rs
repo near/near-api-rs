@@ -56,7 +56,7 @@ impl Account {
         )
     }
 
-    /// Prepares a query to fetch the [Data](crate::Data)<[AccessKey](near_types::AccessKey)> with the access key information for the given account public key.
+    /// Prepares a query to fetch the [Data](crate::Data)<[AccessKey]> with the access key information for the given account public key.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -87,7 +87,7 @@ impl Account {
         )
     }
 
-    /// Prepares a query to fetch the [Vec<AccessKeyInfo>](near_types::actions::AccessKeyInfo) list of access keys for the given account ID.
+    /// Prepares a query to fetch the [`Vec<AccessKeyInfo>`](near_types::transaction::actions::AccessKeyInfo) list of access keys for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run

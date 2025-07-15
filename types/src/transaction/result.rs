@@ -160,9 +160,7 @@ impl<T: fmt::Debug> fmt::Debug for ExecutionResult<T> {
 }
 
 /// Execution related info found after performing a transaction. Can be converted
-/// into [`ExecutionSuccess`] or [`ExecutionFailure`] through [`into_result`]
-///
-/// [`into_result`]: crate::result::ExecutionFinalResult::into_result
+/// into [`ExecutionSuccess`] or [`ExecutionFailure`] through [`into_result`](ExecutionFinalResult::into_result)
 #[derive(Clone)]
 #[must_use = "use `into_result()` to handle potential execution errors"]
 pub struct ExecutionFinalResult {
@@ -241,9 +239,7 @@ impl ExecutionFinalResult {
     /// Returns the contained Ok value, consuming the self value.
     ///
     /// Because this function may panic, its use is generally discouraged. Instead, prefer
-    /// to call into [`into_result`] then pattern matching and handle the Err case explicitly.
-    ///
-    /// [`into_result`]: crate::result::ExecutionFinalResult::into_result
+    /// to call into [`into_result`](ExecutionFinalResult::into_result) then pattern matching and handle the Err case explicitly.
     pub fn assert_success(self) -> ExecutionSuccess {
         self.into_result().unwrap()
     }

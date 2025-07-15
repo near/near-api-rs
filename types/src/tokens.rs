@@ -221,7 +221,7 @@ pub struct UserBalance {
     /// for almost all the users, and not 0 for StakingPool contracts.
     ///
     /// Please note that this is not related to your delegations into the staking pools.
-    /// To get your delegation information in the staking pools, use [crate::Delegation]
+    /// To get your delegation information in the staking pools, use [near-api::Delegation]
     pub locked: NearToken,
 }
 
