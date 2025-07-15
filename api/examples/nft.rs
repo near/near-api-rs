@@ -2,13 +2,15 @@ use near_api::{
     types::{AccountId, NearToken, nft::TokenMetadata},
     *,
 };
-use near_sandbox_utils::{GenesisAccount, SandboxConfig};
+use near_sandbox_utils::{
+    GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
+};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() {
     let nft: AccountId = "nft.testnet".parse().unwrap();
-    let account: AccountId = "account.testnet".parse().unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
     let account2: AccountId = "account2.testnet".parse().unwrap();
 
     let network =

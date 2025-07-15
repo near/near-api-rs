@@ -264,14 +264,14 @@ impl Tokens {
                 FTBalance,
                 MultiQueryHandler<(
                     CallResultHandler<FungibleTokenMetadata>,
-                    CallResultHandler<u128>,
+                    CallResultHandler<U128>,
                 )>,
             >,
         >,
     > {
         let handler = MultiQueryHandler::new((
             CallResultHandler::<FungibleTokenMetadata>::new(),
-            CallResultHandler::default(),
+            CallResultHandler::<U128>::new(),
         ));
         let multiquery = MultiQueryBuilder::new(handler, Reference::Optimistic)
             .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
@@ -286,8 +286,8 @@ impl Tokens {
                     .read_only::<()>(),
             )
             .map(
-                |(metadata, amount): (Data<FungibleTokenMetadata>, Data<u128>)| {
-                    FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data)
+                |(metadata, amount): (Data<FungibleTokenMetadata>, Data<U128>)| {
+                    FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
                 },
             );
         Ok(multiquery)
@@ -381,7 +381,7 @@ impl SendToBuilder {
                 "ft_transfer",
                 json!({
                     "receiver_id": self.receiver_id,
-                    "amount": U128(amount.amount()),
+                    "amount": amount.amount().to_string(),
                 }),
             )?
             .transaction()
