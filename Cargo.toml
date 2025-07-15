@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["api", "types"]
+rust-version = "1.85"
+
 
 [workspace.dependencies]
 near-types = { path = "types" }

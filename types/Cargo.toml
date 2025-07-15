@@ -1,7 +1,6 @@
 [package]
 name = "near-types"
 version = "0.6.1"
-rust-version = "1.85"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
     "frol <frolvlad@gmail.com>",
