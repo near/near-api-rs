@@ -29,16 +29,14 @@ futures = "0.3"
 # Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
 openssl = { version = "0.10", features = ["vendored"] }
 
-secp256k1 = { version = "0.27.0", default-features = false }
 bip39 = { version = "2.0.0", features = ["rand"] }
-ed25519-dalek = { version = "2", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.57"
 slipped10 = { version = "0.4.6" }
 url = { version = "2", features = ["serde"] }
 tokio = { version = "1.0", default-features = false, features = ["time"] }
 tracing = "0.1"
-thiserror = "2"
+thiserror = "1"
 
 near-ledger = { version = "0.9.1", optional = true }
 near-openapi-client = "0.3.0"
@@ -46,7 +44,7 @@ near-types.workspace = true
 
 near-sandbox-utils = { git = "https://github.com/near/near-sandbox", branch = "main", optional = true }
 
-zstd = "0.13"
+zstd = "0.11"
 
 keyring = { version = "3.2", features = [
     "apple-native",

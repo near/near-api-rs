@@ -139,6 +139,12 @@ impl<'de> serde::Deserialize<'de> for SecretKey {
 // The last PUBLIC_KEY_LENGTH of bytes is the public key, in total it's KEYPAIR_LENGTH
 pub struct ED25519SecretKey(pub [u8; ed25519_dalek::KEYPAIR_LENGTH]);
 
+impl ED25519SecretKey {
+    pub fn from_secret_key(secret_key: [u8; ed25519_dalek::SECRET_KEY_LENGTH]) -> Self {
+        Self(ed25519_dalek::SigningKey::from_bytes(&secret_key).to_keypair_bytes())
+    }
+}
+
 impl PartialEq for ED25519SecretKey {
     fn eq(&self, other: &Self) -> bool {
         self.0[..ed25519_dalek::SECRET_KEY_LENGTH] == other.0[..ed25519_dalek::SECRET_KEY_LENGTH]

@@ -198,7 +198,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{*, signer::*, types::transaction::{PrepopulateTransaction, Transaction}, errors::SignerError};
+/// use near_api::{*, signer::*, types::transactions::{PrepopulateTransaction, Transaction}, errors::SignerError};
 ///
 /// struct CustomSigner {
 ///     secret_key: SecretKey,
@@ -607,10 +607,9 @@ pub fn get_secret_key_from_seed(
     )
     .map_err(|_| SecretError::DeriveKeyInvalidIndex)?;
 
-    let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived_private_key.key);
-    let secret_key = SecretKey::ED25519(near_types::crypto::secret_key::ED25519SecretKey(
-        signing_key.to_keypair_bytes(),
-    ));
+    let secret_key = SecretKey::ED25519(
+        near_types::crypto::secret_key::ED25519SecretKey::from_secret_key(derived_private_key.key),
+    );
 
     Ok(secret_key)
 }
