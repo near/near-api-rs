@@ -1,10 +1,10 @@
+use near_api_types::EpochReference;
 use near_openapi_client::Client;
 use near_openapi_client::types::{
     BlockId, EpochId, JsonRpcRequestForValidators, JsonRpcRequestForValidatorsMethod,
     JsonRpcResponseForRpcValidatorResponseAndRpcError, RpcError, RpcValidatorRequest,
     RpcValidatorResponse,
 };
-use near_api_types::EpochReference;
 
 use crate::{
     NetworkConfig, advanced::RpcType, common::utils::is_critical_validator_error,

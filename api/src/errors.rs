@@ -1,5 +1,5 @@
-use near_openapi_client::types::RpcError;
 use near_api_types::errors::DataConversionError;
+use near_openapi_client::types::RpcError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {

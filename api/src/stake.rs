@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
-use near_openapi_client::types::{RpcError, RpcQueryResponse};
 use near_api_types::{
     AccountId, Data, EpochReference, NearGas, NearToken, Reference,
     stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
 };
+use near_openapi_client::types::{RpcError, RpcQueryResponse};
 
 use crate::{
     NetworkConfig,

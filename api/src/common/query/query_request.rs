@@ -1,3 +1,4 @@
+use near_api_types::{AccountId, CryptoHash, Reference};
 use near_openapi_client::types::{
     BlockId, CallFunctionByBlockIdRequestType, CallFunctionByFinalityRequestType, Finality,
     FunctionArgs, PublicKey, RpcQueryRequest, StoreKey, ViewAccessKeyByBlockIdRequestType,
@@ -9,7 +10,6 @@ use near_openapi_client::types::{
     ViewGlobalContractCodeByBlockIdRequestType, ViewGlobalContractCodeByFinalityRequestType,
     ViewStateByBlockIdRequestType, ViewStateByFinalityRequestType,
 };
-use near_api_types::{AccountId, CryptoHash, Reference};
 use serde::{Deserialize, Serialize};
 
 /// Simplified query request structure that eliminates duplication by removing reference types

@@ -1,8 +1,8 @@
 // https://github.com/near/near-token-rs/blob/3feafec624e7d1028ed00695f2acf87e1d823fa7/src/utils.rs#L1-L49
 
 use base64::{Engine, prelude::BASE64_STANDARD};
-use near_openapi_client::types::RpcError;
 use near_api_types::NearToken;
+use near_openapi_client::types::RpcError;
 
 pub fn to_base64(input: &[u8]) -> String {
     BASE64_STANDARD.encode(input)
