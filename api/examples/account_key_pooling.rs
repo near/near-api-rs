@@ -17,13 +17,13 @@ async fn main() {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let second_account = GenesisAccount::generate_with_name("second_account".parse().unwrap());
 
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![second_account.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     println!(

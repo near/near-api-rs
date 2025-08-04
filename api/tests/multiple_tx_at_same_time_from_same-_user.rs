@@ -12,13 +12,13 @@ use signer::generate_secret_key;
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_same_key() {
     let tmp_account = GenesisAccount::generate_with_name("tmp_account".parse().unwrap());
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![tmp_account.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
@@ -56,13 +56,13 @@ async fn multiple_tx_at_same_time_from_same_key() {
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_different_keys() {
     let tmp_account = GenesisAccount::generate_with_name("tmp_account".parse().unwrap());
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![tmp_account.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 

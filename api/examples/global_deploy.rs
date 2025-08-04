@@ -6,13 +6,13 @@ async fn main() {
     let global = GenesisAccount::generate_with_name("global".parse().unwrap());
     let instance_of_global =
         GenesisAccount::generate_with_name("instance_of_global".parse().unwrap());
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![global.clone(), instance_of_global.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
 
     let global_signer = Signer::new(Signer::from_secret_key(
         global.private_key.clone().parse().unwrap(),

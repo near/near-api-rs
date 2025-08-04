@@ -61,13 +61,13 @@ async fn create_and_delete_account() {
 async fn transfer_funds() {
     let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let bob = GenesisAccount::generate_with_name("bob".parse().unwrap());
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![bob.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
+    let network: NetworkConfig = NetworkConfig::from_sandbox(&sandbox);
 
     Tokens::account(alice.clone())
         .send_to(bob.account_id.clone())

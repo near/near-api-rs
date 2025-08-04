@@ -16,13 +16,13 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
     ))
     .unwrap();
 
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![global_contract.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
 
     Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
         .as_account_id(global_contract.account_id.clone())
@@ -105,13 +105,13 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     .unwrap();
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![global_contract.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
     let hash = CryptoHash::hash(&code);

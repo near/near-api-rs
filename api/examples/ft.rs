@@ -15,13 +15,13 @@ async fn main() {
     ))
     .unwrap();
 
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![token.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
 
     // Deploying token contract
     Contract::deploy(token.account_id.clone())

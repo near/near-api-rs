@@ -11,13 +11,13 @@ async fn main() {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let account2 = GenesisAccount::generate_with_name("account2".parse().unwrap());
 
-    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![nft.clone(), account2.clone()],
         ..Default::default()
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_sandbox(&sandbox);
 
     let nft_signer = Signer::new(Signer::from_secret_key(
         nft.private_key.clone().parse().unwrap(),
