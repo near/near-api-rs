@@ -87,7 +87,7 @@ impl Account {
         )
     }
 
-    /// Prepares a query to fetch the [`Vec<AccessKeyInfo>`](near_api_types::transaction::actions::AccessKeyInfo) list of access keys for the given account ID.
+    /// Prepares a query to fetch the Vec<([`PublicKey`](near_api_types::PublicKey), [`AccessKey`](near_api_types::transaction::actions::AccessKey))> list of access keys for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run

@@ -19,14 +19,24 @@ pub enum Action {
     CreateAccount(CreateAccountAction),
     /// Sets a Wasm code to a receiver_id
     DeployContract(DeployContractAction),
+    /// Call a function on a contract
     FunctionCall(Box<FunctionCallAction>),
+    /// Transfer tokens to an account
     Transfer(TransferAction),
+    /// Stake tokens from an account to a validator
+    /// As a not a developer of staking pool, you should consider using a staking pool contract instead
     Stake(Box<StakeAction>),
+    /// Add a key to an account
     AddKey(Box<AddKeyAction>),
+    /// Delete a key from an account
     DeleteKey(Box<DeleteKeyAction>),
+    /// Delete an account and transfer all tokens to a beneficiary account
     DeleteAccount(DeleteAccountAction),
+    /// Delegate your action submission to some relayer that will cover the cost of the transaction
     Delegate(Box<SignedDelegateAction>),
+    /// Deploy a global contract
     DeployGlobalContract(DeployGlobalContractAction),
+    /// Use a global contract to link code to an account
     UseGlobalContract(Box<UseGlobalContractAction>),
 }
 
@@ -162,27 +172,6 @@ impl TryFrom<near_openapi_types::AddKeyAction> for AddKeyAction {
             public_key,
             access_key,
         } = val;
-        Ok(Self {
-            public_key: public_key.try_into()?,
-            access_key: access_key.try_into()?,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
-pub struct AccessKeyInfo {
-    pub public_key: PublicKey,
-    pub access_key: AccessKey,
-}
-
-impl TryFrom<near_openapi_types::AccessKeyInfoView> for AccessKeyInfo {
-    type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AccessKeyInfoView) -> Result<Self, Self::Error> {
-        let near_openapi_types::AccessKeyInfoView {
-            public_key,
-            access_key,
-        } = val;
-
         Ok(Self {
             public_key: public_key.try_into()?,
             access_key: access_key.try_into()?,

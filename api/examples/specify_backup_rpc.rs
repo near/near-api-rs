@@ -1,11 +1,13 @@
-use near_api::{types::Reference, *};
+use near_api::{Chain, NetworkConfig, RPCEndpoint, types::Reference};
 
 #[tokio::main]
 async fn main() {
     let mut network = NetworkConfig::mainnet();
-    network
-        .rpc_endpoints
-        .push(RPCEndpoint::new("https://rpc.mainnet.pagoda.co/".parse().unwrap()).with_retries(5));
+    network.rpc_endpoints.push(
+        RPCEndpoint::new("https://rpc.mainnet.pagoda.co/".parse().unwrap())
+            .with_retries(5)
+            .with_api_key("some potential api key".to_string()),
+    );
     // Query latest block
     let _block = Chain::block()
         .at(Reference::Optimistic)

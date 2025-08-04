@@ -169,7 +169,12 @@ async fn access_key_management() {
     assert_eq!(keys.data.len(), 11);
 
     alice_acc
-        .delete_keys(keys.data.into_iter().map(|k| k.public_key).collect())
+        .delete_keys(
+            keys.data
+                .into_iter()
+                .map(|(public_key, _)| public_key)
+                .collect(),
+        )
         .with_signer(signer.clone())
         .send_to(&network)
         .await

@@ -1,4 +1,4 @@
-use near_api::{types::CryptoHash, *};
+use near_api::{Contract, NetworkConfig, Signer, types::CryptoHash};
 use near_sandbox::{GenesisAccount, SandboxConfig};
 
 #[tokio::main]

@@ -61,5 +61,21 @@ async fn main() {
         .unwrap();
 
     assert_eq!(results.len(), 2);
+    results.clone().into_iter().for_each(|e| {
+        e.assert_success();
+    });
+    println!(
+        "Transaction one public key: {}",
+        results[0].transaction().public_key()
+    );
+    println!(
+        "Transaction two public key: {}",
+        results[1].transaction().public_key()
+    );
+    assert_ne!(
+        results[0].transaction().public_key(),
+        results[1].transaction().public_key()
+    );
+
     println!("All transactions are successful");
 }

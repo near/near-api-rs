@@ -1,4 +1,4 @@
-use near_api::*;
+use near_api::{Signer, SignerTrait};
 
 use openssl::rand::rand_bytes;
 

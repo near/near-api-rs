@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use near_api::{types::AccountId, *};
+use near_api::{Contract, types::AccountId};
 
 #[tokio::main]
 async fn main() {

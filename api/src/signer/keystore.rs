@@ -81,8 +81,10 @@ impl KeystoreSigner {
             .data
             .iter()
             // TODO: support functional access keys
-            .filter(|key| matches!(key.access_key.permission, AccessKeyPermission::FullAccess))
-            .map(|key| key.public_key.clone())
+            .filter(|(_, access_key)| {
+                matches!(access_key.permission, AccessKeyPermission::FullAccess)
+            })
+            .map(|(public_key, _)| public_key.clone())
             .map(|key| Self::get_secret_key(&account_id, key, &network.network_name));
         let potential_pubkeys: Vec<PublicKey> = join_all(potential_pubkeys)
             .await

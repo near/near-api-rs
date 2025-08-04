@@ -1,8 +1,8 @@
-use near_openapi_client::types::RpcQueryResponse;
 use near_api_types::{
-    AccessKey, Account, AccountView, ContractCodeView, Data, RpcBlockResponse,
-    RpcValidatorResponse, ViewStateResult, json::U64, transaction::actions::AccessKeyInfo,
+    AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
+    RpcValidatorResponse, ViewStateResult, json::U64,
 };
+use near_openapi_client::types::RpcQueryResponse;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 use tracing::{info, trace, warn};
@@ -162,7 +162,7 @@ impl ResponseHandler for AccountViewHandler {
 pub struct AccessKeyListHandler;
 
 impl ResponseHandler for AccessKeyListHandler {
-    type Response = Data<Vec<AccessKeyInfo>>;
+    type Response = Data<Vec<(PublicKey, AccessKey)>>;
     type Query = SimpleQueryRpc;
 
     fn process_response(
@@ -187,7 +187,11 @@ impl ResponseHandler for AccessKeyListHandler {
             Ok(Data {
                 data: keys
                     .into_iter()
-                    .filter_map(|key| key.try_into().ok())
+                    .filter_map(|key| {
+                        let public_key = key.public_key.try_into().ok()?;
+                        let access_key = key.access_key.try_into().ok()?;
+                        Some((public_key, access_key))
+                    })
                     .collect(),
                 block_height,
                 block_hash: block_hash
