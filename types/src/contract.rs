@@ -60,14 +60,14 @@ pub struct ContractSourceMetadata {
     ///
     /// This field will always include NEP-330 itself:
     /// ```rust,no_run
-    /// # use near_types::contract::Standard;
+    /// # use near_api_types::contract::Standard;
     /// # let link: Vec<Standard> =
     /// // this is always at least 1.1.0
     /// vec![Standard { standard: "nep330".into(), version: "1.1.0".into() }]
     /// # ;
     /// ```
     /// ```rust,no_run
-    /// # use near_types::contract::Standard;
+    /// # use near_api_types::contract::Standard;
     /// # let link: Vec<Standard> =
     /// vec![Standard { standard: "nep330".into(), version: "1.2.0".into() }]
     /// # ;

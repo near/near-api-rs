@@ -2,39 +2,36 @@ use near_api::{
     types::{AccountId, NearToken, nft::TokenMetadata},
     *,
 };
-use near_sandbox_utils::{
-    GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
-};
+use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() {
-    let nft: AccountId = "nft.testnet".parse().unwrap();
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
-    let account2: AccountId = "account2.testnet".parse().unwrap();
+    let nft = GenesisAccount::generate_with_name("nft".parse().unwrap());
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let account2 = GenesisAccount::generate_with_name("account2".parse().unwrap());
 
-    let network =
-        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![GenesisAccount {
-                account_id: nft.to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![nft.clone(), account2.clone()],
+        ..Default::default()
+    })
+    .await
+    .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
 
-    let nft_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let nft_signer = Signer::new(Signer::from_secret_key(
+        nft.private_key.clone().parse().unwrap(),
+    ))
+    .unwrap();
     let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     // Deploying token contract
-    Contract::deploy(nft.clone())
+    Contract::deploy(nft.account_id.clone())
         .use_code(include_bytes!("../resources/nft.wasm").to_vec())
         .with_init_call(
             "new_default_meta",
             json!({
-                "owner_id": nft.to_string(),
+                "owner_id": nft.account_id.to_string(),
             }),
         )
         .unwrap()
@@ -44,7 +41,7 @@ async fn main() {
         .unwrap()
         .assert_success();
 
-    let contract = Contract(nft.clone());
+    let contract = Contract(nft.account_id.clone());
 
     // Mint NFT via contract call
     contract
@@ -63,7 +60,7 @@ async fn main() {
         .unwrap()
         .transaction()
         .deposit(NearToken::from_millinear(100))
-        .with_signer(nft.clone(), nft_signer.clone())
+        .with_signer(nft.account_id.clone(), nft_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -71,7 +68,7 @@ async fn main() {
 
     // Verifying that account has our nft token
     let tokens = Tokens::account(account.clone())
-        .nft_assets(nft.clone())
+        .nft_assets(nft.account_id.clone())
         .unwrap()
         .fetch_from(&network)
         .await
@@ -81,8 +78,8 @@ async fn main() {
     println!("Account has {}", tokens.data.first().unwrap().token_id);
 
     Tokens::account(account.clone())
-        .send_to(account2.clone())
-        .nft(nft.clone(), "1".to_string())
+        .send_to(account2.account_id.clone())
+        .nft(nft.account_id.clone(), "1".to_string())
         .unwrap()
         .with_signer(account_signer.clone())
         .send_to(&network)
@@ -92,7 +89,7 @@ async fn main() {
 
     // Verifying that account doesn't have nft anymore
     let tokens = Tokens::account(account.clone())
-        .nft_assets(nft.clone())
+        .nft_assets(nft.account_id.clone())
         .unwrap()
         .fetch_from(&network)
         .await
@@ -100,8 +97,8 @@ async fn main() {
 
     assert!(tokens.data.is_empty());
 
-    let tokens = Tokens::account(account2.clone())
-        .nft_assets(nft.clone())
+    let tokens = Tokens::account(account2.account_id.clone())
+        .nft_assets(nft.account_id.clone())
         .unwrap()
         .fetch_from(&network)
         .await

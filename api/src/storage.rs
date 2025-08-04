@@ -1,4 +1,4 @@
-use near_types::{AccountId, Data, NearToken, StorageBalance, StorageBalanceInternal};
+use near_api_types::{AccountId, Data, NearToken, StorageBalance, StorageBalanceInternal};
 use serde_json::json;
 
 use crate::{

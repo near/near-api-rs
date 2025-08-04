@@ -1,6 +1,6 @@
 use tracing::{instrument, trace};
 
-use near_types::{AccountId, PublicKey, SecretKey};
+use near_api_types::{AccountId, PublicKey, SecretKey};
 
 use crate::errors::SignerError;
 

@@ -1,5 +1,5 @@
 use near_openapi_client::types::RpcQueryResponse;
-use near_types::{
+use near_api_types::{
     AccessKey, Account, AccountView, ContractCodeView, Data, RpcBlockResponse,
     RpcValidatorResponse, ViewStateResult, json::U64, transaction::actions::AccessKeyInfo,
 };

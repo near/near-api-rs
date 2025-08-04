@@ -1,5 +1,5 @@
 use near_openapi_client::Client;
-use near_types::AccountId;
+use near_api_types::AccountId;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
 
 use crate::errors::RetryError;
@@ -163,7 +163,7 @@ impl NetworkConfig {
     }
 
     #[cfg(feature = "sandbox")]
-    pub fn from_sandbox(sandbox: &near_sandbox_utils::high_level::Sandbox) -> Self {
+    pub fn from_sandbox(sandbox: &near_sandbox::Sandbox) -> Self {
         Self {
             network_name: "sandbox".to_string(),
             rpc_endpoints: vec![RPCEndpoint::new(

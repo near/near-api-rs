@@ -2,18 +2,14 @@ use near_api::{
     types::{AccessKeyPermission, AccountId, NearToken, TxExecutionStatus},
     *,
 };
-use near_sandbox_utils::{
-    GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
-};
+use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
 use signer::generate_secret_key;
 
 #[tokio::test]
 async fn create_and_delete_account() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
 
-    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
 
     let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
@@ -63,24 +59,18 @@ async fn create_and_delete_account() {
 
 #[tokio::test]
 async fn transfer_funds() {
-    let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
-    let bob: AccountId = format!("{}.{}", "bob", DEFAULT_GENESIS_ACCOUNT)
-        .parse()
-        .unwrap();
-    let network =
-        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![GenesisAccount {
-                account_id: bob.to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+    let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let bob = GenesisAccount::generate_with_name("bob".parse().unwrap());
+    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![bob.clone()],
+        ..Default::default()
+    })
+    .await
+    .unwrap();
     let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
 
     Tokens::account(alice.clone())
-        .send_to(bob.clone())
+        .send_to(bob.account_id.clone())
         .near(NearToken::from_near(50))
         .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
         .send_to(&network)
@@ -94,7 +84,7 @@ async fn transfer_funds() {
         .await
         .unwrap();
 
-    let bob_balance = Tokens::account(bob.clone())
+    let bob_balance = Tokens::account(bob.account_id.clone())
         .near_balance()
         .fetch_from(&network)
         .await
@@ -107,11 +97,9 @@ async fn transfer_funds() {
 
 #[tokio::test]
 async fn access_key_management() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
-    let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let alice_acc = Account(alice.clone());
 

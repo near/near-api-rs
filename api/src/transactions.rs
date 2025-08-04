@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use near_types::{AccountId, Action, transaction::PrepopulateTransaction};
+use near_api_types::{AccountId, Action, transaction::PrepopulateTransaction};
 
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},

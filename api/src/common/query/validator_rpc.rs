@@ -4,7 +4,7 @@ use near_openapi_client::types::{
     JsonRpcResponseForRpcValidatorResponseAndRpcError, RpcError, RpcValidatorRequest,
     RpcValidatorResponse,
 };
-use near_types::EpochReference;
+use near_api_types::EpochReference;
 
 use crate::{
     NetworkConfig, advanced::RpcType, common::utils::is_critical_validator_error,

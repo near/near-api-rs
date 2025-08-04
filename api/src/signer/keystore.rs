@@ -1,5 +1,5 @@
 use futures::future::join_all;
-use near_types::{AccessKeyPermission, AccountId, PublicKey, SecretKey};
+use near_api_types::{AccessKeyPermission, AccountId, PublicKey, SecretKey};
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{

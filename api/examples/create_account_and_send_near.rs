@@ -3,16 +3,14 @@ use near_api::{
     types::{AccountId, NearToken},
     *,
 };
-use near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT;
+use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT;
 
 #[tokio::main]
 async fn main() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
 
     let network = NetworkConfig::from_sandbox(&network);
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     let balance = Tokens::account(account.clone())

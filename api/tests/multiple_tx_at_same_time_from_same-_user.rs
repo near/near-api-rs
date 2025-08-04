@@ -2,28 +2,24 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use near_api::*;
-use near_sandbox_utils::{
+use near_api_types::{AccessKeyPermission, AccountId, NearToken};
+use near_sandbox::{
     GenesisAccount, SandboxConfig,
-    high_level::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY},
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY},
 };
-use near_types::{AccessKeyPermission, AccountId, NearToken};
 use signer::generate_secret_key;
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_same_key() {
-    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
-    let network =
-        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![GenesisAccount {
-                account_id: tmp_account.to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+    let tmp_account = GenesisAccount::generate_with_name("tmp_account".parse().unwrap());
+    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![tmp_account.clone()],
+        ..Default::default()
+    })
+    .await
+    .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     let start_nonce = Account(account.clone())
@@ -36,7 +32,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
 
     let tx = (0..100).map(|i| {
         Tokens::account(account.clone())
-            .send_to(tmp_account.clone())
+            .send_to(tmp_account.account_id.clone())
             .near(NearToken::from_millinear(i))
     });
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
@@ -59,19 +55,15 @@ async fn multiple_tx_at_same_time_from_same_key() {
 
 #[tokio::test]
 async fn multiple_tx_at_same_time_from_different_keys() {
-    let tmp_account: AccountId = "tmp_account.near".parse().unwrap();
-    let network =
-        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![GenesisAccount {
-                account_id: tmp_account.to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+    let tmp_account = GenesisAccount::generate_with_name("tmp_account".parse().unwrap());
+    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![tmp_account.clone()],
+        ..Default::default()
+    })
+    .await
+    .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     let secret = generate_secret_key().unwrap();
@@ -103,7 +95,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
 
     let tx = (0..12).map(|i| {
         Tokens::account(account.clone())
-            .send_to(tmp_account.clone())
+            .send_to(tmp_account.account_id.clone())
             .near(NearToken::from_millinear(i))
     });
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))

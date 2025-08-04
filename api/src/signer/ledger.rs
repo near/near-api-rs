@@ -1,4 +1,4 @@
-use near_types::{
+use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
     crypto::KeyType,
     transaction::{
@@ -177,7 +177,7 @@ impl SignerTrait for LedgerSigner {
         } else {
             let public_key = near_ledger::get_wallet_id(self.hd_path.clone())
                 .map_err(|_| SignerError::PublicKeyIsNotAvailable)?;
-            let public_key = PublicKey::ED25519(near_types::crypto::public_key::ED25519PublicKey(
+            let public_key = PublicKey::ED25519(near_api_types::crypto::public_key::ED25519PublicKey(
                 *public_key.as_bytes(),
             ));
             self.public_key

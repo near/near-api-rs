@@ -11,7 +11,7 @@ use crate::{
     config::RetryResponse,
     errors::SendRequestError,
 };
-use near_types::Reference;
+use near_api_types::Reference;
 
 #[derive(Clone, Debug)]
 pub struct SimpleQueryRpc {

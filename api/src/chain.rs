@@ -1,4 +1,4 @@
-use near_types::{BlockHeight, CryptoHash, Reference};
+use near_api_types::{BlockHeight, CryptoHash, Reference};
 
 use crate::{
     advanced::{AndThenHandler, block_rpc::SimpleBlockRpc},
@@ -84,7 +84,7 @@ impl Chain {
             .and_then(|data| Ok(CryptoHash::try_from(data.header.hash)?))
     }
 
-    /// Set ups a query to fetch the [RpcBlockResponse][near_types::RpcBlockResponse]
+    /// Set ups a query to fetch the [RpcBlockResponse][near_api_types::RpcBlockResponse]
     ///
     /// ## Fetching the latest block
     ///

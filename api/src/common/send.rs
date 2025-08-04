@@ -6,7 +6,7 @@ use near_openapi_client::types::{
     RpcTransactionResponse,
 };
 
-use near_types::{
+use near_api_types::{
     BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
     transaction::{
         PrepopulateTransaction, SignedTransaction,

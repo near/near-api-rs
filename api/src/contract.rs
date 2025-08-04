@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use near_types::{
+use near_api_types::{
     AccountId, Action, CryptoHash, Data, FunctionArgs, NearGas, NearToken, Reference, StoreKey,
     contract::ContractSourceMetadata,
     transaction::actions::{
@@ -189,7 +189,7 @@ impl Contract {
         GlobalDeployBuilder::new(code)
     }
 
-    /// Prepares a query to fetch the [ABI](near_types::abi::AbiRoot) of the contract using the following [standard](https://github.com/near/near-abi-rs).
+    /// Prepares a query to fetch the [ABI](near_api_types::abi::AbiRoot) of the contract using the following [standard](https://github.com/near/near-abi-rs).
     ///
     /// Please be aware that not all the contracts provide the ABI.
     ///
@@ -206,7 +206,7 @@ impl Contract {
     pub fn abi(
         &self,
     ) -> QueryBuilder<
-        PostprocessHandler<Option<near_types::abi::AbiRoot>, CallResultHandler<Vec<u8>>>,
+        PostprocessHandler<Option<near_api_types::abi::AbiRoot>, CallResultHandler<Vec<u8>>>,
     > {
         self.call_function("__contract_abi", ())
             .expect("arguments are always serializable")
@@ -216,7 +216,7 @@ impl Contract {
             })
     }
 
-    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_types::ContractCodeView)>) of the contract.
+    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) of the contract.
     ///
     /// # Example
     /// ```rust,no_run
@@ -240,7 +240,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_types::ViewStateResult)>) using the given prefix as a filter.
+    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_api_types::ViewStateResult)>) using the given prefix as a filter.
     ///
     /// It helpful if you are aware of the storage that you are looking for.
     ///
@@ -271,7 +271,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_types::ViewStateResult)>).
+    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_api_types::ViewStateResult)>).
     ///
     /// Please be aware that large storage queries might fail.
     ///

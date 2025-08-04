@@ -62,7 +62,7 @@ mod transactions;
 
 mod common;
 
-pub use near_types as types;
+pub use near_api_types as types;
 pub mod errors;
 pub mod signer;
 

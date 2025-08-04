@@ -1,16 +1,14 @@
 use near_api::*;
 
-use near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT;
-use near_types::{AccountId, Data};
+use near_api_types::{AccountId, Data};
+use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT;
 use serde_json::json;
 
 #[tokio::test]
 async fn contract_without_init_call() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_sandbox(&network);
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     Contract::deploy(account.clone())
@@ -78,11 +76,9 @@ async fn contract_without_init_call() {
 
 #[tokio::test]
 async fn contract_with_init_call() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_sandbox(&network);
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::new(Signer::default_sandbox()).unwrap();
 
     Contract::deploy(account.clone())

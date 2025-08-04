@@ -117,7 +117,7 @@ use std::{
     },
 };
 
-use near_types::{
+use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
     transaction::{
         PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
@@ -496,7 +496,7 @@ impl Signer {
     /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) from the default sandbox account for testing purposes.
     pub fn default_sandbox() -> SecretKeySigner {
         SecretKeySigner::new(
-            near_sandbox_utils::high_level::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY
+            near_sandbox::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY
                 .parse()
                 .unwrap(),
         )
@@ -559,7 +559,7 @@ fn get_signed_delegate_action(
     private_key: SecretKey,
     max_block_height: u64,
 ) -> core::result::Result<SignedDelegateAction, MetaSignError> {
-    use near_types::signable_message::{SignableMessage, SignableMessageType};
+    use near_api_types::signable_message::{SignableMessage, SignableMessageType};
     let actions: Vec<NonDelegateAction> = unsigned_transaction
         .take_actions()
         .into_iter()
@@ -568,7 +568,7 @@ fn get_signed_delegate_action(
                 .map_err(|_| MetaSignError::DelegateActionIsNotSupported)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let delegate_action = near_types::transaction::delegate_action::DelegateAction {
+    let delegate_action = near_api_types::transaction::delegate_action::DelegateAction {
         sender_id: unsigned_transaction.signer_id().clone(),
         receiver_id: unsigned_transaction.receiver_id().clone(),
         actions,
@@ -608,7 +608,9 @@ pub fn get_secret_key_from_seed(
     .map_err(|_| SecretError::DeriveKeyInvalidIndex)?;
 
     let secret_key = SecretKey::ED25519(
-        near_types::crypto::secret_key::ED25519SecretKey::from_secret_key(derived_private_key.key),
+        near_api_types::crypto::secret_key::ED25519SecretKey::from_secret_key(
+            derived_private_key.key,
+        ),
     );
 
     Ok(secret_key)
@@ -684,7 +686,7 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 #[cfg(test)]
 mod nep_413_tests {
     use base64::{Engine, prelude::BASE64_STANDARD};
-    use near_types::{Signature, crypto::KeyType};
+    use near_api_types::{Signature, crypto::KeyType};
 
     use crate::SignerTrait;
 

@@ -1,39 +1,39 @@
 use near_api::*;
 
-use near_sandbox_utils::{
-    GenesisAccount, SandboxConfig, high_level::config::DEFAULT_GENESIS_ACCOUNT,
-};
-use near_types::{AccountId, CryptoHash, Data};
+use near_api_types::{AccountId, CryptoHash, Data};
+use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
 
 #[tokio::test]
 async fn deploy_global_contract_as_account_id_and_use_it() {
-    let global_contract_id: AccountId = "global_contract.testnet".parse().unwrap();
-    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
-    let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
-    let global_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let global_contract = GenesisAccount::generate_with_name("global_contract".parse().unwrap());
+    let account_signer = Signer::new(Signer::from_secret_key(
+        global_contract.private_key.parse().unwrap(),
+    ))
+    .unwrap();
 
-    let network =
-        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![GenesisAccount {
-                account_id: global_contract_id.to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+    let global_signer = Signer::new(Signer::from_secret_key(
+        global_contract.private_key.parse().unwrap(),
+    ))
+    .unwrap();
+
+    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![global_contract.clone()],
+        ..Default::default()
+    })
+    .await
+    .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
 
     Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
-        .as_account_id(global_contract_id.clone())
+        .as_account_id(global_contract.account_id.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
         .assert_success();
 
-    Contract::deploy(account_id.clone())
-        .use_global_account_id(global_contract_id.clone())
+    Contract::deploy(global_contract.account_id.clone())
+        .use_global_account_id(global_contract.account_id.clone())
         .without_init_call()
         .with_signer(account_signer.clone())
         .send_to(&network)
@@ -41,7 +41,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .unwrap()
         .assert_success();
 
-    let contract = Contract(account_id.clone());
+    let contract = Contract(global_contract.account_id.clone());
 
     assert!(
         !contract
@@ -78,7 +78,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(account_id.clone(), account_signer.clone())
+        .with_signer(global_contract.account_id.clone(), account_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -97,21 +97,20 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 
 #[tokio::test]
 async fn deploy_global_contract_as_hash_and_use_it() {
-    let global_contract_id: AccountId = "global_contract.testnet".parse().unwrap();
-    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let global_contract = GenesisAccount::generate_with_name("global_contract".parse().unwrap());
     let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
-    let global_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let global_signer = Signer::new(Signer::from_secret_key(
+        global_contract.private_key.parse().unwrap(),
+    ))
+    .unwrap();
+    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
-    let network =
-        near_sandbox_utils::high_level::Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![GenesisAccount {
-                account_id: global_contract_id.to_string(),
-                ..Default::default()
-            }],
-            ..Default::default()
-        })
-        .await
-        .unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![global_contract.clone()],
+        ..Default::default()
+    })
+    .await
+    .unwrap();
     let network = NetworkConfig::from_sandbox(&network);
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
@@ -119,7 +118,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     Contract::deploy_global_contract_code(code.clone())
         .as_hash()
-        .with_signer(global_contract_id.clone(), global_signer.clone())
+        .with_signer(global_contract.account_id.clone(), global_signer.clone())
         .send_to(&network)
         .await
         .unwrap()

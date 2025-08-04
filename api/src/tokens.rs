@@ -1,4 +1,4 @@
-use near_types::{
+use near_api_types::{
     AccountId, Action, Data, NearToken, Reference,
     ft::FungibleTokenMetadata,
     json::U128,

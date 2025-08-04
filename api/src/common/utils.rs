@@ -2,7 +2,7 @@
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use near_openapi_client::types::RpcError;
-use near_types::NearToken;
+use near_api_types::NearToken;
 
 pub fn to_base64(input: &[u8]) -> String {
     BASE64_STANDARD.encode(input)
@@ -13,7 +13,7 @@ pub fn from_base64(encoded: &str) -> Result<Vec<u8>, base64::DecodeError> {
 }
 
 /// Converts [crate::Data]<[u128]>] to [crate::NearToken].
-pub const fn near_data_to_near_token(data: near_types::Data<u128>) -> NearToken {
+pub const fn near_data_to_near_token(data: near_api_types::Data<u128>) -> NearToken {
     NearToken::from_yoctonear(data.data)
 }
 

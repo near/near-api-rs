@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use near_types::{
+use near_api_types::{
     AccessKey, AccessKeyPermission, AccountId, Action, NearGas, NearToken, PublicKey,
     transaction::{
         PrepopulateTransaction,

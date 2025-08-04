@@ -1,5 +1,5 @@
 [package]
-name = "near-types"
+name = "near-api-types"
 version = "0.6.1"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
@@ -14,26 +14,23 @@ description = "Rust library to interact with NEAR Protocol via RPC API"
 
 
 [dependencies]
-borsh = "1.5"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.57"
-bs58 = "0.5"
-thiserror = "1"
-base64 = "0.22"
-sha2 = "0.10"
+borsh.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bs58.workspace = true
+thiserror.workspace = true
+base64.workspace = true
+sha2.workspace = true
 
-near-openapi-types = "0.3.0"
-near-account-id = { version = "1.1.0", features = ["borsh"] }
-near-gas = { version = "0.3", features = ["serde", "borsh"] }
-near-token = { version = "0.3", features = ["serde", "borsh"] }
-near-abi = "0.4.2"
-primitive-types = { version = "0.10", default-features = false }
+near-openapi-types.workspace = true
+near-account-id.workspace = true
+near-gas.workspace = true
+near-token.workspace = true
+near-abi.workspace = true
+primitive-types.workspace = true
 
-ed25519-dalek = { version = "2.1.0", default-features = false, features = [] }
-secp256k1 = { version = "0.27.0", default-features = false, features = [
-    "recovery",
-    "alloc",
-] }
+ed25519-dalek.workspace = true
+secp256k1.workspace = true
 
 [dev-dependencies]
-bolero = "0.13"
+bolero.workspace = true

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use near_openapi_client::types::{RpcError, RpcQueryResponse};
-use near_types::{
+use near_api_types::{
     AccountId, Data, EpochReference, NearGas, NearToken, Reference,
     stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
 };
@@ -503,7 +503,7 @@ impl Staking {
         )
     }
 
-    /// Returns a list of validators and their stake ([near_types::RpcValidatorResponse]) for the current epoch.
+    /// Returns a list of validators and their stake ([near_api_types::RpcValidatorResponse]) for the current epoch.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -729,7 +729,7 @@ impl RpcType for ActiveStakingPoolQuery {
 
         let request = QueryRequest::ViewState {
             account_id,
-            prefix_base64: near_types::StoreKey(to_base64(b"se")),
+            prefix_base64: near_api_types::StoreKey(to_base64(b"se")),
             include_proof: Some(false),
         };
 

@@ -20,33 +20,36 @@ all-features = true
 rustdoc-args = ["--document-private-items"]
 
 [dependencies]
-borsh = "1.5"
-async-trait = "0.1"
-base64 = "0.22"
+borsh.workspace = true
+async-trait.workspace = true
+base64.workspace = true
 
-reqwest = { version = "0.12", features = ["blocking", "json"] }
-futures = "0.3"
+# Remove this after https://github.com/near/near-sandbox-rs/pull/14
+chrono = { version = "0.4", features = ["now"], default-features = false }
+
+reqwest = { workspace = true, features = ["blocking", "json"] }
+futures.workspace = true
 # Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
-openssl = { version = "0.10", features = ["vendored"] }
+openssl = { workspace = true, features = ["vendored"] }
 
-bip39 = { version = "2.0.0", features = ["rand"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.57"
-slipped10 = { version = "0.4.6" }
-url = { version = "2", features = ["serde"] }
-tokio = { version = "1.0", default-features = false, features = ["time"] }
-tracing = "0.1"
-thiserror = "1"
+bip39 = { workspace = true, features = ["rand"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+slipped10.workspace = true
+url.workspace = true
+tokio = { workspace = true, default-features = false, features = ["time"] }
+tracing.workspace = true
+thiserror.workspace = true
 
-near-ledger = { version = "0.9.1", optional = true }
-near-openapi-client = "0.3.0"
-near-types.workspace = true
+near-ledger = { workspace = true, optional = true }
+near-openapi-client.workspace = true
+near-api-types.workspace = true
 
-near-sandbox-utils = { git = "https://github.com/near/near-sandbox", branch = "main", optional = true }
+near-sandbox = { workspace = true, features = ["generate"], optional = true }
 
-zstd = "0.11"
+zstd.workspace = true
 
-keyring = { version = "3.2", features = [
+keyring = { workspace = true, features = [
     "apple-native",
     "windows-native",
     "sync-secret-service",
@@ -58,8 +61,8 @@ keyring = { version = "3.2", features = [
 default = ["keystore", "ledger"]
 ledger = ["near-ledger"]
 keystore = ["dep:keyring"]
-sandbox = ["near-sandbox-utils"]
+sandbox = ["near-sandbox"]
 
 [dev-dependencies]
-tokio = { version = "1.0", default-features = false, features = ["full"] }
+tokio = { workspace = true, default-features = false, features = ["full"] }
 near-api = { path = ".", features = ["sandbox"] }

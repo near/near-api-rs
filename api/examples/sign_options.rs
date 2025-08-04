@@ -5,16 +5,12 @@ use near_api::{
     types::{AccessKeyPermission, AccountId},
     *,
 };
-use near_sandbox_utils::high_level::config::{
-    DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
-};
+use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY};
 
 #[tokio::main]
 async fn main() {
-    let network = near_sandbox_utils::high_level::Sandbox::start_sandbox()
-        .await
-        .unwrap();
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.parse().unwrap();
+    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_sandbox(&network);
 
     // Current secret key from workspace

@@ -1,4 +1,4 @@
-use near_types::{
+use near_api_types::{
     AccessKeyPermission, AccountId, Action, PublicKey, Reference,
     json::U64,
     transaction::actions::{AccessKey, AddKeyAction, DeleteAccountAction, DeleteKeyAction},
@@ -33,7 +33,7 @@ mod create;
 pub struct Account(pub AccountId);
 
 impl Account {
-    /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_types::AccountView)> with the account information for the given account ID.
+    /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_api_types::AccountView)> with the account information for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run
@@ -87,7 +87,7 @@ impl Account {
         )
     }
 
-    /// Prepares a query to fetch the [`Vec<AccessKeyInfo>`](near_types::transaction::actions::AccessKeyInfo) list of access keys for the given account ID.
+    /// Prepares a query to fetch the [`Vec<AccessKeyInfo>`](near_api_types::transaction::actions::AccessKeyInfo) list of access keys for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run

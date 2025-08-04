@@ -3,6 +3,53 @@ resolver = "3"
 members = ["api", "types"]
 rust-version = "1.85"
 
+[workspace.package]
+edition = "2024"
+resolver = "3"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/polyprogrammist/near-openapi-client"
+
 
 [workspace.dependencies]
-near-types = { path = "types" }
+near-api-types = { path = "types" }
+
+borsh = "1.5"
+async-trait = "0.1"
+base64 = "0.22"
+
+reqwest = { version = "0.12", default-features = false }
+futures = "0.3"
+# Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
+openssl = { version = "0.10", default-features = false }
+
+bip39 = "2.0.0"
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = "1.0.57"
+slipped10 = { version = "0.4.6" }
+url = { version = "2", features = ["serde"] }
+tokio = { version = "1.0", default-features = false }
+tracing = "0.1"
+thiserror = "1"
+zstd = "0.11"
+keyring = { version = "3.2", default-features = false }
+bs58 = "0.5"
+sha2 = "0.10"
+bolero = "0.13"
+
+primitive-types = { version = "0.10", default-features = false }
+ed25519-dalek = { version = "2.1.0", default-features = false, features = [] }
+secp256k1 = { version = "0.27.0", default-features = false, features = [
+    "recovery",
+    "alloc",
+] }
+
+near-openapi-types = "0.3.0"
+near-account-id = { version = "1.1.0", features = ["borsh"] }
+near-gas = { version = "0.3", features = ["serde", "borsh"] }
+near-token = { version = "0.3", features = ["serde", "borsh"] }
+near-abi = "0.4.2"
+near-ledger = "0.9.1"
+near-openapi-client = "0.3.0"
+near-sandbox = { version = "0.2.0", features = [
+    "generate",
+], default-features = false }
