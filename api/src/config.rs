@@ -55,12 +55,12 @@ impl RPCEndpoint {
 
     /// Constructs default mainnet configuration.
     pub fn mainnet() -> Self {
-        Self::new("https://archival-rpc.mainnet.near.org".parse().unwrap())
+        Self::new("https://free.rpc.fastnear.com".parse().unwrap())
     }
 
     /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
-        Self::new("https://archival-rpc.testnet.near.org".parse().unwrap())
+        Self::new("https://test.rpc.fastnear.com".parse().unwrap())
     }
 
     /// Set API key for the endpoint.
@@ -181,6 +181,11 @@ impl NetworkConfig {
     pub(crate) fn client(&self, index: usize) -> Result<Client, InvalidHeaderValue> {
         let rpc_endpoint = &self.rpc_endpoints[index];
 
+        let dur = std::time::Duration::from_secs(15);
+        let mut client = reqwest::ClientBuilder::new()
+            .connect_timeout(dur)
+            .timeout(dur);
+
         if let Some(rpc_api_key) = &rpc_endpoint.bearer_header {
             let mut headers = reqwest::header::HeaderMap::new();
 
@@ -191,17 +196,11 @@ impl NetworkConfig {
                 reqwest::header::HeaderName::from_static("x-api-key"),
                 header,
             );
-            let client = reqwest::ClientBuilder::new()
-                .default_headers(headers)
-                .build()
-                .unwrap();
-            return Ok(near_openapi_client::Client::new_with_client(
-                rpc_endpoint.url.as_ref().trim_end_matches('/'),
-                client,
-            ));
+            client = client.default_headers(headers);
         };
-        Ok(near_openapi_client::Client::new(
+        Ok(near_openapi_client::Client::new_with_client(
             rpc_endpoint.url.as_ref().trim_end_matches('/'),
+            client.build().unwrap(),
         ))
     }
 }

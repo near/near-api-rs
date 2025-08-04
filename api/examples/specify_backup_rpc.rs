@@ -4,7 +4,7 @@ use near_api::{Chain, NetworkConfig, RPCEndpoint, types::Reference};
 async fn main() {
     let mut network = NetworkConfig::mainnet();
     network.rpc_endpoints.push(
-        RPCEndpoint::new("https://rpc.mainnet.pagoda.co/".parse().unwrap())
+        RPCEndpoint::new("https://near.lava.build:443".parse().unwrap())
             .with_retries(5)
             .with_api_key("some potential api key".to_string()),
     );
