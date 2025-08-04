@@ -1,9 +1,9 @@
 use near_api::{
+    Account, NetworkConfig, Signer, Tokens,
+    signer::generate_secret_key,
     types::{AccessKeyPermission, AccountId, NearToken, TxExecutionStatus},
-    *,
 };
 use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
-use signer::generate_secret_key;
 
 #[tokio::test]
 async fn create_and_delete_account() {

@@ -1,6 +1,6 @@
 use near_api::{
+    Contract, NetworkConfig, Signer, Tokens,
     types::{AccountId, NearToken, nft::TokenMetadata},
-    *,
 };
 use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
 use serde_json::json;

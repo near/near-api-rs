@@ -1,6 +1,6 @@
 use near_api::{
+    Contract, NetworkConfig, Signer,
     types::{AccountId, Data},
-    *,
 };
 use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT;
 

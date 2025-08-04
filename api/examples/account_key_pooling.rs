@@ -4,9 +4,9 @@
 /// This is an example of how to use account key pooling to send multiple transactions
 /// using different keys.
 use near_api::{
+    Account, NetworkConfig, Signer, Tokens,
     signer::generate_secret_key,
     types::{AccessKeyPermission, AccountId, NearToken},
-    *,
 };
 use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
 
