@@ -19,7 +19,7 @@ async fn main() {
     // Let's add new key and get the seed phrase
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, public_key)
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(Signer::from_default_sandbox_account().unwrap())
         .send_to(&network)
         .await
         .unwrap()

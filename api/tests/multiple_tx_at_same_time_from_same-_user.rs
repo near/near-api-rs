@@ -20,7 +20,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
     .unwrap();
     let network = NetworkConfig::from_sandbox(&sandbox);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await.unwrap())
@@ -64,7 +64,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     .unwrap();
     let network = NetworkConfig::from_sandbox(&sandbox);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     let secret = generate_secret_key().unwrap();
     Account(account.clone())

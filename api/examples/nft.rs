@@ -23,7 +23,7 @@ async fn main() {
         nft.private_key.clone().parse().unwrap(),
     ))
     .unwrap();
-    let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let account_signer = Signer::from_default_sandbox_account().unwrap();
 
     // Deploying token contract
     Contract::deploy(nft.account_id.clone())

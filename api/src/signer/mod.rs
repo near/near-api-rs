@@ -494,12 +494,12 @@ impl Signer {
 
     #[cfg(feature = "sandbox")]
     /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) from the default sandbox account for testing purposes.
-    pub fn default_sandbox() -> SecretKeySigner {
-        SecretKeySigner::new(
+    pub fn from_default_sandbox_account() -> Result<Arc<Signer>, SignerError> {
+        Self::new(SecretKeySigner::new(
             near_sandbox::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY
                 .parse()
                 .unwrap(),
-        )
+        ))
     }
 
     /// Retrieves the public key from the pool of signers.

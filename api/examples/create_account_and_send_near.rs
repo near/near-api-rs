@@ -11,7 +11,7 @@ async fn main() {
 
     let network = NetworkConfig::from_sandbox(&network);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     let balance = Tokens::account(account.clone())
         .near_balance()

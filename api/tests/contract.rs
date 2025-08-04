@@ -9,7 +9,7 @@ async fn contract_without_init_call() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_sandbox(&network);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     Contract::deploy(account.clone())
         .use_code(include_bytes!("../resources/counter.wasm").to_vec())
@@ -79,7 +79,7 @@ async fn contract_with_init_call() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_sandbox(&network);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     Contract::deploy(account.clone())
         .use_code(include_bytes!("../resources/fungible_token.wasm").to_vec())

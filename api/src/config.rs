@@ -1,5 +1,5 @@
-use near_openapi_client::Client;
 use near_api_types::AccountId;
+use near_openapi_client::Client;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
 
 use crate::errors::RetryError;

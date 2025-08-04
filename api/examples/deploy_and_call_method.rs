@@ -10,7 +10,7 @@ async fn main() {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_sandbox(&network);
 
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
     Contract::deploy(account.clone())

@@ -98,7 +98,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 #[tokio::test]
 async fn deploy_global_contract_as_hash_and_use_it() {
     let global_contract = GenesisAccount::generate_with_name("global_contract".parse().unwrap());
-    let account_signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let account_signer = Signer::from_default_sandbox_account().unwrap();
     let global_signer = Signer::new(Signer::from_secret_key(
         global_contract.private_key.parse().unwrap(),
     ))

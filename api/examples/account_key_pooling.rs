@@ -24,7 +24,7 @@ async fn main() {
     .await
     .unwrap();
     let network = NetworkConfig::from_sandbox(&sandbox);
-    let signer = Signer::new(Signer::default_sandbox()).unwrap();
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     println!(
         "Initial public key: {}",

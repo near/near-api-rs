@@ -11,6 +11,7 @@ async fn create_and_delete_account() {
 
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
     let secret = generate_secret_key().unwrap();
@@ -20,7 +21,7 @@ async fn create_and_delete_account() {
         .fund_myself(account_id.clone(), NearToken::from_near(1))
         .public_key(public_key)
         .unwrap()
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -36,7 +37,7 @@ async fn create_and_delete_account() {
 
     Account(account_id.clone())
         .delete_account_with_beneficiary(new_account.clone())
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(signer.clone())
         .wait_until(TxExecutionStatus::Final)
         .send_to(&network)
         .await
@@ -72,7 +73,7 @@ async fn transfer_funds() {
     Tokens::account(alice.clone())
         .send_to(bob.account_id.clone())
         .near(NearToken::from_near(50))
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(Signer::from_default_sandbox_account().unwrap())
         .send_to(&network)
         .await
         .unwrap()
@@ -102,6 +103,7 @@ async fn access_key_management() {
     let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let alice_acc = Account(alice.clone());
+    let signer = Signer::from_default_sandbox_account().unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
     assert_eq!(keys.data.len(), 1);
@@ -111,7 +113,7 @@ async fn access_key_management() {
 
     alice_acc
         .add_key(AccessKeyPermission::FullAccess, public_key.clone())
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -133,7 +135,7 @@ async fn access_key_management() {
 
     alice_acc
         .delete_key(secret.public_key())
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
@@ -149,11 +151,13 @@ async fn access_key_management() {
         .await
         .expect_err("Shouldn't exist");
 
+    let signer = Signer::from_default_sandbox_account().unwrap();
+
     for _ in 0..10 {
         let secret = generate_secret_key().unwrap();
         alice_acc
             .add_key(AccessKeyPermission::FullAccess, secret.public_key())
-            .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+            .with_signer(signer.clone())
             .send_to(&network)
             .await
             .unwrap()
@@ -166,7 +170,7 @@ async fn access_key_management() {
 
     alice_acc
         .delete_keys(keys.data.into_iter().map(|k| k.public_key).collect())
-        .with_signer(Signer::new(Signer::default_sandbox()).unwrap())
+        .with_signer(signer.clone())
         .send_to(&network)
         .await
         .unwrap()
