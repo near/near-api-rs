@@ -1,0 +1,68 @@
+[package]
+name = "near-api"
+version = "0.6.1"
+rust-version = "1.85"
+authors = [
+    "akorchyn <artur.yurii.korchynskyi@gmail.com>",
+    "frol <frolvlad@gmail.com>",
+    "Near Inc <hello@nearprotocol.com>",
+]
+license = "MIT OR Apache-2.0"
+edition = "2024"
+resolver = "2"
+repository = "https://github.com/near/near-api-rs"
+description = "Rust library to interact with NEAR Protocol via RPC API"
+
+exclude = ["resources", "tests"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--document-private-items"]
+
+[dependencies]
+borsh.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+
+# Remove this after https://github.com/near/near-sandbox-rs/pull/14
+chrono = { version = "0.4", features = ["now"], default-features = false }
+
+reqwest = { workspace = true, features = ["blocking", "json"] }
+futures.workspace = true
+# Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
+openssl = { workspace = true, features = ["vendored"] }
+
+bip39 = { workspace = true, features = ["rand"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+slipped10.workspace = true
+url.workspace = true
+tokio = { workspace = true, default-features = false, features = ["time"] }
+tracing.workspace = true
+thiserror.workspace = true
+
+near-ledger = { workspace = true, optional = true }
+near-openapi-client.workspace = true
+near-api-types.workspace = true
+
+near-sandbox = { workspace = true, features = ["generate"], optional = true }
+
+zstd.workspace = true
+
+keyring = { workspace = true, features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "vendored",
+], optional = true }
+
+
+[features]
+default = ["keystore", "ledger"]
+ledger = ["near-ledger"]
+keystore = ["dep:keyring"]
+sandbox = ["near-sandbox"]
+
+[dev-dependencies]
+tokio = { workspace = true, default-features = false, features = ["full"] }
+near-api = { path = ".", features = ["sandbox"] }

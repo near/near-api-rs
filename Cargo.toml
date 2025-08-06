@@ -1,76 +1,55 @@
-[package]
-name = "near-api"
-version = "0.6.1"
+[workspace]
+resolver = "3"
+members = ["api", "types"]
 rust-version = "1.85"
-authors = [
-    "akorchyn <artur.yurii.korchynskyi@gmail.com>",
-    "frol <frolvlad@gmail.com>",
-    "Near Inc <hello@nearprotocol.com>",
-]
+
+[workspace.package]
+edition = "2024"
+resolver = "3"
 license = "MIT OR Apache-2.0"
-edition = "2021"
-repository = "https://github.com/near/near-api-rs"
-description = "Rust library to interact with NEAR Protocol via RPC API"
+repository = "https://github.com/polyprogrammist/near-openapi-client"
 
-exclude = ["resources", "tests"]
 
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--document-private-items"]
+[workspace.dependencies]
+near-api-types = { path = "types" }
 
-[dependencies]
 borsh = "1.5"
 async-trait = "0.1"
+base64 = "0.22"
 
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+reqwest = "0.12"
 futures = "0.3"
 # Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
-openssl = { version = "0.10", features = ["vendored"] }
+openssl = { version = "0.10", default-features = false }
 
-bip39 = { version = "2.0.0", features = ["rand"] }
-ed25519-dalek = { version = "2", default-features = false }
-serde = { version = "1.0", features = ["derive"] }
+bip39 = "2.0.0"
+serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_json = "1.0.57"
 slipped10 = { version = "0.4.6" }
 url = { version = "2", features = ["serde"] }
-tokio = { version = "1.0", default-features = false, features = ["time"] }
+tokio = { version = "1.0", default-features = false }
 tracing = "0.1"
-bs58 = "0.4"
+thiserror = "1"
+zstd = "0.11"
+keyring = { version = "3.2", default-features = false }
+bs58 = "0.5"
+sha2 = "0.10"
+bolero = "0.13"
 
-thiserror = "2"
+primitive-types = { version = "0.10", default-features = false }
+ed25519-dalek = { version = "2.1.0", default-features = false, features = [] }
+secp256k1 = { version = "0.27.0", default-features = false, features = [
+    "recovery",
+    "alloc",
+] }
 
-near-ledger = { version = "0.8.1", optional = true }
-
-near-crypto = "0.30"
-near-primitives = "0.30"
-near-jsonrpc-client = "0.17"
-near-jsonrpc-primitives = "0.30"
-near-contract-standards = "5.15.1"
-near-sdk = { version = "5.15.1", features = ["non-contract-usage"] }
-
-near-account-id = "1.0.0"
+near-openapi-types = "0.3.0"
+near-account-id = { version = "1.1.0", features = ["borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
-
 near-abi = "0.4.2"
-zstd = "0.13"
-
-keyring = { version = "3.2", features = [
-    "apple-native",
-    "windows-native",
-    "sync-secret-service",
-    "vendored",
-], optional = true }
-
-near-workspaces = { version = "0.20.0", optional = true }
-
-
-[features]
-default = ["ledger", "keystore"]
-ledger = ["near-ledger"]
-keystore = ["dep:keyring"]
-workspaces = ["dep:near-workspaces"]
-
-[dev-dependencies]
-tokio = { version = "1.0", default-features = false, features = ["full"] }
-near-api = { path = ".", features = ["workspaces"] }
+near-ledger = "0.9.1"
+near-openapi-client = "0.3.0"
+near-sandbox = { version = "0.2.0", features = [
+    "generate",
+], default-features = false }

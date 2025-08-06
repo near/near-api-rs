@@ -1,0 +1,36 @@
+[package]
+name = "near-api-types"
+version = "0.6.1"
+authors = [
+    "akorchyn <artur.yurii.korchynskyi@gmail.com>",
+    "frol <frolvlad@gmail.com>",
+    "Near Inc <hello@nearprotocol.com>",
+]
+license = "MIT OR Apache-2.0"
+edition = "2024"
+resolver = "2"
+repository = "https://github.com/near/near-api-rs"
+description = "Rust library to interact with NEAR Protocol via RPC API"
+
+
+[dependencies]
+borsh.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bs58.workspace = true
+thiserror.workspace = true
+base64.workspace = true
+sha2.workspace = true
+
+near-openapi-types.workspace = true
+near-account-id.workspace = true
+near-gas.workspace = true
+near-token.workspace = true
+near-abi.workspace = true
+primitive-types.workspace = true
+
+ed25519-dalek.workspace = true
+secp256k1.workspace = true
+
+[dev-dependencies]
+bolero.workspace = true
