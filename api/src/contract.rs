@@ -9,12 +9,13 @@ use near_api_types::{
     },
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use borsh::BorshDeserialize;
 
 use crate::{
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},
     common::{
         query::{
-            CallResultHandler, PostprocessHandler, QueryBuilder, ViewCodeHandler, ViewStateHandler,
+            CallResultHandler, CallResultBorshHandler, PostprocessHandler, QueryBuilder, ViewCodeHandler, ViewStateHandler,
         },
         send::ExecuteSignedTransaction,
         utils::to_base64,
@@ -620,6 +621,40 @@ impl CallFunctionBuilder {
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultHandler::<Response>::new(),
+        )
+    }
+
+    /// Prepares a read-only query that deserializes the response using Borsh instead of JSON.
+    ///
+    /// This method is useful when the contract returns Borsh-encoded data instead of JSON.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let value: Data<u64> = Contract("some_contract.testnet".parse()?)
+    ///     .call_function("get_number", ())?
+    ///     .read_only_borsh()
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Value: {:?}", value);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn read_only_borsh<Response: Send + Sync + BorshDeserialize>(
+        self,
+    ) -> QueryBuilder<CallResultBorshHandler<Response>> {
+        let request = QueryRequest::CallFunction {
+            account_id: self.contract,
+            method_name: self.method_name,
+            args_base64: FunctionArgs(to_base64(&self.args)),
+        };
+
+        QueryBuilder::new(
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
+            CallResultBorshHandler::<Response>::new(),
         )
     }
 
