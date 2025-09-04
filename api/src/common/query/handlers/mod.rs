@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use near_api_types::{
     AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
     RpcValidatorResponse, ViewStateResult, json::U64,
@@ -6,7 +7,6 @@ use near_openapi_client::types::RpcQueryResponse;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 use tracing::{info, trace, warn};
-use borsh::BorshDeserialize;
 
 use crate::{
     advanced::{

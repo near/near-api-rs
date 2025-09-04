@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use borsh::BorshDeserialize;
 use near_api_types::{
     AccountId, Action, CryptoHash, Data, FunctionArgs, NearGas, NearToken, Reference, StoreKey,
     contract::ContractSourceMetadata,
@@ -9,13 +10,13 @@ use near_api_types::{
     },
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use borsh::BorshDeserialize;
 
 use crate::{
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},
     common::{
         query::{
-            CallResultHandler, CallResultBorshHandler, PostprocessHandler, QueryBuilder, ViewCodeHandler, ViewStateHandler,
+            CallResultBorshHandler, CallResultHandler, PostprocessHandler, QueryBuilder,
+            ViewCodeHandler, ViewStateHandler,
         },
         send::ExecuteSignedTransaction,
         utils::to_base64,
