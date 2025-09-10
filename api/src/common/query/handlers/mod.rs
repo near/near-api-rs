@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use near_api_types::{
     AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
     RpcValidatorResponse, ViewStateResult, json::U64,
@@ -77,6 +78,58 @@ where
         {
             trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult, result size: {} bytes", result.len());
             let data: Response = serde_json::from_slice(&result)?;
+            Ok(Data {
+                data,
+                block_height,
+                block_hash: block_hash
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            })
+        } else {
+            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
+            Err(QueryError::UnexpectedResponse {
+                expected: "CallResult",
+                got: query_to_kind(&response),
+            })
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct CallResultBorshHandler<Response: Send + Sync>(PhantomData<Response>);
+
+impl<Response: Send + Sync> CallResultBorshHandler<Response> {
+    pub const fn new() -> Self {
+        Self(PhantomData::<Response>)
+    }
+}
+
+impl<Response> ResponseHandler for CallResultBorshHandler<Response>
+where
+    Response: BorshDeserialize + Send + Sync,
+{
+    type Response = Data<Response>;
+    type Query = SimpleQueryRpc;
+
+    fn process_response(
+        &self,
+        response: Vec<RpcQueryResponse>,
+    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+        let response = response
+            .into_iter()
+            .next()
+            .ok_or(QueryError::InternalErrorNoResponse)?;
+
+        if let RpcQueryResponse::Variant3 {
+            result,
+            logs: _logs,
+            block_height,
+            block_hash,
+        } = response
+        {
+            trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult using Borsh, result size: {} bytes", result.len());
+            let data: Response = Response::try_from_slice(&result)
+                .map_err(|e| QueryError::ConversionError(Box::new(e)))?;
             Ok(Data {
                 data,
                 block_height,
