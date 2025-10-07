@@ -34,3 +34,5 @@ secp256k1.workspace = true
 
 [dev-dependencies]
 bolero.workspace = true
+near-primitives.workspace = true
+near-crypto.workspace = true

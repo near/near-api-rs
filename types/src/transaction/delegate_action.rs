@@ -48,17 +48,62 @@ impl TryFrom<near_openapi_types::DelegateAction> for DelegateAction {
             receiver_id,
             actions: actions
                 .into_iter()
-                .map(|action| {
-                    NonDelegateAction::try_from(Action::try_from(action.0)?)
-                        .map_err(|_| DataConversionError::DelegateActionNotSupported)
-                })
-                .collect::<Result<Vec<_>, DataConversionError>>()?,
+                .map(NonDelegateAction::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
             nonce,
             max_block_height,
             public_key: public_key.try_into()?,
         })
     }
 }
+
+impl TryFrom<near_openapi_types::NonDelegateAction> for NonDelegateAction {
+    type Error = DataConversionError;
+    fn try_from(val: near_openapi_types::NonDelegateAction) -> Result<Self, Self::Error> {
+        match val {
+            near_openapi_types::NonDelegateAction::DeterministicStateInit(
+                deterministic_state_init,
+            ) => Ok(Self(Action::DeterministicStateInit(Box::new(
+                deterministic_state_init.try_into()?,
+            )))),
+            near_openapi_types::NonDelegateAction::CreateAccount(create_account_action) => {
+                Ok(Self(Action::CreateAccount(create_account_action.into())))
+            }
+            near_openapi_types::NonDelegateAction::DeployContract(deploy_contract_action) => Ok(
+                Self(Action::DeployContract(deploy_contract_action.try_into()?)),
+            ),
+            near_openapi_types::NonDelegateAction::FunctionCall(function_call_action) => Ok(Self(
+                Action::FunctionCall(Box::new(function_call_action.try_into()?)),
+            )),
+            near_openapi_types::NonDelegateAction::Transfer(transfer_action) => {
+                Ok(Self(Action::Transfer(transfer_action.try_into()?)))
+            }
+            near_openapi_types::NonDelegateAction::Stake(stake_action) => {
+                Ok(Self(Action::Stake(Box::new(stake_action.try_into()?))))
+            }
+            near_openapi_types::NonDelegateAction::AddKey(add_key_action) => {
+                Ok(Self(Action::AddKey(Box::new(add_key_action.try_into()?))))
+            }
+            near_openapi_types::NonDelegateAction::DeleteKey(delete_key_action) => Ok(Self(
+                Action::DeleteKey(Box::new(delete_key_action.try_into()?)),
+            )),
+            near_openapi_types::NonDelegateAction::DeleteAccount(delete_account_action) => {
+                Ok(Self(Action::DeleteAccount(delete_account_action.into())))
+            }
+            near_openapi_types::NonDelegateAction::DeployGlobalContract(
+                deploy_global_contract_action,
+            ) => Ok(Self(Action::DeployGlobalContract(
+                deploy_global_contract_action.try_into()?,
+            ))),
+            near_openapi_types::NonDelegateAction::UseGlobalContract(
+                use_global_contract_action,
+            ) => Ok(Self(Action::UseGlobalContract(Box::new(
+                use_global_contract_action.try_into()?,
+            )))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SignedDelegateAction {
     pub delegate_action: DelegateAction,

@@ -18,7 +18,7 @@ async fn multiple_tx_at_same_time_from_same_key() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::from_default_sandbox_account().unwrap();
 
@@ -62,7 +62,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::from_default_sandbox_account().unwrap();
 

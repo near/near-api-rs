@@ -1,7 +1,6 @@
+use crate::json::Base64VecU8;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-
-use crate::json::Base64VecU8;
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct FungibleTokenMetadata {

@@ -9,7 +9,7 @@ use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT;
 async fn main() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
 
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::from_default_sandbox_account().unwrap();
 

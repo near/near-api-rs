@@ -9,8 +9,8 @@ use near_openapi_client::types::{RpcError, RpcQueryResponse};
 use crate::{
     NetworkConfig,
     advanced::{
-        AndThenHandler, ResponseHandler, RpcBuilder, query_request::QueryRequest,
-        query_rpc::SimpleQueryRpc, validator_rpc::SimpleValidatorRpc,
+        ResponseHandler, RpcBuilder, query_request::QueryRequest, query_rpc::SimpleQueryRpc,
+        validator_rpc::SimpleValidatorRpc,
     },
     common::{
         query::{
@@ -535,15 +535,15 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake()
-    -> ValidatorQueryBuilder<AndThenHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>>
-    {
+    pub fn validators_stake() -> ValidatorQueryBuilder<
+        PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>,
+    > {
         ValidatorQueryBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,
             RpcValidatorHandler,
         )
-        .and_then(|validator_response| {
+        .map(|validator_response| {
             validator_response
                 .current_proposals
                 .into_iter()
@@ -566,10 +566,7 @@ impl Staking {
                         )
                     },
                 ))
-                .map(|(account_id, stake)| {
-                    Ok((account_id, NearToken::from_yoctonear(stake.parse()?)))
-                })
-                .collect::<::core::result::Result<_, Box<dyn std::error::Error + Send + Sync>>>()
+                .collect::<BTreeMap<_, NearToken>>()
         })
     }
 

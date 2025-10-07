@@ -1,6 +1,7 @@
 use near_api_types::AccountId;
 use near_openapi_client::Client;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
+use url::Url;
 
 use crate::errors::RetryError;
 
@@ -162,13 +163,10 @@ impl NetworkConfig {
         }
     }
 
-    #[cfg(feature = "sandbox")]
-    pub fn from_sandbox(sandbox: &near_sandbox::Sandbox) -> Self {
+    pub fn from_rpc_url(name: &str, rpc_url: Url) -> Self {
         Self {
-            network_name: "sandbox".to_string(),
-            rpc_endpoints: vec![RPCEndpoint::new(
-                sandbox.rpc_addr.parse().expect("valid url"),
-            )],
+            network_name: name.to_string(),
+            rpc_endpoints: vec![RPCEndpoint::new(rpc_url)],
             linkdrop_account_id: None,
             near_social_db_contract_account_id: None,
             faucet_url: None,

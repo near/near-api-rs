@@ -46,6 +46,8 @@ pub enum DataConversionError {
     InvalidKeyFormat(#[from] KeyTypeError),
     #[error("Delegate action is not supported")]
     DelegateActionNotSupported,
+    #[error("Invalid global contract identifier")]
+    InvalidGlobalContractIdentifier,
 }
 
 impl From<Vec<u8>> for DataConversionError {

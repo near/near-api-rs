@@ -10,7 +10,8 @@ async fn create_and_delete_account() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
 
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
+    let network: NetworkConfig =
+        NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let signer = Signer::from_default_sandbox_account().unwrap();
 
     let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
@@ -68,7 +69,8 @@ async fn transfer_funds() {
     })
     .await
     .unwrap();
-    let network: NetworkConfig = NetworkConfig::from_sandbox(&sandbox);
+    let network: NetworkConfig =
+        NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
     Tokens::account(alice.clone())
         .send_to(bob.account_id.clone())
@@ -99,7 +101,8 @@ async fn transfer_funds() {
 #[tokio::test]
 async fn access_key_management() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-    let network: NetworkConfig = NetworkConfig::from_sandbox(&network);
+    let network: NetworkConfig =
+        NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let alice_acc = Account(alice.clone());

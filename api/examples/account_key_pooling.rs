@@ -23,7 +23,7 @@ async fn main() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let signer = Signer::from_default_sandbox_account().unwrap();
 
     println!(
