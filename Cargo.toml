@@ -43,13 +43,13 @@ secp256k1 = { version = "0.27.0", default-features = false, features = [
     "alloc",
 ] }
 
-near-openapi-types = "0.3.0"
-near-account-id = { version = "1.1.0", features = ["borsh"] }
+near-account-id = { version = "1.1.0", features = ["serde", "borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
 near-ledger = "0.9.1"
-near-openapi-client = "0.3.0"
+near-openapi-client = "0.4.0"
 near-sandbox = { version = "0.2.0", features = [
     "generate",
 ], default-features = false }
+near-openapi-types = "0.4.0"

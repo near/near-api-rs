@@ -62,9 +62,9 @@ impl TryFrom<near_openapi_types::AccountView> for Account {
         };
 
         Ok(Self {
-            amount: NearToken::from_yoctonear(amount.parse::<u128>()?),
+            amount,
             contract_state,
-            locked: NearToken::from_yoctonear(locked.parse::<u128>()?),
+            locked,
             storage_usage,
         })
     }

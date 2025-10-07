@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use crate::AccountId;
@@ -38,6 +39,46 @@ pub enum Action {
     DeployGlobalContract(DeployGlobalContractAction),
     /// Use a global contract to link code to an account
     UseGlobalContract(Box<UseGlobalContractAction>),
+    /// Deploy a deterministic account with global contract and state.
+    ///
+    /// See [NEP-616](https://github.com/near/NEPs/blob/master/neps/nep-0616.md) for more details
+    DeterministicStateInit(Box<DeterministicStateInitAction>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub struct DeterministicStateInitAction {
+    pub code: GlobalContractIdentifier,
+    pub data: BTreeMap<Vec<u8>, Vec<u8>>,
+    pub deposit: NearToken,
+}
+
+impl TryFrom<near_openapi_types::DeterministicStateInitAction> for DeterministicStateInitAction {
+    type Error = DataConversionError;
+    fn try_from(
+        val: near_openapi_types::DeterministicStateInitAction,
+    ) -> Result<Self, Self::Error> {
+        let near_openapi_types::DeterministicStateInitAction {
+            state_init,
+            deposit,
+        } = val;
+
+        match state_init {
+            near_openapi_types::DeterministicAccountStateInit::V1(v1) => Ok(Self {
+                code: v1.code.try_into()?,
+                data: v1
+                    .data
+                    .into_iter()
+                    .map(|(k, v)| {
+                        Ok::<(Vec<u8>, Vec<u8>), DataConversionError>((
+                            BASE64_STANDARD.decode(k)?,
+                            BASE64_STANDARD.decode(v)?,
+                        ))
+                    })
+                    .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
+                deposit,
+            }),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -117,8 +158,8 @@ impl TryFrom<near_openapi_types::FunctionCallAction> for FunctionCallAction {
         Ok(Self {
             method_name,
             args: BASE64_STANDARD.decode(args)?,
-            gas: NearGas::from_gas(gas),
-            deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
+            gas,
+            deposit,
         })
     }
 }
@@ -132,9 +173,7 @@ impl TryFrom<near_openapi_types::TransferAction> for TransferAction {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::TransferAction) -> Result<Self, Self::Error> {
         let near_openapi_types::TransferAction { deposit } = val;
-        Ok(Self {
-            deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
-        })
+        Ok(Self { deposit })
     }
 }
 
@@ -152,7 +191,7 @@ impl TryFrom<near_openapi_types::StakeAction> for StakeAction {
         let near_openapi_types::StakeAction { public_key, stake } = val;
         Ok(Self {
             public_key: public_key.try_into()?,
-            stake: NearToken::from_yoctonear(stake.parse::<u128>()?),
+            stake,
         })
     }
 }
@@ -227,18 +266,11 @@ impl TryFrom<near_openapi_types::AccessKeyPermissionView> for AccessKeyPermissio
                 allowance,
                 method_names,
                 receiver_id,
-            } => {
-                let allowance = if let Some(val) = allowance {
-                    Some(NearToken::from_yoctonear(val.parse::<u128>()?))
-                } else {
-                    None
-                };
-                Ok(Self::FunctionCall(FunctionCallPermission {
-                    allowance,
-                    receiver_id,
-                    method_names,
-                }))
-            }
+            } => Ok(Self::FunctionCall(FunctionCallPermission {
+                allowance,
+                receiver_id,
+                method_names,
+            })),
             near_openapi_types::AccessKeyPermissionView::FullAccess => Ok(Self::FullAccess),
         }
     }
@@ -272,11 +304,7 @@ impl TryFrom<near_openapi_types::FunctionCallPermission> for FunctionCallPermiss
             method_names,
         } = val;
         Ok(Self {
-            allowance: if let Some(val) = allowance {
-                Some(NearToken::from_yoctonear(val.parse::<u128>()?))
-            } else {
-                None
-            },
+            allowance,
             receiver_id,
             method_names,
         })
@@ -361,43 +389,21 @@ impl TryFrom<near_openapi_types::GlobalContractIdentifier> for GlobalContractIde
     }
 }
 
-impl TryFrom<near_openapi_types::Action> for Action {
+impl TryFrom<near_openapi_types::GlobalContractIdentifierView> for GlobalContractIdentifier {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::Action) -> Result<Self, Self::Error> {
-        match val {
-            near_openapi_types::Action::CreateAccount(create_account_action) => {
-                Ok(Self::CreateAccount(create_account_action.into()))
-            }
-            near_openapi_types::Action::DeployContract(deploy_contract_action) => {
-                Ok(Self::DeployContract(deploy_contract_action.try_into()?))
-            }
-            near_openapi_types::Action::FunctionCall(function_call_action) => Ok(
-                Self::FunctionCall(Box::new(function_call_action.try_into()?)),
-            ),
-            near_openapi_types::Action::Transfer(transfer_action) => {
-                Ok(Self::Transfer(transfer_action.try_into()?))
-            }
-            near_openapi_types::Action::Stake(stake_action) => {
-                Ok(Self::Stake(Box::new(stake_action.try_into()?)))
-            }
-            near_openapi_types::Action::AddKey(add_key_action) => {
-                Ok(Self::AddKey(Box::new(add_key_action.try_into()?)))
-            }
-            near_openapi_types::Action::DeleteKey(delete_key_action) => {
-                Ok(Self::DeleteKey(Box::new(delete_key_action.try_into()?)))
-            }
-            near_openapi_types::Action::DeleteAccount(delete_account_action) => {
-                Ok(Self::DeleteAccount(delete_account_action.into()))
-            }
-            near_openapi_types::Action::Delegate(delegate_action) => {
-                Ok(Self::Delegate(Box::new(delegate_action.try_into()?)))
-            }
-            near_openapi_types::Action::DeployGlobalContract(deploy_global_contract_action) => Ok(
-                Self::DeployGlobalContract(deploy_global_contract_action.try_into()?),
-            ),
-            near_openapi_types::Action::UseGlobalContract(use_global_contract_action) => Ok(
-                Self::UseGlobalContract(Box::new(use_global_contract_action.try_into()?)),
-            ),
+    fn try_from(
+        val: near_openapi_types::GlobalContractIdentifierView,
+    ) -> Result<Self, Self::Error> {
+        let near_openapi_types::GlobalContractIdentifierView {
+            subtype_0: code_hash,
+            subtype_1: account_id,
+        } = val;
+        if let Some(code_hash) = code_hash {
+            Ok(Self::CodeHash(code_hash.try_into()?))
+        } else if let Some(account_id) = account_id {
+            Ok(Self::AccountId(account_id))
+        } else {
+            Err(DataConversionError::InvalidGlobalContractIdentifier)
         }
     }
 }
@@ -406,6 +412,25 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
     type Error = DataConversionError;
     fn try_from(val: near_openapi_types::ActionView) -> Result<Self, Self::Error> {
         match val {
+            near_openapi_types::ActionView::DeterministicStateInit {
+                code,
+                data,
+                deposit,
+            } => Ok(Self::DeterministicStateInit(Box::new(
+                DeterministicStateInitAction {
+                    code: code.try_into()?,
+                    data: data
+                        .into_iter()
+                        .map(|(k, v)| {
+                            Ok::<(Vec<u8>, Vec<u8>), DataConversionError>((
+                                BASE64_STANDARD.decode(k)?,
+                                BASE64_STANDARD.decode(v)?,
+                            ))
+                        })
+                        .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
+                    deposit,
+                },
+            ))),
             near_openapi_types::ActionView::CreateAccount => {
                 Ok(Self::CreateAccount(CreateAccountAction {}))
             }
@@ -422,18 +447,16 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
             } => Ok(Self::FunctionCall(Box::new(FunctionCallAction {
                 method_name,
                 args: BASE64_STANDARD.decode(args.0)?,
-                gas: NearGas::from_gas(gas),
-                deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
+                gas,
+                deposit,
             }))),
             near_openapi_types::ActionView::Transfer { deposit } => {
-                Ok(Self::Transfer(TransferAction {
-                    deposit: NearToken::from_yoctonear(deposit.parse::<u128>()?),
-                }))
+                Ok(Self::Transfer(TransferAction { deposit }))
             }
             near_openapi_types::ActionView::Stake { public_key, stake } => {
                 Ok(Self::Stake(Box::new(StakeAction {
                     public_key: public_key.try_into()?,
-                    stake: NearToken::from_yoctonear(stake.parse::<u128>()?),
+                    stake,
                 })))
             }
             near_openapi_types::ActionView::AddKey {

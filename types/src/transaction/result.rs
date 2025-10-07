@@ -192,10 +192,10 @@ impl TryFrom<FinalExecutionOutcomeView> for ExecutionFinalResult {
             transaction_outcome,
         } = view;
 
-        let total_gas_burnt = transaction_outcome.outcome.gas_burnt
+        let total_gas_burnt = transaction_outcome.outcome.gas_burnt.as_gas()
             + receipts_outcome
                 .iter()
-                .map(|t| t.outcome.gas_burnt)
+                .map(|t| t.outcome.gas_burnt.as_gas())
                 .sum::<u64>();
 
         let transaction_outcome = transaction_outcome.try_into()?;
@@ -575,8 +575,8 @@ impl TryFrom<near_openapi_types::ExecutionOutcomeWithIdView> for ExecutionOutcom
                 .into_iter()
                 .map(CryptoHash::try_from)
                 .collect::<Result<Vec<_>, DataConversionError>>()?,
-            gas_burnt: NearGas::from_gas(outcome.gas_burnt),
-            tokens_burnt: NearToken::from_yoctonear(outcome.tokens_burnt.parse()?),
+            gas_burnt: outcome.gas_burnt,
+            tokens_burnt: outcome.tokens_burnt,
             executor_id: outcome.executor_id,
             status: outcome.status,
         })
