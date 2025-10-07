@@ -25,7 +25,7 @@ The minimum required version is located in the [rust-version](./Cargo.toml#L4) f
 
 * `ledger`: Enables integration with a Ledger hardware signer for secure key management.
 * `keystore`: Enables integration with a system keystore signer for managing keys securely on the local system.
-* `workspaces`: Provides integration with [`near-workspaces`](https://github.com/near/near-workspaces-rs) for testing purposes. This feature allows you to convert `near-workspaces` networks (such as sandbox, testnet, etc.) into a NetworkConfig and use `near-workspaces` `Account` object as a signer for testing and development.
+* `sandbox`: Provides integration with [`near-sandbox-rs`](https://github.com/near/near-sandbox-rs) for testing purposes. This feature allows you to include set of useful utility functions to improve DevX testing experience 
 
 ## Current issues
 
