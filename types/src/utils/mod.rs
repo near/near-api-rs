@@ -1,29 +1,5 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
-pub struct Base64VecU8(
-    #[serde(
-        serialize_with = "base64_bytes::serialize",
-        deserialize_with = "base64_bytes::deserialize"
-    )]
-    pub Vec<u8>,
-);
-
-impl From<Vec<u8>> for Base64VecU8 {
-    fn from(v: Vec<u8>) -> Self {
-        Self(v)
-    }
-}
-
-impl From<Base64VecU8> for Vec<u8> {
-    fn from(v: Base64VecU8) -> Self {
-        v.0
-    }
-}
-
 /// Convenience module to allow annotating a serde structure as base64 bytes.
-mod base64_bytes {
+pub mod base64_bytes {
     use base64::Engine;
     use serde::{Deserialize, Deserializer, Serializer, de};
 
@@ -42,5 +18,17 @@ mod base64_bytes {
         base64::engine::general_purpose::STANDARD
             .decode(s.as_str())
             .map_err(de::Error::custom)
+    }
+}
+
+pub mod near_gas_as_u64 {
+    use near_gas::NearGas;
+    use serde::Serializer;
+
+    pub fn serialize<S>(value: &NearGas, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u64(value.as_gas())
     }
 }

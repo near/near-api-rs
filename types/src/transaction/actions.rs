@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::DataConversionError;
 use crate::json::U64;
 use crate::transaction::delegate_action::SignedDelegateAction;
+use crate::utils::{base64_bytes, near_gas_as_u64};
 use crate::{CryptoHash, NearGas, NearToken, PublicKey, Signature};
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -83,6 +84,7 @@ impl TryFrom<near_openapi_types::DeterministicStateInitAction> for Deterministic
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeployGlobalContractAction {
+    #[serde(with = "base64_bytes")]
     pub code: Vec<u8>,
     pub deploy_mode: GlobalContractDeployMode,
 }
@@ -125,6 +127,7 @@ impl From<near_openapi_types::CreateAccountAction> for CreateAccountAction {
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeployContractAction {
+    #[serde(with = "base64_bytes")]
     pub code: Vec<u8>,
 }
 
@@ -141,7 +144,9 @@ impl TryFrom<near_openapi_types::DeployContractAction> for DeployContractAction 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct FunctionCallAction {
     pub method_name: String,
+    #[serde(with = "base64_bytes")]
     pub args: Vec<u8>,
+    #[serde(serialize_with = "near_gas_as_u64::serialize")]
     pub gas: NearGas,
     pub deposit: NearToken,
 }
@@ -509,12 +514,16 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::crypto::{ED25519_PUBLIC_KEY_LENGTH, public_key::ED25519PublicKey};
+    use crate::transaction::delegate_action::{DelegateAction, NonDelegateAction};
+    use near_primitives::action as npa;
     use serde_json;
 
-    fn get_actions() -> Vec<Action> {
-        vec![
+    fn get_actions() -> (Vec<Action>, Vec<npa::Action>) {
+        let local_actions = vec![
             Action::CreateAccount(CreateAccountAction {}),
             Action::DeployContract(DeployContractAction {
                 code: vec![1, 2, 3],
@@ -533,26 +542,129 @@ mod tests {
                 public_key: PublicKey::ED25519(ED25519PublicKey([0; ED25519_PUBLIC_KEY_LENGTH])),
             })),
             Action::AddKey(Box::new(AddKeyAction {
-                public_key: PublicKey::ED25519(ED25519PublicKey([1; ED25519_PUBLIC_KEY_LENGTH])),
+                public_key: PublicKey::ED25519(ED25519PublicKey([0; ED25519_PUBLIC_KEY_LENGTH])),
                 access_key: AccessKey {
                     nonce: U64(0),
                     permission: AccessKeyPermission::FullAccess,
                 },
             })),
             Action::DeleteKey(Box::new(DeleteKeyAction {
-                public_key: PublicKey::ED25519(ED25519PublicKey([2; ED25519_PUBLIC_KEY_LENGTH])),
+                public_key: PublicKey::ED25519(ED25519PublicKey([0; ED25519_PUBLIC_KEY_LENGTH])),
             })),
             Action::DeleteAccount(DeleteAccountAction {
                 beneficiary_id: "alice.near".parse().unwrap(),
             }),
-        ]
+            Action::DeployGlobalContract(DeployGlobalContractAction {
+                code: vec![7, 8, 9],
+                deploy_mode: GlobalContractDeployMode::CodeHash,
+            }),
+            Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                contract_identifier: GlobalContractIdentifier::AccountId(
+                    "global.near".parse().unwrap(),
+                ),
+            })),
+            Action::Delegate(Box::new(SignedDelegateAction {
+                delegate_action: DelegateAction {
+                    sender_id: "sender.near".parse().unwrap(),
+                    receiver_id: "receiver.near".parse().unwrap(),
+                    actions: vec![
+                        NonDelegateAction::try_from(Action::Transfer(TransferAction {
+                            deposit: NearToken::from_yoctonear(1000),
+                        }))
+                        .unwrap(),
+                    ],
+                    nonce: 1,
+                    max_block_height: 1000,
+                    public_key: PublicKey::ED25519(ED25519PublicKey(
+                        [0; ED25519_PUBLIC_KEY_LENGTH],
+                    )),
+                },
+                signature: Signature::from_parts(crate::crypto::KeyType::ED25519, &[0u8; 64])
+                    .unwrap(),
+            })),
+            // NPA is future release of near-primitives, so we don't have a test for it yet
+            // Action::DeterministicStateInit(Box::new(DeterministicStateInitAction {
+            //     code: GlobalContractIdentifier::AccountId("init.near".parse().unwrap()),
+            //     data: BTreeMap::new(),
+            //     deposit: NearToken::from_yoctonear(5000000000),
+            // })),
+        ];
+
+        let near_primitives_actions = vec![
+            npa::Action::CreateAccount(npa::CreateAccountAction {}),
+            npa::Action::DeployContract(npa::DeployContractAction {
+                code: vec![1, 2, 3],
+            }),
+            npa::Action::FunctionCall(Box::new(npa::FunctionCallAction {
+                method_name: "test".to_string(),
+                args: vec![4, 5, 6],
+                gas: 1000000,
+                deposit: 0,
+            })),
+            npa::Action::Transfer(npa::TransferAction {
+                deposit: 1000000000,
+            }),
+            npa::Action::Stake(Box::new(npa::StakeAction {
+                stake: 100000000,
+                public_key: near_crypto::PublicKey::empty(near_crypto::KeyType::ED25519),
+            })),
+            npa::Action::AddKey(Box::new(npa::AddKeyAction {
+                public_key: near_crypto::PublicKey::empty(near_crypto::KeyType::ED25519),
+                access_key: near_primitives::account::AccessKey {
+                    nonce: 0,
+                    permission: near_primitives::account::AccessKeyPermission::FullAccess,
+                },
+            })),
+            npa::Action::DeleteKey(Box::new(npa::DeleteKeyAction {
+                public_key: near_crypto::PublicKey::empty(near_crypto::KeyType::ED25519),
+            })),
+            npa::Action::DeleteAccount(npa::DeleteAccountAction {
+                beneficiary_id: "alice.near".parse().unwrap(),
+            }),
+            npa::Action::DeployGlobalContract(npa::DeployGlobalContractAction {
+                code: Arc::new([7, 8, 9]),
+                deploy_mode: npa::GlobalContractDeployMode::CodeHash,
+            }),
+            npa::Action::UseGlobalContract(Box::new(npa::UseGlobalContractAction {
+                contract_identifier: npa::GlobalContractIdentifier::AccountId(
+                    "global.near".parse().unwrap(),
+                ),
+            })),
+            npa::Action::Delegate(Box::new(npa::delegate::SignedDelegateAction {
+                delegate_action: npa::delegate::DelegateAction {
+                    sender_id: "sender.near".parse().unwrap(),
+                    receiver_id: "receiver.near".parse().unwrap(),
+                    actions: vec![
+                        npa::delegate::NonDelegateAction::try_from(npa::Action::Transfer(
+                            npa::TransferAction { deposit: 1000 },
+                        ))
+                        .unwrap(),
+                    ],
+                    nonce: 1,
+                    max_block_height: 1000,
+                    public_key: near_crypto::PublicKey::empty(near_crypto::KeyType::ED25519),
+                },
+                signature: near_crypto::Signature::from_parts(
+                    near_crypto::KeyType::ED25519,
+                    &[0u8; 64],
+                )
+                .unwrap(),
+            })),
+            // npa::Action::DeterministicStateInit(Box::new(npa::DeterministicStateInitAction {
+            //     code: npa::GlobalContractIdentifier::AccountId("init.near".parse().unwrap()),
+            //     data: BTreeMap::new(),
+            //     deposit: 5000000000,
+            // })),
+        ];
+
+        (local_actions, near_primitives_actions)
     }
 
     #[test]
     fn test_action_serialization() {
-        let actions = get_actions();
+        let (local_actions, _) = get_actions();
 
-        for action in actions {
+        for action in local_actions {
             let serialized =
                 serde_json::to_string(&action).expect("Failed to serialize action to JSON");
 
@@ -568,9 +680,9 @@ mod tests {
 
     #[test]
     fn test_action_borsh_serialization() {
-        let actions = get_actions();
+        let (local_actions, _) = get_actions();
 
-        for action in actions {
+        for action in local_actions {
             let serialized = borsh::to_vec(&action).expect("Failed to serialize action to borsh");
 
             let deserialized: Action = Action::try_from_slice(&serialized)
@@ -580,6 +692,35 @@ mod tests {
                 action, deserialized,
                 "Serialization/Deserialization mismatch: original action: {action:?}, deserialized action: {deserialized:?}"
             );
+        }
+    }
+
+    #[test]
+    fn serialization_comparison_with_near_primitives() {
+        let (local_actions, near_primitives_actions) = get_actions();
+
+        assert_eq!(
+            local_actions.len(),
+            near_primitives_actions.len(),
+            "Action lists should have the same length"
+        );
+
+        for (local_action, np_action) in local_actions.iter().zip(near_primitives_actions.iter()) {
+            // Compare borsh serialization
+            let local_borsh =
+                borsh::to_vec(local_action).expect("Failed to serialize local action to borsh");
+            let np_borsh = borsh::to_vec(np_action)
+                .expect("Failed to serialize near_primitives action to borsh");
+
+            assert_eq!(local_borsh, np_borsh, "Borsh serialization mismatch");
+
+            // Compare serde JSON serialization
+            let local_json = serde_json::to_string(local_action)
+                .expect("Failed to serialize local action to JSON");
+            let np_json = serde_json::to_string(np_action)
+                .expect("Failed to serialize near_primitives action to JSON");
+
+            assert_eq!(local_json, np_json, "JSON serialization mismatch");
         }
     }
 }

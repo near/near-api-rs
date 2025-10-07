@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::json::Base64VecU8;
+use crate::utils::base64_bytes;
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 pub struct FungibleTokenMetadata {
@@ -10,6 +10,7 @@ pub struct FungibleTokenMetadata {
     pub symbol: String,
     pub icon: Option<String>,
     pub reference: Option<String>,
-    pub reference_hash: Option<Base64VecU8>,
+    #[serde(with = "base64_bytes")]
+    pub reference_hash: Vec<u8>,
     pub decimals: u8,
 }

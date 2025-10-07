@@ -14,6 +14,7 @@ pub mod stake;
 pub mod storage;
 pub mod tokens;
 pub mod transaction;
+pub mod utils;
 
 pub use near_abi as abi;
 pub use near_account_id::AccountId;

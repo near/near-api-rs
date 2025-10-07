@@ -53,3 +53,7 @@ near-sandbox = { version = "0.2.0", features = [
     "generate",
 ], default-features = false }
 near-openapi-types = "0.4.0"
+
+# Dev-dependencies
+near-primitives = { version = "0.32" }
+near-crypto = { version = "0.32" }
