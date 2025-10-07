@@ -21,7 +21,7 @@ async fn main() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
     // Deploying token contract
     Contract::deploy(token.account_id.clone())

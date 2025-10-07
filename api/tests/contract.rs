@@ -7,7 +7,7 @@ use serde_json::json;
 #[tokio::test]
 async fn contract_without_init_call() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::from_default_sandbox_account().unwrap();
 
@@ -77,7 +77,7 @@ async fn contract_without_init_call() {
 #[tokio::test]
 async fn contract_with_init_call() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::from_default_sandbox_account().unwrap();
 

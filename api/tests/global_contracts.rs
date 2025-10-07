@@ -22,7 +22,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
     Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
         .as_account_id(global_contract.account_id.clone())
@@ -111,7 +111,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
     let hash = CryptoHash::hash(&code);

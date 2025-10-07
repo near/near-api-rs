@@ -17,7 +17,7 @@ async fn main() {
     })
     .await
     .unwrap();
-    let network = NetworkConfig::from_sandbox(&sandbox);
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
     let nft_signer = Signer::new(Signer::from_secret_key(
         nft.private_key.clone().parse().unwrap(),

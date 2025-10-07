@@ -11,7 +11,7 @@ use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBL
 async fn main() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let network = NetworkConfig::from_sandbox(&network);
+    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
 
     // Current secret key from workspace
     let (new_seed_phrase, public_key) = generate_seed_phrase_with_passphrase("smile").unwrap();
