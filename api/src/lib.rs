@@ -51,10 +51,13 @@ mod account;
 mod chain;
 mod config;
 mod contract;
+#[cfg(feature = "sandbox")]
+mod sandbox;
 mod stake;
 mod storage;
 mod tokens;
 mod transactions;
+
 // TODO: to be honest, there is almost nothing in this file
 // we should maybe integrate with them more tightly
 // for now, i comment it out
@@ -82,6 +85,9 @@ pub use crate::{
         tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
     },
 };
+
+#[cfg(feature = "sandbox")]
+pub use crate::sandbox::Sandbox;
 
 pub mod advanced {
     pub use crate::common::query::*;

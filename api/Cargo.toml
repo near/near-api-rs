@@ -58,10 +58,10 @@ keyring = { workspace = true, features = [
 
 
 [features]
-default = ["keystore", "ledger"]
+default = ["keystore", "ledger", "sandbox"]
 ledger = ["near-ledger"]
 keystore = ["dep:keyring"]
-sandbox = ["near-sandbox"]
+sandbox = ["near-sandbox", "near-api-types/sandbox"]
 
 [dev-dependencies]
 tokio = { workspace = true, default-features = false, features = ["full"] }

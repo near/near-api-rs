@@ -461,13 +461,13 @@ impl ResponseHandler for RpcBlockHandler {
     }
 }
 
-impl ResponseHandler for () {
+impl<T: RpcType> ResponseHandler for T {
     type Response = ();
-    type Query = SimpleQueryRpc;
+    type Query = T;
 
     fn process_response(
         &self,
-        _response: Vec<RpcQueryResponse>,
+        _response: Vec<<Self::Query as RpcType>::Response>,
     ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
         trace!(target: QUERY_EXECUTOR_TARGET, "Processed empty response handler");
         Ok(())

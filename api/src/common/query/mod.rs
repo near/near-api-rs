@@ -14,6 +14,8 @@ pub mod block_rpc;
 pub mod handlers;
 pub mod query_request;
 pub mod query_rpc;
+#[cfg(feature = "sandbox")]
+pub mod sandbox_rpc;
 pub mod validator_rpc;
 
 pub use handlers::*;
@@ -35,11 +37,8 @@ pub trait RpcType: Send + Sync + std::fmt::Debug {
     ) -> RetryResponse<Self::Response, SendRequestError<Self::Error>>;
 }
 
-pub type QueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
-pub type MultiQueryBuilder<T> = MultiRpcBuilder<<T as ResponseHandler>::Query, T>;
-
-pub type ValidatorQueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
-pub type BlockQueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
+pub type RequestBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
+pub type MultiRequestBuilder<T> = MultiRpcBuilder<<T as ResponseHandler>::Query, T>;
 
 /// A builder for querying multiple items at once.
 ///
@@ -47,7 +46,7 @@ pub type BlockQueryBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
 /// This is where this builder comes in handy. Almost every time, you would want to use [Self::map] method to combine the responses into your desired type.
 ///
 /// Currently, `MultiQueryHandler` supports tuples of sizes 2 and 3.
-/// For single responses, use `QueryBuilder` instead.
+/// For single responses, use `RequestBuilder` instead.
 ///
 /// Here is a list of examples on how to use this:
 /// - [Tokens::ft_balance](crate::tokens::Tokens::ft_balance)
@@ -109,7 +108,7 @@ where
     ///
     /// The `Handler::Response` is the type returned by the handler's `process_response` method.
     ///
-    /// For single responses, use `QueryBuilder` instead.
+    /// For single responses, use `RequestBuilder` instead.
     ///
     /// ## Example
     /// ```rust,no_run

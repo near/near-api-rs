@@ -2,6 +2,7 @@ use std::{cell::OnceCell, io::Write, str::FromStr};
 
 pub mod actions;
 pub mod delegate_action;
+pub mod receipt;
 pub mod result;
 
 use base64::{Engine, prelude::BASE64_STANDARD};

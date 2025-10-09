@@ -36,3 +36,7 @@ secp256k1.workspace = true
 bolero.workspace = true
 near-primitives.workspace = true
 near-crypto.workspace = true
+
+[features]
+sandbox = []
+default = ["sandbox"]

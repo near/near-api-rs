@@ -14,8 +14,8 @@ use crate::{
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},
     common::{
         query::{
-            AccountViewHandler, CallResultHandler, MultiQueryBuilder, MultiQueryHandler,
-            PostprocessHandler, QueryBuilder,
+            AccountViewHandler, CallResultHandler, MultiQueryHandler, MultiRequestBuilder,
+            PostprocessHandler, RequestBuilder,
         },
         send::Transactionable,
     },
@@ -130,12 +130,12 @@ impl Tokens {
     /// ```
     pub fn near_balance(
         &self,
-    ) -> QueryBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
+    ) -> RequestBuilder<PostprocessHandler<UserBalance, AccountViewHandler>> {
         let request = QueryRequest::ViewAccount {
             account_id: self.account_id.clone(),
         };
 
-        QueryBuilder::new(
+        RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             AccountViewHandler,
@@ -172,7 +172,7 @@ impl Tokens {
     /// ```
     pub fn nft_metadata(
         contract_id: AccountId,
-    ) -> Result<QueryBuilder<CallResultHandler<NFTContractMetadata>>> {
+    ) -> Result<RequestBuilder<CallResultHandler<NFTContractMetadata>>> {
         Ok(Contract(contract_id)
             .call_function("nft_metadata", ())?
             .read_only())
@@ -198,7 +198,7 @@ impl Tokens {
     pub fn nft_assets(
         &self,
         nft_contract: AccountId,
-    ) -> Result<QueryBuilder<CallResultHandler<Vec<Token>>>> {
+    ) -> Result<RequestBuilder<CallResultHandler<Vec<Token>>>> {
         Ok(Contract(nft_contract)
             .call_function(
                 "nft_tokens_for_owner",
@@ -228,7 +228,7 @@ impl Tokens {
     /// ```
     pub fn ft_metadata(
         contract_id: AccountId,
-    ) -> Result<QueryBuilder<CallResultHandler<FungibleTokenMetadata>>> {
+    ) -> Result<RequestBuilder<CallResultHandler<FungibleTokenMetadata>>> {
         Ok(Contract(contract_id)
             .call_function("ft_metadata", ())?
             .read_only())
@@ -259,7 +259,7 @@ impl Tokens {
         &self,
         ft_contract: AccountId,
     ) -> Result<
-        MultiQueryBuilder<
+        MultiRequestBuilder<
             PostprocessHandler<
                 FTBalance,
                 MultiQueryHandler<(
@@ -273,7 +273,7 @@ impl Tokens {
             CallResultHandler::<FungibleTokenMetadata>::new(),
             CallResultHandler::<U128>::new(),
         ));
-        let multiquery = MultiQueryBuilder::new(handler, Reference::Optimistic)
+        let multiquery = MultiRequestBuilder::new(handler, Reference::Optimistic)
             .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
             .add_query_builder(
                 Contract(ft_contract)
