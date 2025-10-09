@@ -17,10 +17,14 @@ impl SandboxAction {
         }
     }
 
-    pub fn params(&self) -> Result<serde_json::Value, serde_json::Error> {
+    pub fn params(&self) -> serde_json::Value {
         match self {
-            Self::PatchState(state) => serde_json::to_value(state),
-            Self::FastForward(height) => serde_json::to_value(height),
+            Self::PatchState(state) => serde_json::json!({
+                "records": state,
+            }),
+            Self::FastForward(height) => serde_json::json!({
+                "delta_height": height,
+            }),
         }
     }
 }
@@ -41,27 +45,28 @@ impl RpcType for SimpleSandboxRpc {
         _network: &NetworkConfig,
         _reference: &(),
     ) -> RetryResponse<(), SendRequestError<()>> {
-        let Ok(params) = self.action.params() else {
-            return RetryResponse::Critical(SendRequestError::ClientError(
-                near_openapi_client::Error::InvalidRequest("Serialization error".to_string()),
-            ));
-        };
-
         let result = client
             .client()
-            .post(format!("{}", client.baseurl()))
+            .post(client.baseurl())
             .json(&serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": "0",
                 "method": self.action.method_name(),
-                "params": params,
+                "params": self.action.params(),
             }))
             .send()
             .await;
 
         match result {
-            Ok(_) => RetryResponse::Ok(()),
-            Err(_) => RetryResponse::Critical(SendRequestError::ServerError(())),
+            Ok(response) => {
+                let body = response.text().await.unwrap();
+                println!("{}", body);
+                RetryResponse::Ok(())
+            }
+            Err(error) => {
+                println!("{:?}", error);
+                RetryResponse::Critical(SendRequestError::ServerError(()))
+            }
         }
     }
 }

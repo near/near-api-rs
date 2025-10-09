@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     AccessKey, Account, AccountId, CryptoHash, DelayedReceipt, PublicKey, Receipt, StoreKey,
     StoreValue,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum StateRecord {
     Account {
         account_id: AccountId,
