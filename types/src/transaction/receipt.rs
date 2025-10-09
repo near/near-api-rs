@@ -88,78 +88,78 @@ pub enum Receipt {
 }
 
 impl Receipt {
-    pub fn receiver_id(&self) -> &AccountId {
+    pub const fn receiver_id(&self) -> &AccountId {
         match self {
-            Receipt::V0(receipt) => &receipt.receiver_id,
-            Receipt::V1(receipt) => &receipt.receiver_id,
+            Self::V0(receipt) => &receipt.receiver_id,
+            Self::V1(receipt) => &receipt.receiver_id,
         }
     }
 
     pub fn set_receiver_id(&mut self, receiver_id: AccountId) {
         match self {
-            Receipt::V0(receipt) => receipt.receiver_id = receiver_id,
-            Receipt::V1(receipt) => receipt.receiver_id = receiver_id,
+            Self::V0(receipt) => receipt.receiver_id = receiver_id,
+            Self::V1(receipt) => receipt.receiver_id = receiver_id,
         }
     }
 
-    pub fn predecessor_id(&self) -> &AccountId {
+    pub const fn predecessor_id(&self) -> &AccountId {
         match self {
-            Receipt::V0(receipt) => &receipt.predecessor_id,
-            Receipt::V1(receipt) => &receipt.predecessor_id,
+            Self::V0(receipt) => &receipt.predecessor_id,
+            Self::V1(receipt) => &receipt.predecessor_id,
         }
     }
 
     pub fn set_predecessor_id(&mut self, predecessor_id: AccountId) {
         match self {
-            Receipt::V0(receipt) => receipt.predecessor_id = predecessor_id,
-            Receipt::V1(receipt) => receipt.predecessor_id = predecessor_id,
+            Self::V0(receipt) => receipt.predecessor_id = predecessor_id,
+            Self::V1(receipt) => receipt.predecessor_id = predecessor_id,
         }
     }
 
-    pub fn receipt(&self) -> &ReceiptEnum {
+    pub const fn receipt(&self) -> &ReceiptEnum {
         match self {
-            Receipt::V0(receipt) => &receipt.receipt,
-            Receipt::V1(receipt) => &receipt.receipt,
+            Self::V0(receipt) => &receipt.receipt,
+            Self::V1(receipt) => &receipt.receipt,
         }
     }
 
-    pub fn receipt_mut(&mut self) -> &mut ReceiptEnum {
+    pub const fn receipt_mut(&mut self) -> &mut ReceiptEnum {
         match self {
-            Receipt::V0(receipt) => &mut receipt.receipt,
-            Receipt::V1(receipt) => &mut receipt.receipt,
+            Self::V0(receipt) => &mut receipt.receipt,
+            Self::V1(receipt) => &mut receipt.receipt,
         }
     }
 
     pub fn take_receipt(self) -> ReceiptEnum {
         match self {
-            Receipt::V0(receipt) => receipt.receipt,
-            Receipt::V1(receipt) => receipt.receipt,
+            Self::V0(receipt) => receipt.receipt,
+            Self::V1(receipt) => receipt.receipt,
         }
     }
 
-    pub fn receipt_id(&self) -> &CryptoHash {
+    pub const fn receipt_id(&self) -> &CryptoHash {
         match self {
-            Receipt::V0(receipt) => &receipt.receipt_id,
-            Receipt::V1(receipt) => &receipt.receipt_id,
+            Self::V0(receipt) => &receipt.receipt_id,
+            Self::V1(receipt) => &receipt.receipt_id,
         }
     }
 
-    pub fn set_receipt_id(&mut self, receipt_id: CryptoHash) {
+    pub const fn set_receipt_id(&mut self, receipt_id: CryptoHash) {
         match self {
-            Receipt::V0(receipt) => receipt.receipt_id = receipt_id,
-            Receipt::V1(receipt) => receipt.receipt_id = receipt_id,
+            Self::V0(receipt) => receipt.receipt_id = receipt_id,
+            Self::V1(receipt) => receipt.receipt_id = receipt_id,
         }
     }
 
-    pub fn priority(&self) -> ReceiptPriority {
+    pub const fn priority(&self) -> ReceiptPriority {
         match self {
-            Receipt::V0(_) => ReceiptPriority::NoPriority,
-            Receipt::V1(receipt) => ReceiptPriority::Priority(receipt.priority),
+            Self::V0(_) => ReceiptPriority::NoPriority,
+            Self::V1(receipt) => ReceiptPriority::Priority(receipt.priority),
         }
     }
 
     /// It's not a content hash, but receipt_id is unique.
-    pub fn get_hash(&self) -> CryptoHash {
+    pub const fn get_hash(&self) -> CryptoHash {
         *self.receipt_id()
     }
 }

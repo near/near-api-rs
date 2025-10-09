@@ -10,7 +10,7 @@ pub enum SandboxAction {
 }
 
 impl SandboxAction {
-    pub fn method_name(&self) -> &str {
+    pub const fn method_name(&self) -> &str {
         match self {
             Self::PatchState(_) => "sandbox_patch_state",
             Self::FastForward(_) => "sandbox_fast_forward",
