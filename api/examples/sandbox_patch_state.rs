@@ -51,7 +51,7 @@ async fn main() {
 
     let block_height_after = Chain::block_number().fetch_from(&network).await.unwrap();
     assert!(
-        block_height_after >= block_height + 100,
-        "Block height should be {block_height_after} >= {block_height} + 100"
+        block_height_after >= block_height + 1000,
+        "Block height should be {block_height_after} >= {block_height} + 1000"
     );
 }

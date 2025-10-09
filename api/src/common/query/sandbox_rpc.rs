@@ -38,13 +38,13 @@ pub struct SimpleSandboxRpc {
 impl RpcType for SimpleSandboxRpc {
     type RpcReference = ();
     type Response = ();
-    type Error = ();
+    type Error = String;
     async fn send_query(
         &self,
         client: &near_openapi_client::Client,
         _network: &NetworkConfig,
         _reference: &(),
-    ) -> RetryResponse<(), SendRequestError<()>> {
+    ) -> RetryResponse<(), SendRequestError<String>> {
         let result = client
             .client()
             .post(client.baseurl())
@@ -59,14 +59,21 @@ impl RpcType for SimpleSandboxRpc {
 
         match result {
             Ok(response) => {
-                let body = response.text().await.unwrap();
-                println!("{}", body);
+                let Ok(body) = response.json::<serde_json::Value>().await else {
+                    return RetryResponse::Critical(SendRequestError::ServerError(
+                        "Invalid response".to_string(),
+                    ));
+                };
+
+                if body["error"].is_object() {
+                    return RetryResponse::Critical(SendRequestError::ServerError(
+                        body["error"].to_string(),
+                    ));
+                }
+
                 RetryResponse::Ok(())
             }
-            Err(error) => {
-                println!("{:?}", error);
-                RetryResponse::Critical(SendRequestError::ServerError(()))
-            }
+            Err(error) => RetryResponse::Critical(SendRequestError::ServerError(error.to_string())),
         }
     }
 }
