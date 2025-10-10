@@ -14,8 +14,8 @@ use crate::{
     },
     common::{
         query::{
-            CallResultHandler, MultiQueryBuilder, MultiQueryHandler, PostprocessHandler,
-            QueryBuilder, RpcType, RpcValidatorHandler, ValidatorQueryBuilder, ViewStateHandler,
+            CallResultHandler, MultiQueryHandler, MultiRequestBuilder, PostprocessHandler,
+            RequestBuilder, RpcType, RpcValidatorHandler, ViewStateHandler,
         },
         utils::{from_base64, near_data_to_near_token, to_base64},
     },
@@ -55,7 +55,7 @@ impl Delegation {
     pub fn view_staked_balance(
         &self,
         pool: AccountId,
-    ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> Result<RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         Ok(Contract(pool)
             .call_function(
                 "get_account_staked_balance",
@@ -87,7 +87,7 @@ impl Delegation {
     pub fn view_unstaked_balance(
         &self,
         pool: AccountId,
-    ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> Result<RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         Ok(Contract(pool)
             .call_function(
                 "get_account_unstaked_balance",
@@ -119,7 +119,7 @@ impl Delegation {
     pub fn view_total_balance(
         &self,
         pool: AccountId,
-    ) -> Result<QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
+    ) -> Result<RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>>> {
         Ok(Contract(pool)
             .call_function(
                 "get_account_total_balance",
@@ -154,7 +154,7 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> Result<
-        MultiQueryBuilder<
+        MultiRequestBuilder<
             PostprocessHandler<
                 UserStakeBalance,
                 MultiQueryHandler<(
@@ -167,7 +167,7 @@ impl Delegation {
     > {
         let postprocess = MultiQueryHandler::default();
 
-        let multiquery = MultiQueryBuilder::new(postprocess, Reference::Optimistic)
+        let multiquery = MultiRequestBuilder::new(postprocess, Reference::Optimistic)
             .add_query_builder(self.view_staked_balance(pool.clone())?)
             .add_query_builder(self.view_unstaked_balance(pool.clone())?)
             .add_query_builder(self.view_total_balance(pool)?)
@@ -205,7 +205,7 @@ impl Delegation {
     pub fn is_account_unstaked_balance_available_for_withdrawal(
         &self,
         pool: AccountId,
-    ) -> Result<QueryBuilder<CallResultHandler<bool>>> {
+    ) -> Result<RequestBuilder<CallResultHandler<bool>>> {
         Ok(Contract(pool)
             .call_function(
                 "is_account_unstaked_balance_available",
@@ -515,8 +515,8 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn epoch_validators_info() -> ValidatorQueryBuilder<RpcValidatorHandler> {
-        ValidatorQueryBuilder::new(
+    pub fn epoch_validators_info() -> RequestBuilder<RpcValidatorHandler> {
+        RequestBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,
             RpcValidatorHandler,
@@ -535,10 +535,9 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake() -> ValidatorQueryBuilder<
-        PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>,
-    > {
-        ValidatorQueryBuilder::new(
+    pub fn validators_stake()
+    -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>> {
+        RequestBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,
             RpcValidatorHandler,
@@ -587,7 +586,7 @@ impl Staking {
     /// ```
     pub fn staking_pool_reward_fee(
         pool: AccountId,
-    ) -> QueryBuilder<CallResultHandler<RewardFeeFraction>> {
+    ) -> RequestBuilder<CallResultHandler<RewardFeeFraction>> {
         Contract(pool)
             .call_function("get_reward_fee_fraction", ())
             .expect("arguments are not expected")
@@ -610,7 +609,7 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn staking_pool_delegators(pool: AccountId) -> QueryBuilder<CallResultHandler<u64>> {
+    pub fn staking_pool_delegators(pool: AccountId) -> RequestBuilder<CallResultHandler<u64>> {
         Contract(pool)
             .call_function("get_number_of_accounts", ())
             .expect("arguments are not expected")
@@ -635,7 +634,7 @@ impl Staking {
     /// ```
     pub fn staking_pool_total_stake(
         pool: AccountId,
-    ) -> QueryBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
+    ) -> RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
         Contract(pool)
             .call_function("get_total_staked_balance", ())
             .expect("arguments are not expected")
@@ -663,7 +662,7 @@ impl Staking {
     #[allow(clippy::type_complexity)]
     pub fn staking_pool_info(
         pool: AccountId,
-    ) -> MultiQueryBuilder<
+    ) -> MultiRequestBuilder<
         PostprocessHandler<
             StakingPoolInfo,
             MultiQueryHandler<(
@@ -680,7 +679,7 @@ impl Staking {
             CallResultHandler::default(),
         ));
 
-        MultiQueryBuilder::new(handler, Reference::Optimistic)
+        MultiRequestBuilder::new(handler, Reference::Optimistic)
             .add_query_builder(Self::staking_pool_reward_fee(pool.clone()))
             .add_query_builder(Self::staking_pool_delegators(pool.clone()))
             .add_query_builder(Self::staking_pool_total_stake(pool))

@@ -2,7 +2,7 @@ use near_api_types::{BlockHeight, CryptoHash, Reference};
 
 use crate::{
     advanced::{AndThenHandler, block_rpc::SimpleBlockRpc},
-    common::query::{BlockQueryBuilder, PostprocessHandler, RpcBlockHandler},
+    common::query::{PostprocessHandler, RequestBuilder, RpcBlockHandler},
 };
 
 /// Chain-related interactions with the NEAR Protocol
@@ -49,8 +49,8 @@ impl Chain {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn block_number() -> BlockQueryBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
-        BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
+    pub fn block_number() -> RequestBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
+        RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
             .map(|data| data.header.height)
     }
 
@@ -79,8 +79,8 @@ impl Chain {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn block_hash() -> BlockQueryBuilder<AndThenHandler<CryptoHash, RpcBlockHandler>> {
-        BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
+    pub fn block_hash() -> RequestBuilder<AndThenHandler<CryptoHash, RpcBlockHandler>> {
+        RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
             .and_then(|data| Ok(CryptoHash::try_from(data.header.hash)?))
     }
 
@@ -122,8 +122,8 @@ impl Chain {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn block() -> BlockQueryBuilder<RpcBlockHandler> {
-        BlockQueryBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
+    pub fn block() -> RequestBuilder<RpcBlockHandler> {
+        RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
     }
 
     // TODO: chunk info

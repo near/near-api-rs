@@ -30,7 +30,7 @@ impl From<AccountId> for ContractState {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Account {
     pub amount: NearToken,
     pub contract_state: ContractState,
@@ -68,4 +68,50 @@ impl TryFrom<near_openapi_types::AccountView> for Account {
             storage_usage,
         })
     }
+}
+
+impl serde::Serialize for Account {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let version = AccountVersion::V2;
+        let code_hash = match self.contract_state {
+            ContractState::LocalHash(hash) => hash,
+            _ => CryptoHash::default(),
+        };
+        let repr = SerdeAccount {
+            amount: self.amount,
+            locked: self.locked,
+            code_hash,
+            storage_usage: self.storage_usage,
+            version,
+            global_contract_hash: match &self.contract_state {
+                ContractState::GlobalHash(hash) => Some(*hash),
+                _ => None,
+            },
+            global_contract_account_id: match &self.contract_state {
+                ContractState::GlobalAccountId(account_id) => Some(account_id.clone()),
+                _ => None,
+            },
+        };
+        serde::Serialize::serialize(&repr, serializer)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub enum AccountVersion {
+    V1,
+    V2,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub struct SerdeAccount {
+    pub amount: NearToken,
+    pub locked: NearToken,
+    pub code_hash: CryptoHash,
+    pub storage_usage: u64,
+    pub version: AccountVersion,
+    pub global_contract_hash: Option<CryptoHash>,
+    pub global_contract_account_id: Option<AccountId>,
 }

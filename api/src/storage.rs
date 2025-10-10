@@ -2,7 +2,7 @@ use near_api_types::{AccountId, Data, NearToken, StorageBalance, StorageBalanceI
 use serde_json::json;
 
 use crate::{
-    common::query::{CallResultHandler, PostprocessHandler, QueryBuilder},
+    common::query::{CallResultHandler, PostprocessHandler, RequestBuilder},
     contract::{Contract, ContractTransactBuilder},
     errors::BuilderError,
     transactions::ConstructTransaction,
@@ -62,7 +62,7 @@ impl StorageDeposit {
         &self,
         account_id: AccountId,
     ) -> Result<
-        QueryBuilder<
+        RequestBuilder<
             PostprocessHandler<
                 Data<Option<StorageBalance>>,
                 CallResultHandler<Option<StorageBalanceInternal>>,
