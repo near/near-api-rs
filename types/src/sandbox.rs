@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::{
     AccessKey, Account, AccountId, CryptoHash, DelayedReceipt, PublicKey, Receipt, StoreKey,
-    StoreValue,
+    StoreValue, utils::base64_bytes,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -18,6 +18,7 @@ pub enum StateRecord {
     },
     Contract {
         account_id: AccountId,
+        #[serde(with = "base64_bytes")]
         code: Vec<u8>,
     },
     AccessKey {

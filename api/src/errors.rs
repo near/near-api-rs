@@ -169,6 +169,22 @@ pub enum AccountCreationError {
     AccountShouldBeSubAccountOfSignerOrLinkdrop,
 }
 
+#[cfg(feature = "sandbox")]
+#[derive(thiserror::Error, Debug)]
+pub enum SandboxError {
+    #[error("Query error: {0:?}")]
+    QueryError(#[from] QueryError<RpcError>),
+    #[error("Base64 decoding error: {0}")]
+    Base64DecodeError(#[from] base64::DecodeError),
+    #[error("Failed to generate secret key: {0}")]
+    SecretKeyGenerationError(#[from] SecretError),
+    #[error("Failed to create signer: {0}")]
+    SignerCreationError(#[from] SignerError),
+
+    #[error("Patching error: {0}")]
+    PatchingError(#[from] QueryError<String>),
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum FaucetError {
     #[error(
