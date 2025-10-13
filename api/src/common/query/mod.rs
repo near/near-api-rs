@@ -14,8 +14,6 @@ pub mod block_rpc;
 pub mod handlers;
 pub mod query_request;
 pub mod query_rpc;
-#[cfg(feature = "sandbox")]
-pub mod sandbox_rpc;
 pub mod validator_rpc;
 
 pub use handlers::*;

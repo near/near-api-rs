@@ -5,7 +5,10 @@ use near_api::{
     signer::generate_seed_phrase_with_passphrase,
     types::{AccessKeyPermission, AccountId},
 };
-use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY};
+use near_sandbox::config::{
+    DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY,
+    DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
+};
 
 #[tokio::main]
 async fn main() {
@@ -19,7 +22,12 @@ async fn main() {
     // Let's add new key and get the seed phrase
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, public_key)
-        .with_signer(Signer::from_default_sandbox_account().unwrap())
+        .with_signer(
+            Signer::new(Signer::from_secret_key(
+                DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+            ))
+            .unwrap(),
+        )
         .send_to(&network)
         .await
         .unwrap()

@@ -51,8 +51,6 @@ mod account;
 mod chain;
 mod config;
 mod contract;
-#[cfg(feature = "sandbox")]
-mod sandbox;
 mod stake;
 mod storage;
 mod tokens;
@@ -85,9 +83,6 @@ pub use crate::{
         tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
     },
 };
-
-#[cfg(feature = "sandbox")]
-pub use crate::sandbox::Sandbox;
 
 pub mod advanced {
     pub use crate::common::query::*;

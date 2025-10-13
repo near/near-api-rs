@@ -492,16 +492,6 @@ impl Signer {
         keystore::KeystoreSigner::search_for_keys(account_id, network).await
     }
 
-    #[cfg(feature = "sandbox")]
-    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) from the default sandbox account for testing purposes.
-    pub fn from_default_sandbox_account() -> Result<Arc<Self>, SignerError> {
-        Self::new(SecretKeySigner::new(
-            near_sandbox::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY
-                .parse()
-                .unwrap(),
-        ))
-    }
-
     /// Retrieves the public key from the pool of signers.
     /// The public key is rotated on each call.
     #[instrument(skip(self))]

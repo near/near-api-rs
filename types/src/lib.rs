@@ -16,9 +16,6 @@ pub mod tokens;
 pub mod transaction;
 pub mod utils;
 
-#[cfg(feature = "sandbox")]
-pub mod sandbox;
-
 pub use near_abi as abi;
 pub use near_account_id::AccountId;
 pub use near_gas::NearGas;

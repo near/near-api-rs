@@ -49,11 +49,11 @@ near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
 near-ledger = "0.9.1"
 near-openapi-client = "0.4.0"
-near-sandbox = { version = "0.2.0", features = [
-    "generate",
-], default-features = false }
 near-openapi-types = "0.4.0"
 
 # Dev-dependencies
 near-primitives = { version = "0.32" }
 near-crypto = { version = "0.32" }
+near-sandbox = { version = "0.2.0", features = [
+    "generate",
+], default-features = false }

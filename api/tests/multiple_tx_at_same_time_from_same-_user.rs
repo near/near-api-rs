@@ -5,7 +5,10 @@ use near_api::*;
 use near_api_types::{AccessKeyPermission, AccountId, NearToken};
 use near_sandbox::{
     GenesisAccount, SandboxConfig,
-    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY},
+    config::{
+        DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY,
+        DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
+    },
 };
 use signer::generate_secret_key;
 
@@ -20,7 +23,10 @@ async fn multiple_tx_at_same_time_from_same_key() {
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_default_sandbox_account().unwrap();
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+    ))
+    .unwrap();
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await.unwrap())
@@ -64,7 +70,10 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_default_sandbox_account().unwrap();
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+    ))
+    .unwrap();
 
     let secret = generate_secret_key().unwrap();
     Account(account.clone())

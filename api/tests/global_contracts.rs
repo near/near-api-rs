@@ -1,7 +1,10 @@
 use near_api::*;
 
 use near_api_types::{AccountId, CryptoHash, Data};
-use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
+use near_sandbox::{
+    GenesisAccount, SandboxConfig,
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
+};
 
 #[tokio::test]
 async fn deploy_global_contract_as_account_id_and_use_it() {
@@ -98,7 +101,10 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 #[tokio::test]
 async fn deploy_global_contract_as_hash_and_use_it() {
     let global_contract = GenesisAccount::generate_with_name("global_contract".parse().unwrap());
-    let account_signer = Signer::from_default_sandbox_account().unwrap();
+    let account_signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+    ))
+    .unwrap();
     let global_signer = Signer::new(Signer::from_secret_key(
         global_contract.private_key.parse().unwrap(),
     ))

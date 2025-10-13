@@ -45,8 +45,6 @@ near-ledger = { workspace = true, optional = true }
 near-openapi-client.workspace = true
 near-api-types.workspace = true
 
-near-sandbox = { workspace = true, features = ["generate"], optional = true }
-
 zstd.workspace = true
 
 keyring = { workspace = true, features = [
@@ -58,11 +56,10 @@ keyring = { workspace = true, features = [
 
 
 [features]
-default = ["keystore", "ledger", "sandbox"]
+default = ["keystore", "ledger"]
 ledger = ["near-ledger"]
 keystore = ["dep:keyring"]
-sandbox = ["near-sandbox", "near-api-types/sandbox"]
 
 [dev-dependencies]
 tokio = { workspace = true, default-features = false, features = ["full"] }
-near-api = { path = ".", features = ["sandbox"] }
+near-sandbox = { workspace = true, features = ["generate"] }
