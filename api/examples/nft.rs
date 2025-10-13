@@ -2,7 +2,10 @@ use near_api::{
     Contract, NetworkConfig, Signer, Tokens,
     types::{AccountId, NearToken, nft::TokenMetadata},
 };
-use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
+use near_sandbox::{
+    GenesisAccount, SandboxConfig,
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
+};
 use serde_json::json;
 
 #[tokio::main]
@@ -23,7 +26,10 @@ async fn main() {
         nft.private_key.clone().parse().unwrap(),
     ))
     .unwrap();
-    let account_signer = Signer::from_default_sandbox_account().unwrap();
+    let account_signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+    ))
+    .unwrap();
 
     // Deploying token contract
     Contract::deploy(nft.account_id.clone())

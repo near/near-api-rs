@@ -265,7 +265,7 @@ pub enum ValidationError {
     QueryError(QueryError<RpcError>),
 
     #[error("Query creation error: {0}")]
-    QueryBuilderError(#[from] BuilderError),
+    RequestBuilderError(#[from] BuilderError),
 
     #[error("FT Validation Error: {0}")]
     FTValidatorError(#[from] FTValidatorError),

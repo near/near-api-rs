@@ -6,7 +6,7 @@ use near_api_types::{
 
 use crate::advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc};
 use crate::common::query::{
-    AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, QueryBuilder, RpcBuilder,
+    AccessKeyHandler, AccessKeyListHandler, AccountViewHandler, RequestBuilder, RpcBuilder,
 };
 use crate::transactions::ConstructTransaction;
 
@@ -45,11 +45,11 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn view(&self) -> QueryBuilder<AccountViewHandler> {
+    pub fn view(&self) -> RequestBuilder<AccountViewHandler> {
         let request = QueryRequest::ViewAccount {
             account_id: self.0.clone(),
         };
-        QueryBuilder::new(
+        RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             Default::default(),
@@ -75,7 +75,7 @@ impl Account {
     pub fn access_key(
         &self,
         signer_public_key: impl Into<PublicKey>,
-    ) -> QueryBuilder<AccessKeyHandler> {
+    ) -> RequestBuilder<AccessKeyHandler> {
         let request = QueryRequest::ViewAccessKey {
             account_id: self.0.clone(),
             public_key: signer_public_key.into().into(),
@@ -99,7 +99,7 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn list_keys(&self) -> QueryBuilder<AccessKeyListHandler> {
+    pub fn list_keys(&self) -> RequestBuilder<AccessKeyListHandler> {
         let request = QueryRequest::ViewAccessKeyList {
             account_id: self.0.clone(),
         };

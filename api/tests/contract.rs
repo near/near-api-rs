@@ -1,7 +1,7 @@
 use near_api::*;
 
 use near_api_types::{AccountId, Data};
-use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT;
+use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use serde_json::json;
 
 #[tokio::test]
@@ -9,7 +9,10 @@ async fn contract_without_init_call() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_default_sandbox_account().unwrap();
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+    ))
+    .unwrap();
 
     Contract::deploy(account.clone())
         .use_code(include_bytes!("../resources/counter.wasm").to_vec())
@@ -79,7 +82,10 @@ async fn contract_with_init_call() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_default_sandbox_account().unwrap();
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
+    ))
+    .unwrap();
 
     Contract::deploy(account.clone())
         .use_code(include_bytes!("../resources/fungible_token.wasm").to_vec())

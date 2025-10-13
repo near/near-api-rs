@@ -15,7 +15,7 @@ use crate::{
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},
     common::{
         query::{
-            CallResultBorshHandler, CallResultHandler, PostprocessHandler, QueryBuilder,
+            CallResultBorshHandler, CallResultHandler, PostprocessHandler, RequestBuilder,
             ViewCodeHandler, ViewStateHandler,
         },
         send::ExecuteSignedTransaction,
@@ -207,7 +207,7 @@ impl Contract {
     /// ```
     pub fn abi(
         &self,
-    ) -> QueryBuilder<
+    ) -> RequestBuilder<
         PostprocessHandler<Option<near_api_types::abi::AbiRoot>, CallResultHandler<Vec<u8>>>,
     > {
         self.call_function("__contract_abi", ())
@@ -230,12 +230,12 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn wasm(&self) -> QueryBuilder<ViewCodeHandler> {
+    pub fn wasm(&self) -> RequestBuilder<ViewCodeHandler> {
         let request = QueryRequest::ViewCode {
             account_id: self.0.clone(),
         };
 
-        QueryBuilder::new(
+        RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             ViewCodeHandler,
@@ -259,14 +259,14 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn view_storage_with_prefix(&self, prefix: &[u8]) -> QueryBuilder<ViewStateHandler> {
+    pub fn view_storage_with_prefix(&self, prefix: &[u8]) -> RequestBuilder<ViewStateHandler> {
         let request = QueryRequest::ViewState {
             account_id: self.0.clone(),
             prefix_base64: StoreKey(to_base64(prefix)),
             include_proof: Some(false),
         };
 
-        QueryBuilder::new(
+        RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             ViewStateHandler,
@@ -290,7 +290,7 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn view_storage(&self) -> QueryBuilder<ViewStateHandler> {
+    pub fn view_storage(&self) -> RequestBuilder<ViewStateHandler> {
         self.view_storage_with_prefix(&[])
     }
 
@@ -319,7 +319,7 @@ impl Contract {
     /// ```
     pub fn contract_source_metadata(
         &self,
-    ) -> QueryBuilder<CallResultHandler<ContractSourceMetadata>> {
+    ) -> RequestBuilder<CallResultHandler<ContractSourceMetadata>> {
         self.call_function("contract_source_metadata", ())
             .expect("arguments are always serializable")
             .read_only()
@@ -611,14 +611,14 @@ impl CallFunctionBuilder {
     /// ```
     pub fn read_only<Response: Send + Sync + DeserializeOwned>(
         self,
-    ) -> QueryBuilder<CallResultHandler<Response>> {
+    ) -> RequestBuilder<CallResultHandler<Response>> {
         let request = QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
             args_base64: FunctionArgs(to_base64(&self.args)),
         };
 
-        QueryBuilder::new(
+        RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultHandler::<Response>::new(),
@@ -645,14 +645,14 @@ impl CallFunctionBuilder {
     /// ```
     pub fn read_only_borsh<Response: Send + Sync + BorshDeserialize>(
         self,
-    ) -> QueryBuilder<CallResultBorshHandler<Response>> {
+    ) -> RequestBuilder<CallResultBorshHandler<Response>> {
         let request = QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
             args_base64: FunctionArgs(to_base64(&self.args)),
         };
 
-        QueryBuilder::new(
+        RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultBorshHandler::<Response>::new(),

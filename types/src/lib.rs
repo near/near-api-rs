@@ -21,7 +21,7 @@ pub use near_account_id::AccountId;
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
     AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
-    RpcValidatorResponse, StoreKey, TxExecutionStatus, ViewStateResult,
+    RpcValidatorResponse, StoreKey, StoreValue, TxExecutionStatus, ViewStateResult,
 };
 pub use near_token::NearToken;
 pub use reference::{EpochReference, Reference};
@@ -81,12 +81,29 @@ impl<T> Data<T> {
     PartialEq,
     Ord,
     PartialOrd,
-    serde::Serialize,
-    serde::Deserialize,
     borsh::BorshDeserialize,
     borsh::BorshSerialize,
 )]
 pub struct CryptoHash(pub [u8; 32]);
+
+impl serde::Serialize for CryptoHash {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CryptoHash {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        <Self as std::str::FromStr>::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
 
 impl CryptoHash {
     pub fn hash(bytes: &[u8]) -> Self {

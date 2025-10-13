@@ -25,7 +25,6 @@ The minimum required version is located in the [rust-version](./Cargo.toml#L4) f
 
 * `ledger`: Enables integration with a Ledger hardware signer for secure key management.
 * `keystore`: Enables integration with a system keystore signer for managing keys securely on the local system.
-* `sandbox`: Provides integration with [`near-sandbox-rs`](https://github.com/near/near-sandbox-rs) for testing purposes. This feature allows you to include set of useful utility functions to improve DevX testing experience 
 
 ## Current issues
 
