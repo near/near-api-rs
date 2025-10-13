@@ -32,37 +32,12 @@ pub use crypto::public_key::PublicKey;
 pub use crypto::secret_key::SecretKey;
 pub use crypto::signature::Signature;
 pub use transaction::actions::{AccessKey, AccessKeyPermission, Action};
-pub use transaction::receipt::{DelayedReceipt, Receipt};
 
 use crate::errors::DataConversionError;
 
 pub type BlockHeight = u64;
 pub type Nonce = u64;
 pub type StorageUsage = u64;
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    borsh::BorshDeserialize,
-    borsh::BorshSerialize,
-)]
-pub struct ShardId(pub u64);
-
-impl From<near_openapi_types::ShardId> for ShardId {
-    fn from(value: near_openapi_types::ShardId) -> Self {
-        Self(value.0)
-    }
-}
-
-impl From<ShardId> for near_openapi_types::ShardId {
-    fn from(value: ShardId) -> Self {
-        Self(value.0)
-    }
-}
 
 /// A wrapper around a generic query result that includes the block height and block hash
 /// at which the query was executed
