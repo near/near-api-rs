@@ -7,7 +7,7 @@
     <a href="https://t.me/NEAR_Tools_Community_Group"><img src="https://img.shields.io/badge/telegram-online-lightgreen?style=flat-square" alt="Join the community on Telegram" /></a>
  </p>
 
-The `near-api` is a simple Rust library that helps developers interact easily with the NEAR blockchain. The library was highly inspired by the API of the [`near-cli-rs`](https://github.com/near/near-cli-rs) library. The library extensively utilizes builder patterns, this way we guide the users through the user flow, preventing most of the errors and focusing on each step.
+The `near-api` is a simple Rust library that helps developers interact easily with the NEAR blockchain. The library was highly inspired by the API of the [`near-cli-rs`](https://github.com/near/near-cli-rs) library. The library extensively utilizes builder patterns. This way, we guide the users through the user flow, preventing most of the errors and focusing on each step.
 
 Currently, the library provides:
 * Account management
