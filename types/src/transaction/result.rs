@@ -491,9 +491,9 @@ impl ExecutionOutcome {
     /// particular outcome has failed or not.
     pub fn into_result(self) -> Result<ValueOrReceiptId, ExecutionError> {
         match self.status {
-            ExecutionStatusView::SuccessValue(value) => Ok(ValueOrReceiptId::Value(
-                Value::from_string(value),
-            )),
+            ExecutionStatusView::SuccessValue(value) => {
+                Ok(ValueOrReceiptId::Value(Value::from_string(value)))
+            }
             ExecutionStatusView::SuccessReceiptId(hash) => {
                 Ok(ValueOrReceiptId::ReceiptId(hash.try_into()?))
             }
