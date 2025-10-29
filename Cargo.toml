@@ -11,7 +11,7 @@ repository = "https://github.com/polyprogrammist/near-openapi-client"
 
 
 [workspace.dependencies]
-near-api-types = { path = "types", version = "0.7.0" }
+near-api-types = { path = "types", version = "0.7.1" }
 
 borsh = "1.5"
 async-trait = "0.1"
