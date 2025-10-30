@@ -135,7 +135,7 @@ impl Contract {
         &self,
         method_name: &str,
         args: Args,
-    ) -> Result<CallFunctionBuilder, BuilderError>
+    ) -> Result<CallFunctionBuilder, std::io::Error>
     where
         Args: borsh::BorshSerialize,
     {

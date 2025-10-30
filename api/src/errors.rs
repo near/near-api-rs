@@ -149,8 +149,6 @@ pub enum SecretBuilderError<E: std::fmt::Debug> {
 pub enum BuilderError {
     #[error("Incorrect arguments: {0}")]
     IncorrectArguments(#[from] serde_json::Error),
-    #[error("Borsh serialization error: {0}")]
-    SerializationError(#[from] std::io::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
