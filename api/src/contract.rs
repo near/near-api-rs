@@ -45,9 +45,14 @@ use crate::{
 pub struct Contract(pub AccountId);
 
 impl Contract {
-    /// Prepares a call to a contract function.
+    /// Prepares a call to a contract function with JSON-serialized arguments.
     ///
-    /// This will return a builder that can be used to prepare a query or a transaction.
+    /// This is the default and most common way to call contract functions, using JSON serialization
+    /// for the input arguments. This will return a builder that can be used to prepare a query or a transaction.
+    ///
+    /// For alternative serialization formats, see:
+    /// - [`call_function_borsh`](Contract::call_function_borsh) for Borsh serialization
+    /// - [`call_function_raw`](Contract::call_function_raw) for pre-serialized raw bytes
     ///
     /// ## Calling view function `get_number`
     /// ```rust,no_run
@@ -97,6 +102,81 @@ impl Contract {
             method_name: method_name.to_string(),
             args,
         })
+    }
+
+    /// Prepares a call to a contract function with Borsh-serialized arguments.
+    ///
+    /// This method is useful when the contract expects Borsh-encoded input arguments instead of JSON.
+    /// This is less common but can be more efficient for certain use cases.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    /// use borsh::BorshSerialize;
+    ///
+    /// #[derive(BorshSerialize)]
+    /// struct MyArgs {
+    ///     value: u64,
+    /// }
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let args = MyArgs { value: 42 };
+    /// let result = Contract("some_contract.testnet".parse()?)
+    ///     .call_function_borsh("set_value", args)?
+    ///     .transaction()
+    ///     .with_signer("alice.testnet".parse()?, signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn call_function_borsh<Args>(
+        &self,
+        method_name: &str,
+        args: Args,
+    ) -> Result<CallFunctionBuilder, BuilderError>
+    where
+        Args: borsh::BorshSerialize,
+    {
+        let args = borsh::to_vec(&args)?;
+
+        Ok(CallFunctionBuilder {
+            contract: self.0.clone(),
+            method_name: method_name.to_string(),
+            args,
+        })
+    }
+
+    /// Prepares a call to a contract function with pre-serialized raw bytes.
+    ///
+    /// This method is useful when you already have serialized arguments or need complete control
+    /// over the serialization format. The bytes are passed directly to the contract without any
+    /// additional processing.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// // Pre-serialized or custom-encoded data
+    /// let raw_args = vec![1, 2, 3, 4];
+    /// let result = Contract("some_contract.testnet".parse()?)
+    ///     .call_function_raw("custom_method", raw_args)
+    ///     .transaction()
+    ///     .with_signer("alice.testnet".parse()?, signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn call_function_raw(&self, method_name: &str, args: Vec<u8>) -> CallFunctionBuilder {
+        CallFunctionBuilder {
+            contract: self.0.clone(),
+            method_name: method_name.to_string(),
+            args,
+        }
     }
 
     /// Prepares a transaction to deploy a contract to the provided account.
@@ -487,6 +567,12 @@ impl SetDeployActionWithInitCallBuilder {
     /// Specify the gas limit for the transaction. By default it is set to 100 TGas.
     pub const fn gas(mut self, gas: NearGas) -> Self {
         self.gas = Some(gas);
+        self
+    }
+
+    /// Specify the gas limit for the transaction to the maximum allowed value.
+    pub const fn max_gas(mut self) -> Self {
+        self.gas = Some(NearGas::from_tgas(300));
         self
     }
 
