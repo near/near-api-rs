@@ -305,7 +305,7 @@ impl Delegation {
     /// ```
     pub fn stake(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         let args = serde_json::json!({
-            "amount": amount.as_yoctonear(),
+            "amount": amount,
         });
 
         Ok(Contract(pool)
@@ -365,7 +365,7 @@ impl Delegation {
     /// ```
     pub fn unstake(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         let args = serde_json::json!({
-            "amount": amount.as_yoctonear(),
+            "amount": amount,
         });
 
         Ok(Contract(pool)
@@ -423,7 +423,7 @@ impl Delegation {
     /// ```
     pub fn withdraw(&self, pool: AccountId, amount: NearToken) -> Result<ConstructTransaction> {
         let args = serde_json::json!({
-            "amount": amount.as_yoctonear(),
+            "amount": amount,
         });
 
         Ok(Contract(pool)

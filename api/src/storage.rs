@@ -146,7 +146,7 @@ impl StorageDeposit {
             .call_function(
                 "storage_withdraw",
                 json!({
-                    "amount": amount.as_yoctonear()
+                    "amount": amount
                 }),
             )?
             .transaction()
