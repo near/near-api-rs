@@ -240,6 +240,10 @@ pub enum ExecuteMetaTransactionsError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum FTValidatorError {
+    #[deprecated(
+        since = "0.7.3",
+        note = "this error is unused as we are not falling if no metadata provided"
+    )]
     #[error("Metadata is not provided")]
     NoMetadata,
     #[error("Decimals mismatch: expected {expected}, got {got}")]
