@@ -779,6 +779,12 @@ impl ContractTransactBuilder {
         self
     }
 
+    /// Specify the max gas for the transaction. By default it is set to 300 TGas.
+    pub const fn max_gas(mut self) -> Self {
+        self.gas = Some(NearGas::from_tgas(300));
+        self
+    }
+
     /// Specify the near deposit for the transaction. By default it is set to 0.
     ///
     /// Please note that the method should be [`payable`](https://docs.near.org/build/smart-contracts/anatomy/functions#payable-functions) in the contract to accept the deposit.
