@@ -432,10 +432,11 @@ impl FTTransactionable {
     ) -> core::result::Result<(), ValidationError> {
         let metadata = Tokens::ft_metadata(self.prepopulated.receiver_id.clone())?;
 
-        let metadata = metadata
-            .fetch_from(network)
-            .await
-            .map_err(|_| FTValidatorError::NoMetadata)?;
+        let Ok(metadata) = metadata.fetch_from(network).await else {
+            // If there is no metadata, than we can't check it
+            return Ok(());
+        };
+
         if metadata.data.decimals != self.decimals {
             Err(FTValidatorError::DecimalsMismatch {
                 expected: metadata.data.decimals,
