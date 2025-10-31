@@ -1,6 +1,6 @@
 [package]
 name = "near-api"
-version = "0.7.3"
+version = "0.7.4"
 rust-version = "1.85"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
