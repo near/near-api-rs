@@ -371,6 +371,8 @@ impl SendToBuilder {
     /// the sender.
     ///
     /// The provided function depends that the contract implements [`NEP-141`](https://nomicon.io/Standards/Tokens/FungibleToken/Core#nep-141)
+    ///
+    /// For transferring tokens and calling a receiver contract method in a single transaction, see [`ft_call`](Self::ft_call).
     pub fn ft(
         self,
         ft_contract: AccountId,
@@ -400,6 +402,8 @@ impl SendToBuilder {
     /// Prepares a new transaction contract call (`nft_transfer`) for sending NFT tokens to another account.
     ///
     /// The provided function depends that the contract implements [`NEP-171`](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core#nep-171)
+    ///
+    /// For transferring an NFT and calling a receiver contract method in a single transaction, see [`nft_call`](Self::nft_call).
     pub fn nft(self, nft_contract: AccountId, token_id: String) -> Result<ConstructTransaction> {
         Ok(Contract(nft_contract)
             .call_function(
@@ -407,6 +411,109 @@ impl SendToBuilder {
                 json!({
                     "receiver_id": self.receiver_id,
                     "token_id": token_id
+                }),
+            )?
+            .transaction()
+            .deposit(NearToken::from_yoctonear(1))
+            .with_signer_account(self.from))
+    }
+
+    /// Prepares a new transaction contract call (`ft_transfer_call`, `ft_metadata`, `storage_balance_of`, `storage_deposit`) for transferring FT tokens and calling a receiver contract method.
+    ///
+    /// This method enables transferring tokens and invoking a receiver contract method in a single transaction.
+    /// The receiver contract must implement `ft_on_transfer` according to NEP-141.
+    ///
+    /// Please note that if the receiver does not have enough storage, we will automatically deposit 100 milliNEAR for storage from
+    /// the sender.
+    ///
+    /// The provided function depends that the contract implements [`NEP-141`](https://nomicon.io/Standards/Tokens/FungibleToken/Core#nep-141)
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let alice_tokens = Tokens::account("alice.near".parse()?);
+    ///
+    /// let result = alice_tokens.send_to("contract.near".parse()?)
+    ///     .ft_call(
+    ///         "usdt.tether-token.near".parse()?,
+    ///         USDT_BALANCE.with_whole_amount(100),
+    ///         "deposit".to_string(),
+    ///     )?
+    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .send_to_mainnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn ft_call(
+        self,
+        ft_contract: AccountId,
+        amount: FTBalance,
+        msg: String,
+    ) -> Result<TransactionWithSign<FTTransactionable>> {
+        let tr = Contract(ft_contract)
+            .call_function(
+                "ft_transfer_call",
+                json!({
+                    "receiver_id": self.receiver_id,
+                    "amount": amount.amount().to_string(),
+                    "msg": msg,
+                }),
+            )?
+            .transaction()
+            .deposit(NearToken::from_yoctonear(1))
+            .with_signer_account(self.from);
+
+        Ok(TransactionWithSign {
+            tx: FTTransactionable {
+                receiver: self.receiver_id,
+                prepopulated: tr.tr,
+                decimals: amount.decimals(),
+            },
+        })
+    }
+
+    /// Prepares a new transaction contract call (`nft_transfer_call`) for transferring an NFT and calling a receiver contract method.
+    ///
+    /// This method enables "transfer and call" functionality, allowing a user to attach an NFT to a function call
+    /// on a separate contract in a single transaction. The receiver contract must implement `nft_on_transfer` according to NEP-171.
+    ///
+    /// The provided function depends that the contract implements [`NEP-171`](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core#nep-171)
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let alice_tokens = Tokens::account("alice.near".parse()?);
+    ///
+    /// let result = alice_tokens.send_to("marketplace.near".parse()?)
+    ///     .nft_call(
+    ///         "nft-contract.testnet".parse()?,
+    ///         "token-123".to_string(),
+    ///         "list_for_sale".to_string(),
+    ///     )?
+    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn nft_call(
+        self,
+        nft_contract: AccountId,
+        token_id: String,
+        msg: String,
+    ) -> Result<ConstructTransaction> {
+        Ok(Contract(nft_contract)
+            .call_function(
+                "nft_transfer_call",
+                json!({
+                    "receiver_id": self.receiver_id,
+                    "token_id": token_id,
+                    "msg": msg,
                 }),
             )?
             .transaction()
