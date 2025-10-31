@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4](https://github.com/near/near-api-rs/compare/near-api-v0.7.3...near-api-v0.7.4) - 2025-10-31
+
+### Added
+
+- added ft_transfer_call and nft_transfer_call support
+
+### Other
+
+- deprecate error invariant
+- do not fail if NoMetadata in token
+- use NearToken for serialization
+
 ## [0.7.3](https://github.com/near/near-api-rs/compare/near-api-v0.7.2...near-api-v0.7.3) - 2025-10-30
 
 ### Added
