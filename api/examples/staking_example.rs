@@ -3,7 +3,7 @@ use near_sandbox::{config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, GenesisAccount, 
 
 #[tokio::main]
 async fn main() {
-    let staker: AccountId = "yurtur.near".parse().unwrap();
+    let staker: AccountId = "dev.near".parse().unwrap();
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![GenesisAccount::default_with_name(staker.clone()).clone()],
         ..SandboxConfig::default()
