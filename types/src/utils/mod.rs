@@ -1,7 +1,7 @@
 /// Convenience module to allow annotating a serde structure as base64 bytes.
 pub mod base64_bytes {
     use base64::Engine;
-    use serde::{Deserialize, Deserializer, Serializer, de};
+    use serde::{de, Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
     where

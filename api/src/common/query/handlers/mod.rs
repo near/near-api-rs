@@ -1,7 +1,7 @@
 use borsh::BorshDeserialize;
 use near_api_types::{
-    AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
-    RpcValidatorResponse, ViewStateResult, json::U64,
+    json::U64, AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey,
+    RpcBlockResponse, RpcValidatorResponse, ViewStateResult,
 };
 use near_openapi_client::types::RpcQueryResponse;
 use serde::de::DeserializeOwned;
@@ -10,10 +10,10 @@ use tracing::{info, trace, warn};
 
 use crate::{
     advanced::{
-        RpcType, block_rpc::SimpleBlockRpc, query_rpc::SimpleQueryRpc,
-        validator_rpc::SimpleValidatorRpc,
+        block_rpc::SimpleBlockRpc, query_rpc::SimpleQueryRpc, validator_rpc::SimpleValidatorRpc,
+        RpcType,
     },
-    common::query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
+    common::query::{ResultWithMethod, QUERY_EXECUTOR_TARGET},
     errors::QueryError,
 };
 pub mod transformers;

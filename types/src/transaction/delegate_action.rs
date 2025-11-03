@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::{prelude::BASE64_STANDARD, Engine};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccountId, Action, BlockHeight, Nonce, PublicKey, Signature, errors::DataConversionError,
+    errors::DataConversionError, AccountId, Action, BlockHeight, Nonce, PublicKey, Signature,
 };
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq)]

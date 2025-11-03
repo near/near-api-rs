@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use crate::AccountId;
-use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
@@ -517,7 +517,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::crypto::{ED25519_PUBLIC_KEY_LENGTH, public_key::ED25519PublicKey};
+    use crate::crypto::{public_key::ED25519PublicKey, ED25519_PUBLIC_KEY_LENGTH};
     use crate::transaction::delegate_action::{DelegateAction, NonDelegateAction};
     use near_primitives::action as npa;
     use serde_json;
@@ -634,12 +634,10 @@ mod tests {
                 delegate_action: npa::delegate::DelegateAction {
                     sender_id: "sender.near".parse().unwrap(),
                     receiver_id: "receiver.near".parse().unwrap(),
-                    actions: vec![
-                        npa::delegate::NonDelegateAction::try_from(npa::Action::Transfer(
-                            npa::TransferAction { deposit: 1000 },
-                        ))
-                        .unwrap(),
-                    ],
+                    actions: vec![npa::delegate::NonDelegateAction::try_from(
+                        npa::Action::Transfer(npa::TransferAction { deposit: 1000 }),
+                    )
+                    .unwrap()],
                     nonce: 1,
                     max_block_height: 1000,
                     public_key: near_crypto::PublicKey::empty(near_crypto::KeyType::ED25519),

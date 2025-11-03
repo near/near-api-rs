@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::{AccountId, CryptoHash, NearToken, StorageUsage, errors::DataConversionError};
+use crate::{errors::DataConversionError, AccountId, CryptoHash, NearToken, StorageUsage};
 
 #[derive(
     Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default,

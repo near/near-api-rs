@@ -7,19 +7,19 @@ use near_openapi_client::types::{
 };
 
 use near_api_types::{
-    BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
     transaction::{
-        PrepopulateTransaction, SignedTransaction,
         delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
         result::ExecutionFinalResult,
+        PrepopulateTransaction, SignedTransaction,
     },
+    BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
 };
 use reqwest::Response;
 use tracing::{debug, info};
 
 use crate::{
     common::utils::is_critical_transaction_error,
-    config::{NetworkConfig, RetryResponse, retry},
+    config::{retry, NetworkConfig, RetryResponse},
     errors::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SendRequestError,
         SignerError, ValidationError,

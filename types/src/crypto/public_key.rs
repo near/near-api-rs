@@ -8,7 +8,7 @@ use std::{
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    crypto::{KeyType, SECP256K1_PUBLIC_KEY_LENGTH, split_key_type_data},
+    crypto::{split_key_type_data, KeyType, SECP256K1_PUBLIC_KEY_LENGTH},
     errors::DataConversionError,
 };
 

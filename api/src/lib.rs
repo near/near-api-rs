@@ -78,9 +78,9 @@ pub use crate::{
     tokens::Tokens,
     transactions::Transaction,
     types::{
+        tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
         AccountId, CryptoHash, Data, EpochReference, NearGas, NearToken, PublicKey, Reference,
         SecretKey,
-        tokens::{FTBalance, USDT_BALANCE, W_NEAR_BALANCE},
     },
 };
 

@@ -4,11 +4,11 @@ use futures::future::join_all;
 use near_api::*;
 use near_api_types::{AccessKeyPermission, AccountId, NearToken};
 use near_sandbox::{
-    GenesisAccount, SandboxConfig,
     config::{
         DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY,
         DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
     },
+    GenesisAccount, SandboxConfig,
 };
 use signer::generate_secret_key;
 

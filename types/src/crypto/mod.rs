@@ -68,7 +68,7 @@ fn split_key_type_data(value: &str) -> Result<(KeyType, &str), DataConversionErr
 
 #[cfg(test)]
 mod tests {
-    use super::{KeyType, public_key::PublicKey, secret_key::SecretKey, signature::Signature};
+    use super::{public_key::PublicKey, secret_key::SecretKey, signature::Signature, KeyType};
 
     #[test]
     fn signature_verify_fuzzer() {

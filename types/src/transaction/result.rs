@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 use borsh;
 use near_openapi_types::{
     CallResult, ExecutionStatusView, FinalExecutionOutcomeView, FinalExecutionStatus,
@@ -10,9 +10,9 @@ use near_openapi_types::{
 };
 
 use crate::{
-    AccountId, CryptoHash, NearGas, NearToken, Signature,
     errors::{DataConversionError, ExecutionError},
     transaction::{SignedTransaction, Transaction},
+    AccountId, CryptoHash, NearGas, NearToken, Signature,
 };
 
 /// Execution related info as a result of performing a successful transaction

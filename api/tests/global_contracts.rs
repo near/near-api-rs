@@ -2,8 +2,8 @@ use near_api::*;
 
 use near_api_types::{AccountId, CryptoHash, Data};
 use near_sandbox::{
-    GenesisAccount, SandboxConfig,
     config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
+    GenesisAccount, SandboxConfig,
 };
 
 #[tokio::test]
@@ -46,27 +46,23 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 
     let contract = Contract(global_contract.account_id.clone());
 
-    assert!(
-        !contract
-            .wasm()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .code_base64
-            .is_empty()
-    );
+    assert!(!contract
+        .wasm()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .code_base64
+        .is_empty());
 
-    assert!(
-        contract
-            .contract_source_metadata()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .version
-            .is_some()
-    );
+    assert!(contract
+        .contract_source_metadata()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .version
+        .is_some());
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -141,27 +137,23 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     let contract = Contract(account_id.clone());
 
-    assert!(
-        !contract
-            .wasm()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .code_base64
-            .is_empty()
-    );
+    assert!(!contract
+        .wasm()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .code_base64
+        .is_empty());
 
-    assert!(
-        contract
-            .contract_source_metadata()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .version
-            .is_some()
-    );
+    assert!(contract
+        .contract_source_metadata()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .version
+        .is_some());
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())

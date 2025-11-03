@@ -4,12 +4,12 @@ pub mod actions;
 pub mod delegate_action;
 pub mod result;
 
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::{prelude::BASE64_STANDARD, Engine};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccountId, Action, CryptoHash, Nonce, PublicKey, Signature, errors::DataConversionError,
+    errors::DataConversionError, AccountId, Action, CryptoHash, Nonce, PublicKey, Signature,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]

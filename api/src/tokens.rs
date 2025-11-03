@@ -1,16 +1,15 @@
 use near_api_types::{
-    AccountId, Action, Data, NearToken, Reference,
     ft::FungibleTokenMetadata,
     json::U128,
     nft::{NFTContractMetadata, Token},
-    tokens::{FTBalance, STORAGE_COST_PER_BYTE, UserBalance},
-    transaction::PrepopulateTransaction,
+    tokens::{FTBalance, UserBalance, STORAGE_COST_PER_BYTE},
     transaction::actions::TransferAction,
+    transaction::PrepopulateTransaction,
+    AccountId, Action, Data, NearToken, Reference,
 };
 use serde_json::json;
 
 use crate::{
-    NetworkConfig, StorageDeposit,
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},
     common::{
         query::{
@@ -22,6 +21,7 @@ use crate::{
     contract::Contract,
     errors::{BuilderError, FTValidatorError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
+    NetworkConfig, StorageDeposit,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
