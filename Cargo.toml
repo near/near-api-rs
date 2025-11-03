@@ -62,3 +62,6 @@ near-crypto = { version = "0.32" }
 near-sandbox = { version = "0.2.0", features = [
     "generate",
 ], default-features = false }
+
+[patch.crates-io]
+near-sandbox = { git = "https://github.com/near/near-sandbox-rs.git", branch = "sandbox-rpc" }
