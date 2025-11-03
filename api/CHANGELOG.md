@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.6](https://github.com/near/near-api-rs/compare/near-api-v0.7.5...near-api-v0.7.6) - 2025-11-03
+
+### Other
+
+- fixed MultiQueryResponseHandler for 3 queries
+
 ## [0.7.5](https://github.com/near/near-api-rs/compare/near-api-v0.7.4...near-api-v0.7.5) - 2025-11-03
 
 ### Other
