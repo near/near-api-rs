@@ -56,11 +56,8 @@ where
 
         let first_response =
             h1.process_response(responses.drain(0..h1.request_amount()).collect())?;
-        let second_response = h2.process_response(
-            responses
-                .drain(h1.request_amount()..h2.request_amount())
-                .collect(),
-        )?;
+        let second_response =
+            h2.process_response(responses.drain(0..h2.request_amount()).collect())?;
         let third_response = h3.process_response(responses)?;
 
         Ok((first_response, second_response, third_response))
