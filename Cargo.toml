@@ -4,8 +4,13 @@ members = ["api", "types"]
 rust-version = "1.85"
 
 [workspace.package]
-edition = "2024"
-resolver = "3"
+edition = "2021"
+resolver = "2"
+authors = [
+    "akorchyn <artur.yurii.korchynskyi@gmail.com>",
+    "frol <frolvlad@gmail.com>",
+    "Near Inc <hello@nearprotocol.com>",
+]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/polyprogrammist/near-openapi-client"
 

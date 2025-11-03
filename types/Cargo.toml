@@ -1,16 +1,12 @@
 [package]
 name = "near-api-types"
 version = "0.7.1"
-authors = [
-    "akorchyn <artur.yurii.korchynskyi@gmail.com>",
-    "frol <frolvlad@gmail.com>",
-    "Near Inc <hello@nearprotocol.com>",
-]
-license = "MIT OR Apache-2.0"
-edition = "2024"
 resolver = "2"
-repository = "https://github.com/near/near-api-rs"
-description = "Rust library to interact with NEAR Protocol via RPC API"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+description = "Rust types library to interact with NEAR Protocol via RPC API"
 
 
 [dependencies]
