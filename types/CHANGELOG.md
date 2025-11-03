@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2](https://github.com/near/near-api-rs/compare/near-api-types-v0.7.1...near-api-types-v0.7.2) - 2025-11-03
+
+### Other
+
+- restored back to 2021 edition
+
 ## [0.7.1](https://github.com/near/near-api-rs/compare/near-api-types-v0.7.0...near-api-types-v0.7.1) - 2025-10-28
 
 ### Fixed
