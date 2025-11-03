@@ -1,8 +1,8 @@
 use near_api::{
+    types::{tokens::FTBalance, AccountId},
     Contract, NetworkConfig, Signer, Tokens,
-    types::{AccountId, tokens::FTBalance},
 };
-use near_sandbox::{GenesisAccount, SandboxConfig, config::DEFAULT_GENESIS_ACCOUNT};
+use near_sandbox::{config::DEFAULT_GENESIS_ACCOUNT, GenesisAccount, SandboxConfig};
 
 use serde_json::json;
 

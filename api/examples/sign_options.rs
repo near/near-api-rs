@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use near_api::{
-    Account, NetworkConfig, PublicKey, Signer, SignerTrait,
     signer::generate_seed_phrase_with_passphrase,
     types::{AccessKeyPermission, AccountId},
+    Account, NetworkConfig, PublicKey, Signer, SignerTrait,
 };
 use near_sandbox::config::{
     DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY,

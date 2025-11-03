@@ -1,16 +1,15 @@
 use std::collections::BTreeMap;
 
 use near_api_types::{
-    AccountId, Data, EpochReference, NearGas, NearToken, Reference,
     stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
+    AccountId, Data, EpochReference, NearGas, NearToken, Reference,
 };
 use near_openapi_client::types::{RpcError, RpcQueryResponse};
 
 use crate::{
-    NetworkConfig,
     advanced::{
-        ResponseHandler, RpcBuilder, query_request::QueryRequest, query_rpc::SimpleQueryRpc,
-        validator_rpc::SimpleValidatorRpc,
+        query_request::QueryRequest, query_rpc::SimpleQueryRpc, validator_rpc::SimpleValidatorRpc,
+        ResponseHandler, RpcBuilder,
     },
     common::{
         query::{
@@ -23,6 +22,7 @@ use crate::{
     contract::Contract,
     errors::{BuilderError, QueryCreationError, QueryError, SendRequestError},
     transactions::ConstructTransaction,
+    NetworkConfig,
 };
 
 type Result<T> = core::result::Result<T, BuilderError>;
@@ -535,8 +535,9 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake()
-    -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>> {
+    pub fn validators_stake(
+    ) -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>>
+    {
         RequestBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,

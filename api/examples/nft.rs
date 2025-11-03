@@ -1,10 +1,10 @@
 use near_api::{
+    types::{nft::TokenMetadata, AccountId, NearToken},
     Contract, NetworkConfig, Signer, Tokens,
-    types::{AccountId, NearToken, nft::TokenMetadata},
 };
 use near_sandbox::{
-    GenesisAccount, SandboxConfig,
     config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
+    GenesisAccount, SandboxConfig,
 };
 use serde_json::json;
 

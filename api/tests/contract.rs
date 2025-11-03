@@ -25,27 +25,23 @@ async fn contract_without_init_call() {
 
     let contract = Contract(account.clone());
 
-    assert!(
-        !contract
-            .wasm()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .code_base64
-            .is_empty()
-    );
+    assert!(!contract
+        .wasm()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .code_base64
+        .is_empty());
 
-    assert!(
-        contract
-            .contract_source_metadata()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .version
-            .is_some()
-    );
+    assert!(contract
+        .contract_source_metadata()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .version
+        .is_some());
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -105,14 +101,12 @@ async fn contract_with_init_call() {
 
     let contract = Contract(account.clone());
 
-    assert!(
-        !contract
-            .wasm()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .code_base64
-            .is_empty()
-    );
+    assert!(!contract
+        .wasm()
+        .fetch_from(&network)
+        .await
+        .unwrap()
+        .data
+        .code_base64
+        .is_empty());
 }

@@ -112,17 +112,17 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
     sync::{
-        Arc,
         atomic::{AtomicU64, AtomicUsize, Ordering},
+        Arc,
     },
 };
 
 use near_api_types::{
-    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
     transaction::{
-        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
         delegate_action::{NonDelegateAction, SignedDelegateAction},
+        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
     },
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -675,8 +675,8 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 
 #[cfg(test)]
 mod nep_413_tests {
-    use base64::{Engine, prelude::BASE64_STANDARD};
-    use near_api_types::{Signature, crypto::KeyType};
+    use base64::{prelude::BASE64_STANDARD, Engine};
+    use near_api_types::{crypto::KeyType, Signature};
 
     use crate::SignerTrait;
 

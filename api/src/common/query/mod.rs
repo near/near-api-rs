@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tracing::{debug, error, info, instrument};
 
 use crate::{
-    config::{NetworkConfig, RetryResponse, retry},
+    config::{retry, NetworkConfig, RetryResponse},
     errors::{QueryError, SendRequestError},
 };
 
@@ -169,9 +169,9 @@ where
     pub fn and_then<MappedType>(
         self,
         map: impl Fn(Handler::Response) -> Result<MappedType, Box<dyn std::error::Error + Send + Sync>>
-        + Send
-        + Sync
-        + 'static,
+            + Send
+            + Sync
+            + 'static,
     ) -> MultiRpcBuilder<Query, AndThenHandler<MappedType, Handler>> {
         MultiRpcBuilder {
             handler: AndThenHandler::new(self.handler, map),
@@ -371,9 +371,9 @@ where
     pub fn and_then<MappedType>(
         self,
         map: impl Fn(Handler::Response) -> Result<MappedType, Box<dyn std::error::Error + Send + Sync>>
-        + Send
-        + Sync
-        + 'static,
+            + Send
+            + Sync
+            + 'static,
     ) -> RpcBuilder<Query, AndThenHandler<MappedType, Handler>> {
         RpcBuilder {
             handler: AndThenHandler::new(self.handler, map),

@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use near_api_types::{
-    AccountId, Action, CryptoHash, Data, FunctionArgs, NearGas, NearToken, Reference, StoreKey,
     contract::ContractSourceMetadata,
     transaction::actions::{
         DeployContractAction, DeployGlobalContractAction, FunctionCallAction,
         GlobalContractDeployMode, GlobalContractIdentifier, UseGlobalContractAction,
     },
+    AccountId, Action, CryptoHash, Data, FunctionArgs, NearGas, NearToken, Reference, StoreKey,
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},

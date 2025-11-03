@@ -1,7 +1,7 @@
 use near_api_types::{BlockHeight, CryptoHash, Reference};
 
 use crate::{
-    advanced::{AndThenHandler, block_rpc::SimpleBlockRpc},
+    advanced::{block_rpc::SimpleBlockRpc, AndThenHandler},
     common::query::{PostprocessHandler, RequestBuilder, RpcBlockHandler},
 };
 

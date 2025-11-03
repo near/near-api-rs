@@ -1,11 +1,11 @@
 use near_api::{
-    Account, NetworkConfig, Signer, Tokens,
     signer::generate_secret_key,
     types::{AccessKeyPermission, AccountId, NearToken, TxExecutionStatus},
+    Account, NetworkConfig, Signer, Tokens,
 };
 use near_sandbox::{
-    GenesisAccount, SandboxConfig,
     config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
+    GenesisAccount, SandboxConfig,
 };
 
 #[tokio::test]
