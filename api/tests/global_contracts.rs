@@ -1,3 +1,4 @@
+use base64::{prelude::BASE64_STANDARD, Engine};
 use near_api::*;
 
 use near_api_types::{AccountId, CryptoHash, Data};
@@ -26,8 +27,10 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
     .await
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    let code_bytes = include_bytes!("../resources/counter.wasm");
+    let base64_code_bytes = BASE64_STANDARD.encode(code_bytes);
 
-    Contract::deploy_global_contract_code(include_bytes!("../resources/counter.wasm").to_vec())
+    Contract::deploy_global_contract_code(code_bytes.to_vec())
         .as_account_id(global_contract.account_id.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
@@ -44,16 +47,29 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .unwrap()
         .assert_success();
 
+    assert_eq!(
+        Contract::global_wasm()
+            .by_account_id(global_contract.account_id.clone())
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .code_base64,
+        base64_code_bytes
+    );
+
     let contract = Contract(global_contract.account_id.clone());
 
-    assert!(!contract
-        .wasm()
-        .fetch_from(&network)
-        .await
-        .unwrap()
-        .data
-        .code_base64
-        .is_empty());
+    assert_eq!(
+        contract
+            .wasm()
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .code_base64,
+        base64_code_bytes
+    );
 
     assert!(contract
         .contract_source_metadata()
@@ -117,6 +133,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
     let hash = CryptoHash::hash(&code);
+    let base64_code = BASE64_STANDARD.encode(&code);
 
     Contract::deploy_global_contract_code(code.clone())
         .as_hash()
@@ -125,6 +142,17 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .await
         .unwrap()
         .assert_success();
+
+    assert_eq!(
+        Contract::global_wasm()
+            .by_hash(hash)
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .code_base64,
+        base64_code
+    );
 
     Contract::deploy(account_id.clone())
         .use_global_hash(hash)
@@ -137,14 +165,16 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     let contract = Contract(account_id.clone());
 
-    assert!(!contract
-        .wasm()
-        .fetch_from(&network)
-        .await
-        .unwrap()
-        .data
-        .code_base64
-        .is_empty());
+    assert_eq!(
+        contract
+            .wasm()
+            .fetch_from(&network)
+            .await
+            .unwrap()
+            .data
+            .code_base64,
+        base64_code
+    );
 
     assert!(contract
         .contract_source_metadata()
