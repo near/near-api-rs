@@ -355,7 +355,7 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn global_wasm() -> GlobalWasmBuilder {
+    pub const fn global_wasm() -> GlobalWasmBuilder {
         GlobalWasmBuilder
     }
 
