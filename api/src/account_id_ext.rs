@@ -1,11 +1,6 @@
 use near_api_types::AccountId;
 
-use crate::{
-    account::Account,
-    contract::Contract,
-    stake::Delegation,
-    tokens::Tokens,
-};
+use crate::{account::Account, contract::Contract, stake::Delegation, tokens::Tokens};
 
 /// Extension trait for AccountId that provides convenient conversions to various NEAR API types.
 ///
