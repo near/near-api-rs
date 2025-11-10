@@ -1,6 +1,6 @@
 use near_api::{
     types::{nft::TokenMetadata, AccountId, NearToken},
-    Contract, NetworkConfig, Signer, Tokens,
+    AccountIdExt, Contract, NetworkConfig, Signer,
 };
 use near_sandbox::{
     config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
@@ -11,7 +11,7 @@ use serde_json::json;
 #[tokio::main]
 async fn main() {
     let nft = GenesisAccount::generate_with_name("nft".parse().unwrap());
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let account2 = GenesisAccount::generate_with_name("account2".parse().unwrap());
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
@@ -55,7 +55,7 @@ async fn main() {
             "nft_mint",
             json!({
                 "token_id": "1",
-                "receiver_id": account.to_string(),
+                "receiver_id": account_id.to_string(),
                 "token_metadata": TokenMetadata {
                     title: Some("My NFT".to_string()),
                     description: Some("My first NFT".to_string()),
@@ -73,7 +73,8 @@ async fn main() {
         .assert_success();
 
     // Verifying that account has our nft token
-    let tokens = Tokens::account(account.clone())
+    let tokens = account_id
+        .tokens()
         .nft_assets(nft.account_id.clone())
         .unwrap()
         .fetch_from(&network)
@@ -83,7 +84,8 @@ async fn main() {
     assert_eq!(tokens.data.len(), 1);
     println!("Account has {}", tokens.data.first().unwrap().token_id);
 
-    Tokens::account(account.clone())
+    account_id
+        .tokens()
         .send_to(account2.account_id.clone())
         .nft(nft.account_id.clone(), "1".to_string())
         .unwrap()
@@ -94,7 +96,8 @@ async fn main() {
         .assert_success();
 
     // Verifying that account doesn't have nft anymore
-    let tokens = Tokens::account(account.clone())
+    let tokens = account_id
+        .tokens()
         .nft_assets(nft.account_id.clone())
         .unwrap()
         .fetch_from(&network)
@@ -103,7 +106,9 @@ async fn main() {
 
     assert!(tokens.data.is_empty());
 
-    let tokens = Tokens::account(account2.account_id.clone())
+    let tokens = account2
+        .account_id
+        .tokens()
         .nft_assets(nft.account_id.clone())
         .unwrap()
         .fetch_from(&network)
