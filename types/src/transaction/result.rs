@@ -254,6 +254,10 @@ impl ExecutionFinalResult {
         self.into_result().unwrap()
     }
 
+    pub fn assert_failure(self) -> ExecutionResult<TxExecutionError> {
+        self.into_result().unwrap_err()
+    }
+
     /// Deserialize an instance of type `T` from bytes of JSON text sourced from the
     /// execution result of this call. This conversion can fail if the structure of
     /// the internal state does not meet up with [`serde::de::DeserializeOwned`]'s
