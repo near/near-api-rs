@@ -1,7 +1,7 @@
 use near_api::{
     signer::generate_secret_key,
     types::{AccountId, NearToken},
-    Account, AccountIdExt, NetworkConfig, Signer, Tokens,
+    Account, AccountIdExt, NetworkConfig, Signer,
 };
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 
