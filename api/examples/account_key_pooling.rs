@@ -6,7 +6,7 @@
 use near_api::{
     signer::generate_secret_key,
     types::{AccessKeyPermission, AccountId, NearToken},
-    AccountIdExt, NetworkConfig, Signer,
+    Account, NetworkConfig, Signer, Tokens,
 };
 use near_sandbox::{
     config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let second_account = GenesisAccount::generate_with_name("second_account".parse().unwrap());
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
@@ -40,8 +40,7 @@ async fn main() {
     let secret_key = generate_secret_key().unwrap();
     println!("New public key: {}", secret_key.public_key());
 
-    account_id
-        .account()
+    Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret_key.public_key())
         .with_signer(Arc::clone(&signer))
         .send_to(&network)
@@ -55,8 +54,7 @@ async fn main() {
         .unwrap();
 
     let txs = (0..2).map(|_| {
-        account_id
-            .tokens()
+        Tokens::account(account.clone())
             .send_to(second_account.account_id.clone())
             .near(NearToken::from_millinear(1))
             .with_signer(Arc::clone(&signer))

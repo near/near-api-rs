@@ -1,6 +1,6 @@
 use near_api::{
     types::{tokens::FTBalance, AccountId},
-    AccountIdExt, Contract, NetworkConfig, Signer, Tokens,
+    Contract, NetworkConfig, Signer, Tokens,
 };
 use near_sandbox::{config::DEFAULT_GENESIS_ACCOUNT, GenesisAccount, SandboxConfig};
 
@@ -9,7 +9,7 @@ use serde_json::json;
 #[tokio::main]
 async fn main() {
     let token = GenesisAccount::generate_with_name("token".parse().unwrap());
-    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let token_signer = Signer::new(Signer::from_secret_key(
         token.private_key.clone().parse().unwrap(),
     ))
@@ -52,9 +52,8 @@ async fn main() {
 
     // Transfer 100 tokens to the account
     // We handle internally the storage deposit for the receiver account
-    account_id
-        .tokens()
-        .send_to(account_id.clone())
+    Tokens::account(token.account_id.clone())
+        .send_to(account.clone())
         .ft(
             token.account_id.clone(),
             // Send 1.5 tokens
@@ -67,8 +66,7 @@ async fn main() {
         .unwrap()
         .assert_success();
 
-    let tokens = account_id
-        .tokens()
+    let tokens = Tokens::account(account.clone())
         .ft_balance(token.account_id.clone())
         .unwrap()
         .fetch_from(&network)
@@ -77,9 +75,7 @@ async fn main() {
 
     println!("Account has {tokens}");
 
-    let tokens = token
-        .account_id
-        .tokens()
+    let tokens = Tokens::account(token.account_id.clone())
         .ft_balance(token.account_id.clone())
         .unwrap()
         .fetch_from(&network)
@@ -89,10 +85,8 @@ async fn main() {
     println!("Owner has {tokens}");
 
     // We validate decimals at the network level so this should fail with a validation error
-    let token = token
-        .account_id
-        .tokens()
-        .send_to(account_id.clone())
+    let token = Tokens::account(token.account_id.clone())
+        .send_to(account.clone())
         .ft(
             token.account_id.clone(),
             FTBalance::with_decimals(8).with_whole_amount(100),

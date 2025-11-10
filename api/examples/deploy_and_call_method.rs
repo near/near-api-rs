@@ -1,13 +1,13 @@
 use near_api::{
     types::{AccountId, Data},
-    AccountIdExt, Contract, NetworkConfig, Signer,
+    Contract, NetworkConfig, Signer,
 };
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 
 #[tokio::main]
 async fn main() {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-    let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
 
     let signer = Signer::new(Signer::from_secret_key(
@@ -16,7 +16,7 @@ async fn main() {
     .unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
-    Contract::deploy(account_id.clone())
+    Contract::deploy(account.clone())
         .use_code(include_bytes!("../resources/counter.wasm").to_vec())
         // You can add init call as well using `with_init_call`
         .without_init_call()
@@ -26,7 +26,7 @@ async fn main() {
         .unwrap()
         .assert_success();
 
-    let contract = account_id.contract();
+    let contract = Contract(account.clone());
 
     // Let's fetch current value on a contract
     let current_value: Data<i8> = contract
@@ -46,7 +46,7 @@ async fn main() {
         .call_function("increment", ())
         .unwrap()
         .transaction()
-        .with_signer(account_id.clone(), signer.clone())
+        .with_signer(account.clone(), signer.clone())
         .send_to(&network)
         .await
         .unwrap()
