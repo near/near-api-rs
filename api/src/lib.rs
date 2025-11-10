@@ -48,6 +48,7 @@
 //! - `workspaces`: Enables integration with near-workspaces for testing
 
 mod account;
+mod account_id_ext;
 mod chain;
 mod config;
 mod contract;
@@ -69,6 +70,7 @@ pub mod signer;
 
 pub use crate::{
     account::Account,
+    account_id_ext::AccountIdExt,
     chain::Chain,
     config::{NetworkConfig, RPCEndpoint, RetryMethod},
     contract::Contract,
