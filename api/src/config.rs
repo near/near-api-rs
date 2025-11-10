@@ -90,6 +90,30 @@ impl RPCEndpoint {
             RetryMethod::Fixed { sleep } => sleep,
         }
     }
+
+    pub(crate) fn client(&self) -> Result<Client, InvalidHeaderValue> {
+        let dur = std::time::Duration::from_secs(15);
+        let mut client = reqwest::ClientBuilder::new()
+            .connect_timeout(dur)
+            .timeout(dur);
+
+        if let Some(rpc_api_key) = &self.bearer_header {
+            let mut headers = reqwest::header::HeaderMap::new();
+
+            let mut header = HeaderValue::from_str(rpc_api_key)?;
+            header.set_sensitive(true);
+
+            headers.insert(
+                reqwest::header::HeaderName::from_static("x-api-key"),
+                header,
+            );
+            client = client.default_headers(headers);
+        };
+        Ok(near_openapi_client::Client::new_with_client(
+            self.url.as_ref().trim_end_matches('/'),
+            client.build().unwrap(),
+        ))
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -175,32 +199,6 @@ impl NetworkConfig {
             staking_pools_factory_account_id: None,
         }
     }
-
-    pub(crate) fn client(&self, index: usize) -> Result<Client, InvalidHeaderValue> {
-        let rpc_endpoint = &self.rpc_endpoints[index];
-
-        let dur = std::time::Duration::from_secs(15);
-        let mut client = reqwest::ClientBuilder::new()
-            .connect_timeout(dur)
-            .timeout(dur);
-
-        if let Some(rpc_api_key) = &rpc_endpoint.bearer_header {
-            let mut headers = reqwest::header::HeaderMap::new();
-
-            let mut header = HeaderValue::from_str(rpc_api_key)?;
-            header.set_sensitive(true);
-
-            headers.insert(
-                reqwest::header::HeaderName::from_static("x-api-key"),
-                header,
-            );
-            client = client.default_headers(headers);
-        };
-        Ok(near_openapi_client::Client::new_with_client(
-            rpc_endpoint.url.as_ref().trim_end_matches('/'),
-            client.build().unwrap(),
-        ))
-    }
 }
 
 #[derive(Debug)]
@@ -240,9 +238,9 @@ where
     }
 
     let mut last_error = None;
-    for (index, endpoint) in network.rpc_endpoints.iter().enumerate() {
-        let client = network
-            .client(index)
+    for endpoint in network.rpc_endpoints.iter() {
+        let client = endpoint
+            .client()
             .map_err(|e| RetryError::InvalidApiKey(e))?;
         for retry in 0..endpoint.retries {
             let result = task(client.clone()).await;
