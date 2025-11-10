@@ -42,6 +42,43 @@ impl StorageDeposit {
         Self(contract_id)
     }
 
+    /// Returns the underlying contract account ID for this storage deposit wrapper.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let storage = StorageDeposit::on_contract("contract.testnet".parse()?);
+    /// let contract_id = storage.contract_id();
+    /// println!("Contract ID: {}", contract_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn contract_id(&self) -> &AccountId {
+        &self.0
+    }
+
+    /// Converts this storage deposit wrapper to a Contract for other contract operations.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let storage = StorageDeposit::on_contract("usdt.tether-token.near".parse()?);
+    /// let contract = storage.as_contract();
+    ///
+    /// // Now you can call other contract methods
+    /// let metadata = contract.call_function("ft_metadata", ())?.read_only().fetch_from_mainnet().await?;
+    /// println!("Token metadata: {:?}", metadata);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_contract(&self) -> crate::contract::Contract {
+        crate::contract::Contract(self.0.clone())
+    }
+
     /// Prepares a new contract query (`storage_balance_of`) for fetching the storage balance (Option<[StorageBalance]>) of the account on the contract.
     ///
     /// ## Example

@@ -35,6 +35,41 @@ type Result<T> = core::result::Result<T, BuilderError>;
 pub struct Delegation(pub AccountId);
 
 impl Delegation {
+    /// Returns the underlying account ID for this delegation.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let delegation = Staking::delegation("alice.testnet".parse()?);
+    /// let account_id = delegation.account_id();
+    /// println!("Account ID: {}", account_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn account_id(&self) -> &AccountId {
+        &self.0
+    }
+
+    /// Converts this delegation to an Account for account-related operations.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let delegation = Staking::delegation("alice.testnet".parse()?);
+    /// let account = delegation.as_account();
+    /// let account_info = account.view().fetch_from_testnet().await?;
+    /// println!("Account balance: {}", account_info.data.amount);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_account(&self) -> crate::account::Account {
+        crate::account::Account(self.0.clone())
+    }
+
     /// Prepares a new contract query (`get_account_staked_balance`) for fetching the staked balance ([NearToken]) of the account on the staking pool.
     ///
     /// The call depends that the contract implements [`StakingPool`](https://github.com/near/core-contracts/tree/master/staking-pool)
