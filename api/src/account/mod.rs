@@ -60,7 +60,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let account = Account("contract.testnet".parse()?);
     /// let contract = account.as_contract();
-    /// let result = contract.call_function("get_value", ())?.read_only().fetch_from_testnet().await?;
+    /// let result: String = contract.call_function("get_value", ())?.read_only().fetch_from_testnet().await?.data;
     /// println!("Contract value: {:?}", result);
     /// # Ok(())
     /// # }

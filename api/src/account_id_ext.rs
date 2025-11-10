@@ -21,7 +21,7 @@ use crate::{account::Account, contract::Contract, stake::Delegation, tokens::Tok
 ///
 /// // Get Contract wrapper for contract calls
 /// let contract = account_id.contract();
-/// let result = contract.call_function("get_status", ())?.read_only().fetch_from_mainnet().await?;
+/// let result: String = contract.call_function("get_status", ())?.read_only().fetch_from_mainnet().await?.data;
 ///
 /// // Get tokens wrapper for token operations
 /// let tokens = account_id.tokens();
@@ -61,7 +61,7 @@ pub trait AccountIdExt {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let contract_id: AccountId = "contract.near".parse()?;
     /// let contract = contract_id.contract();
-    /// let result = contract.call_function("get_value", ())?.read_only().fetch_from_mainnet().await?;
+    /// let result: String = contract.call_function("get_value", ())?.read_only().fetch_from_mainnet().await?.data;
     /// println!("Contract value: {:?}", result);
     /// # Ok(())
     /// # }

@@ -70,7 +70,7 @@ impl StorageDeposit {
     /// let contract = storage.as_contract();
     ///
     /// // Now you can call other contract methods
-    /// let metadata = contract.call_function("ft_metadata", ())?.read_only().fetch_from_mainnet().await?;
+    /// let metadata: serde_json::Value = contract.call_function("ft_metadata", ())?.read_only().fetch_from_mainnet().await?.data;
     /// println!("Token metadata: {:?}", metadata);
     /// # Ok(())
     /// # }
