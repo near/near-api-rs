@@ -46,7 +46,7 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn account_id(&self) -> &AccountId {
+    pub const fn account_id(&self) -> &AccountId {
         &self.0
     }
 

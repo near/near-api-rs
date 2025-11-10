@@ -55,7 +55,7 @@ impl StorageDeposit {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn contract_id(&self) -> &AccountId {
+    pub const fn contract_id(&self) -> &AccountId {
         &self.0
     }
 
