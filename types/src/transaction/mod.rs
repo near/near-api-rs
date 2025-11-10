@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, io::Write, str::FromStr};
+use std::{io::Write, str::FromStr, sync::OnceLock};
 
 pub mod actions;
 pub mod delegate_action;
@@ -115,7 +115,7 @@ pub struct SignedTransaction {
     pub signature: Signature,
     #[borsh(skip)]
     #[serde(skip)]
-    hash: OnceCell<CryptoHash>,
+    hash: OnceLock<CryptoHash>,
 }
 
 impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
@@ -186,7 +186,7 @@ impl SignedTransaction {
         Self {
             signature,
             transaction,
-            hash: OnceCell::new(),
+            hash: OnceLock::new(),
         }
     }
 

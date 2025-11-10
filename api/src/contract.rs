@@ -45,6 +45,63 @@ use crate::{
 pub struct Contract(pub AccountId);
 
 impl Contract {
+    /// Returns the underlying account ID for this contract.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contract = Contract("contract.testnet".parse()?);
+    /// let account_id = contract.account_id();
+    /// println!("Contract account ID: {}", account_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn account_id(&self) -> &AccountId {
+        &self.0
+    }
+
+    /// Converts this contract to an Account for account-related operations.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contract = Contract("contract.testnet".parse()?);
+    /// let account = contract.as_account();
+    /// let account_info = account.view().fetch_from_testnet().await?;
+    /// println!("Account balance: {}", account_info.data.amount);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_account(&self) -> crate::account::Account {
+        crate::account::Account(self.0.clone())
+    }
+
+    /// Creates a StorageDeposit wrapper for storage management operations on this contract.
+    ///
+    /// This is useful for contracts that implement the [NEP-145](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) storage management standard.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contract = Contract("usdt.tether-token.near".parse()?);
+    /// let storage = contract.storage_deposit();
+    ///
+    /// // Check storage balance for an account
+    /// let balance = storage.view_account_storage("alice.near".parse()?)?.fetch_from_mainnet().await?;
+    /// println!("Storage balance: {:?}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn storage_deposit(&self) -> crate::StorageDeposit {
+        crate::StorageDeposit::on_contract(self.0.clone())
+    }
+
     /// Prepares a call to a contract function with JSON-serialized arguments.
     ///
     /// This is the default and most common way to call contract functions, using JSON serialization

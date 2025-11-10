@@ -159,6 +159,16 @@ impl<T: fmt::Debug> fmt::Debug for ExecutionResult<T> {
     }
 }
 
+impl fmt::Display for ExecutionResult<TxExecutionError> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExecutionFailure: {:?}", self.value)
+    }
+}
+
+// Might be a good idea to consider wrapping this into thiserror as we do for other errors in the project
+// Though, to not introduce breaking change we will just mark it as error for now
+impl std::error::Error for ExecutionResult<TxExecutionError> {}
+
 /// Execution related info found after performing a transaction. Can be converted
 /// into [`ExecutionSuccess`] or [`ExecutionFailure`] through [`into_result`](ExecutionFinalResult::into_result)
 #[derive(Clone)]
