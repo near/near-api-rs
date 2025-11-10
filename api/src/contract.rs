@@ -45,6 +45,63 @@ use crate::{
 pub struct Contract(pub AccountId);
 
 impl Contract {
+    /// Returns the underlying account ID for this contract.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contract = Contract("contract.testnet".parse()?);
+    /// let account_id = contract.account_id();
+    /// println!("Contract account ID: {}", account_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn account_id(&self) -> &AccountId {
+        &self.0
+    }
+
+    /// Converts this contract to an Account for account-related operations.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contract = Contract("contract.testnet".parse()?);
+    /// let account = contract.as_account();
+    /// let account_info = account.view().fetch_from_testnet().await?;
+    /// println!("Account balance: {}", account_info.data.amount);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_account(&self) -> crate::account::Account {
+        crate::account::Account(self.0.clone())
+    }
+
+    /// Creates a StorageDeposit wrapper for storage management operations on this contract.
+    ///
+    /// This is useful for contracts that implement the [NEP-145](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) storage management standard.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contract = Contract("usdt.tether-token.near".parse()?);
+    /// let storage = contract.storage_deposit();
+    ///
+    /// // Check storage balance for an account
+    /// let balance = storage.view_account_storage("alice.near".parse()?)?.fetch_from_mainnet().await?;
+    /// println!("Storage balance: {:?}", balance);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn storage_deposit(&self) -> crate::StorageDeposit {
+        crate::StorageDeposit::on_contract(self.0.clone())
+    }
+
     /// Prepares a call to a contract function with JSON-serialized arguments.
     ///
     /// This is the default and most common way to call contract functions, using JSON serialization
@@ -320,6 +377,43 @@ impl Contract {
             Reference::Optimistic,
             ViewCodeHandler,
         )
+    }
+
+    /// Creates a builder to query contract code from the global contract code storage.
+    ///
+    /// The global contract code storage allows contracts to be deployed once and referenced
+    /// by multiple accounts, reducing deployment costs. This feature is defined in [NEP-591](https://github.com/near/NEPs/blob/2f6b702d55a4cd470b50d35e2f3fde6e0fb4dced/neps/nep-0591.md).
+    /// Contracts can be referenced either by a contract hash (immutable) or by an account ID (mutable).
+    ///
+    /// # Example querying by account ID
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = Contract::global_wasm()
+    ///     .by_account_id("nft-contract.testnet".parse()?)
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Global contract code: {}", code.data.code_base64);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Example querying by hash
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = Contract::global_wasm()
+    ///     .by_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Global contract code: {}", code.data.code_base64);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn global_wasm() -> GlobalWasmBuilder {
+        GlobalWasmBuilder
     }
 
     /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_api_types::ViewStateResult)>) using the given prefix as a filter.
@@ -818,5 +912,60 @@ impl ContractTransactBuilder {
                 deposit,
             },
         )))
+    }
+}
+
+/// Builder for querying contract code from the global contract code storage defined in [NEP-591](https://github.com/near/NEPs/blob/2f6b702d55a4cd470b50d35e2f3fde6e0fb4dced/neps/nep-0591.md).
+pub struct GlobalWasmBuilder;
+
+impl GlobalWasmBuilder {
+    /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) by account ID.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = Contract::global_wasm()
+    ///     .by_account_id("nft-contract.testnet".parse()?)
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Code: {}", code.data.code_base64);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn by_account_id(&self, account_id: AccountId) -> RequestBuilder<ViewCodeHandler> {
+        let request = QueryRequest::ViewGlobalContractCodeByAccountId { account_id };
+
+        RequestBuilder::new(
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
+            ViewCodeHandler,
+        )
+    }
+
+    /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) by hash.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = Contract::global_wasm()
+    ///     .by_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Code: {}", code.data.code_base64);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn by_hash(&self, code_hash: CryptoHash) -> RequestBuilder<ViewCodeHandler> {
+        let request = QueryRequest::ViewGlobalContractCode { code_hash };
+
+        RequestBuilder::new(
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
+            ViewCodeHandler,
+        )
     }
 }

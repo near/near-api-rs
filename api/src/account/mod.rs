@@ -33,6 +33,78 @@ mod create;
 pub struct Account(pub AccountId);
 
 impl Account {
+    /// Returns the underlying account ID for this account.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let account = Account("alice.testnet".parse()?);
+    /// let account_id = account.account_id();
+    /// println!("Account ID: {}", account_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn account_id(&self) -> &AccountId {
+        &self.0
+    }
+
+    /// Converts this account to a Contract for contract-related operations.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    /// use serde_json::json;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let account = Account("contract.testnet".parse()?);
+    /// let contract = account.as_contract();
+    /// let result: String = contract.call_function("get_value", ())?.read_only().fetch_from_testnet().await?.data;
+    /// println!("Contract value: {:?}", result);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_contract(&self) -> crate::contract::Contract {
+        crate::contract::Contract(self.0.clone())
+    }
+
+    /// Creates a Tokens wrapper for token-related operations on this account.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let account = Account("alice.testnet".parse()?);
+    /// let tokens = account.tokens();
+    /// let balance = tokens.near_balance().fetch_from_testnet().await?;
+    /// println!("NEAR balance: {}", balance.total);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn tokens(&self) -> crate::tokens::Tokens {
+        crate::tokens::Tokens::account(self.0.clone())
+    }
+
+    /// Creates a Delegation wrapper for staking-related operations on this account.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let account = Account("alice.testnet".parse()?);
+    /// let delegation = account.delegation();
+    /// let staked = delegation.view_staked_balance("pool.testnet".parse()?)?.fetch_from_testnet().await?;
+    /// println!("Staked balance: {:?}", staked);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn delegation(&self) -> crate::stake::Delegation {
+        crate::stake::Delegation(self.0.clone())
+    }
+
     /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_api_types::AccountView)> with the account information for the given account ID.
     ///
     /// ## Example

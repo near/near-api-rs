@@ -159,6 +159,16 @@ impl<T: fmt::Debug> fmt::Debug for ExecutionResult<T> {
     }
 }
 
+impl fmt::Display for ExecutionResult<TxExecutionError> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ExecutionFailure: {:?}", self.value)
+    }
+}
+
+// Might be a good idea to consider wrapping this into thiserror as we do for other errors in the project
+// Though, to not introduce breaking change we will just mark it as error for now
+impl std::error::Error for ExecutionResult<TxExecutionError> {}
+
 /// Execution related info found after performing a transaction. Can be converted
 /// into [`ExecutionSuccess`] or [`ExecutionFailure`] through [`into_result`](ExecutionFinalResult::into_result)
 #[derive(Clone)]
@@ -242,6 +252,10 @@ impl ExecutionFinalResult {
     /// to call into [`into_result`](ExecutionFinalResult::into_result) then pattern matching and handle the Err case explicitly.
     pub fn assert_success(self) -> ExecutionSuccess {
         self.into_result().unwrap()
+    }
+
+    pub fn assert_failure(self) -> ExecutionResult<TxExecutionError> {
+        self.into_result().unwrap_err()
     }
 
     /// Deserialize an instance of type `T` from bytes of JSON text sourced from the

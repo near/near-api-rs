@@ -115,6 +115,41 @@ impl Tokens {
         Self { account_id }
     }
 
+    /// Returns the underlying account ID for this tokens wrapper.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tokens = Tokens::account("alice.testnet".parse()?);
+    /// let account_id = tokens.account_id();
+    /// println!("Account ID: {}", account_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn account_id(&self) -> &AccountId {
+        &self.account_id
+    }
+
+    /// Converts this tokens wrapper to an Account for account-related operations.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tokens = Tokens::account("alice.testnet".parse()?);
+    /// let account = tokens.as_account();
+    /// let account_info = account.view().fetch_from_testnet().await?;
+    /// println!("Account info: {:?}", account_info);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_account(&self) -> crate::account::Account {
+        crate::account::Account(self.account_id.clone())
+    }
+
     /// Fetches the total NEAR balance ([UserBalance]) of the account.
     ///
     /// ## Example
