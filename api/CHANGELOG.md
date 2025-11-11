@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7](https://github.com/near/near-api-rs/compare/near-api-v0.7.6...near-api-v0.7.7) - 2025-11-10
+
+### Added
+
+- helper methods to improve dev and test experience ([#83](https://github.com/near/near-api-rs/pull/83))
+- added `global_wasm` method to Contract struct ([#81](https://github.com/near/near-api-rs/pull/81))
+
 ## [0.7.6](https://github.com/near/near-api-rs/compare/near-api-v0.7.5...near-api-v0.7.6) - 2025-11-03
 
 ### Other
