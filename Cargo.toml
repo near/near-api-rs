@@ -12,7 +12,7 @@ authors = [
     "Near Inc <hello@nearprotocol.com>",
 ]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/polyprogrammist/near-openapi-client"
+repository = "https://github.com/near/near-api-rs"
 
 
 [workspace.dependencies]
