@@ -281,6 +281,62 @@ impl Contract {
         DeployBuilder::new(contract)
     }
 
+    /// Publishes contract code to the global contract code storage.
+    ///
+    /// This will allow other users to reference given code as hash or account-id and reduce
+    /// the gas cost for deployment.
+    ///
+    /// Please be aware that the deploy costs 10x more compared to the regular costs and the tokens are burnt
+    /// with no way to get it back.
+    ///
+    /// # Arguments
+    /// * `code` - WASM bytecode to publish
+    /// * `account_id` - Optional account ID for mutable deployment:
+    ///   - `None` = immutable (hash-based)
+    ///   - `Some(account_id)` = mutable (account-based, can be upgraded)
+    ///
+    /// ## Example publishing contract code as immutable hash
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result = Contract::publish_contract(code, None)  // None = immutable by hash
+    ///     .from_signer_account()
+    ///     .with_signer("some-account.testnet".parse()?, signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Example publishing contract code as mutable account-id
+    ///
+    /// The account-id version is upgradable and can be changed.
+    /// Please note that every subsequent upgrade will charge full deployment cost.
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result = Contract::publish_contract(code, Some("nft-contract.testnet".parse()?))
+    ///     .from_signer_account()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub const fn publish_contract(
+        code: Vec<u8>,
+        account_id: Option<AccountId>,
+    ) -> PublishContractBuilder {
+        PublishContractBuilder::new(code, account_id)
+    }
+
     /// Prepares a transaction to deploy a code to the global contract code storage.
     ///
     /// This will allow other users to reference given code as hash or account-id and reduce
@@ -324,6 +380,10 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
+    #[deprecated(
+        since = "0.8.0",
+        note = "Use `publish_contract(code, None).from_signer_account()` for hash-based deployment or `publish_contract(code, Some(account_id)).from_signer_account()` for account-based deployment"
+    )]
     pub const fn deploy_global_contract_code(code: Vec<u8>) -> GlobalDeployBuilder {
         GlobalDeployBuilder::new(code)
     }
@@ -537,6 +597,55 @@ impl DeployBuilder {
         )
     }
 
+    /// Deploys a contract from previously published code in the global contract code storage.
+    ///
+    /// Accepts either a code hash (immutable) or account ID (mutable) reference.
+    ///
+    /// # Example deploying from hash
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let code_hash: near_api::CryptoHash = "DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?;
+    /// let result = Contract::deploy("contract.testnet".parse()?)
+    ///     .deploy_from_published(code_hash)
+    ///     .without_init_call()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Example deploying from account ID
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let result = Contract::deploy("contract.testnet".parse()?)
+    ///     .deploy_from_published("nft-contract.testnet".parse()?)
+    ///     .without_init_call()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn deploy_from_published(
+        self,
+        reference: impl IntoGlobalContractRef,
+    ) -> SetDeployActionBuilder {
+        let identifier = reference.into_identifier();
+        SetDeployActionBuilder::new(
+            self.contract,
+            Action::UseGlobalContract(Box::new(UseGlobalContractAction {
+                contract_identifier: identifier,
+            })),
+        )
+    }
+
     // /// Prepares a transaction to deploy a contract to the provided account using a immutable hash reference to the code from the global contract code storage.
     // ///
     // /// # Example
@@ -553,6 +662,10 @@ impl DeployBuilder {
     // ///     .await?;
     // /// # Ok(())
     // /// # }
+    #[deprecated(
+        since = "0.8.0",
+        note = "Use `deploy_from_published(code_hash)` instead"
+    )]
     pub fn use_global_hash(self, global_hash: CryptoHash) -> SetDeployActionBuilder {
         SetDeployActionBuilder::new(
             self.contract,
@@ -581,6 +694,10 @@ impl DeployBuilder {
     // ///     .await?;
     // /// # Ok(())
     // /// # }
+    #[deprecated(
+        since = "0.8.0",
+        note = "Use `deploy_from_published(account_id)` instead"
+    )]
     pub fn use_global_account_id(self, global_account_id: AccountId) -> SetDeployActionBuilder {
         SetDeployActionBuilder::new(
             self.contract,
@@ -763,6 +880,100 @@ impl GlobalDeployBuilder {
                 deploy_mode: GlobalContractDeployMode::AccountId,
             }),
         )
+    }
+}
+
+/// Builder for publishing contract code to the global contract code storage.
+///
+/// Created by [`Contract::publish_contract`]. Allows publishing code either as:
+/// - Immutable (hash-based) when `account_id` is `None`
+/// - Mutable (account-based) when `account_id` is `Some(account_id)`
+#[derive(Clone, Debug)]
+pub struct PublishContractBuilder {
+    code: Vec<u8>,
+    account_id: Option<AccountId>,
+}
+
+impl PublishContractBuilder {
+    pub const fn new(code: Vec<u8>, account_id: Option<AccountId>) -> Self {
+        Self { code, account_id }
+    }
+
+    /// Publishes the contract code from the signer's account.
+    ///
+    /// Returns either a `SelfActionBuilder` (for hash-based deployment) or
+    /// `ConstructTransaction` (for account-based deployment) that can be
+    /// signed and sent to the network.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    ///
+    /// // Publish as immutable hash
+    /// Contract::publish_contract(code.clone(), None)
+    ///     .from_signer_account()
+    ///     .with_signer("publisher.testnet".parse()?, signer.clone())
+    ///     .send_to_testnet()
+    ///     .await?;
+    ///
+    /// // Publish as mutable account ID
+    /// Contract::publish_contract(code, Some("nft-contract.testnet".parse()?))
+    ///     .from_signer_account()
+    ///     .with_signer(signer)
+    ///     .send_to_testnet()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_signer_account(self) -> SelfActionBuilder {
+        let deploy_mode = match self.account_id {
+            None => GlobalContractDeployMode::CodeHash,
+            Some(_) => GlobalContractDeployMode::AccountId,
+        };
+
+        let action = Action::DeployGlobalContract(DeployGlobalContractAction {
+            code: self.code,
+            deploy_mode,
+        });
+
+        SelfActionBuilder::new().add_action(action)
+    }
+}
+
+/// Trait for types that can reference global contracts.
+///
+/// This trait allows the [`DeployBuilder::deploy_from_published`] method to accept
+/// either a code hash (immutable) or an account ID (mutable) reference to global
+/// contract code.
+///
+/// # Implementations
+/// - [`CryptoHash`] - References immutable global contract by hash
+/// - [`AccountId`] - References mutable global contract by account ID
+/// - [`GlobalContractIdentifier`] - Direct identifier (for advanced usage)
+pub trait IntoGlobalContractRef {
+    /// Converts this type into a [`GlobalContractIdentifier`].
+    fn into_identifier(self) -> GlobalContractIdentifier;
+}
+
+impl IntoGlobalContractRef for CryptoHash {
+    fn into_identifier(self) -> GlobalContractIdentifier {
+        GlobalContractIdentifier::CodeHash(self)
+    }
+}
+
+impl IntoGlobalContractRef for AccountId {
+    fn into_identifier(self) -> GlobalContractIdentifier {
+        GlobalContractIdentifier::AccountId(self)
+    }
+}
+
+impl IntoGlobalContractRef for GlobalContractIdentifier {
+    fn into_identifier(self) -> GlobalContractIdentifier {
+        self
     }
 }
 
