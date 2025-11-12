@@ -30,8 +30,8 @@ async fn main() {
     let contract_hash = CryptoHash::hash(&code);
 
     // Publish contract code as immutable hash
-    Contract::publish_contract(code.clone(), None)
-        .from_any_account()
+    Contract::publish_contract(code.clone())
+        .as_hash()
         .with_signer(global.account_id.clone(), global_signer.clone())
         .send_to(&network)
         .await
@@ -39,8 +39,8 @@ async fn main() {
         .assert_success();
 
     // Publish contract code as mutable account ID
-    Contract::publish_contract(code, Some(global.account_id.clone()))
-        .from_account()
+    Contract::publish_contract(code)
+        .as_account(global.account_id.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
         .await

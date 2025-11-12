@@ -33,8 +33,8 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
     let code_bytes = include_bytes!("../resources/counter.wasm");
     let base64_code_bytes = BASE64_STANDARD.encode(code_bytes);
 
-    Contract::publish_contract(code_bytes.to_vec(), Some(global_contract.account_id.clone()))
-        .from_account()
+    Contract::publish_contract(code_bytes.to_vec())
+        .as_account(global_contract.account_id.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
         .await
@@ -141,8 +141,8 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     let hash = CryptoHash::hash(&code);
     let base64_code = BASE64_STANDARD.encode(&code);
 
-    Contract::publish_contract(code.clone(), None)
-        .from_any_account()
+    Contract::publish_contract(code.clone())
+        .as_hash()
         .with_signer(global_contract.account_id.clone(), global_signer.clone())
         .send_to(&network)
         .await
