@@ -303,7 +303,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result = Contract::publish_contract(code, None)  // None = immutable by hash
-    ///     .from_signer_account()
+    ///     .from_any_account()
     ///     .with_signer("some-account.testnet".parse()?, signer)
     ///     .send_to_testnet()
     ///     .await?;
@@ -323,7 +323,7 @@ impl Contract {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result = Contract::publish_contract(code, Some("nft-contract.testnet".parse()?))
-    ///     .from_signer_account()
+    ///     .from_account()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
@@ -899,11 +899,10 @@ impl PublishContractBuilder {
         Self { code, account_id }
     }
 
-    /// Publishes the contract code from the signer's account.
+    /// Publishes the contract code as immutable hash from any account.
     ///
-    /// Returns either a `SelfActionBuilder` (for hash-based deployment) or
-    /// `ConstructTransaction` (for account-based deployment) that can be
-    /// signed and sent to the network.
+    /// This method is used when `account_id` is `None` - the code will be indexed
+    /// by its hash only. Any account can publish hash-based code.
     ///
     /// # Example
     /// ```rust,no_run
@@ -913,34 +912,72 @@ impl PublishContractBuilder {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
     /// let signer = Signer::new(Signer::from_ledger())?;
     ///
-    /// // Publish as immutable hash
-    /// Contract::publish_contract(code.clone(), None)
-    ///     .from_signer_account()
-    ///     .with_signer("publisher.testnet".parse()?, signer.clone())
+    /// // Publish as immutable hash from any account
+    /// Contract::publish_contract(code, None)
+    ///     .from_any_account()
+    ///     .with_signer("publisher.testnet".parse()?, signer)
     ///     .send_to_testnet()
     ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
-    /// // Publish as mutable account ID
-    /// Contract::publish_contract(code, Some("nft-contract.testnet".parse()?))
-    ///     .from_signer_account()
+    /// # Panics
+    ///
+    /// Panics if `account_id` was `Some`. Use [`from_account`](Self::from_account) instead.
+    pub fn from_any_account(self) -> SelfActionBuilder {
+        if self.account_id.is_some() {
+            panic!(
+                "Cannot use from_any_account() when account_id is specified. Use from_account() instead."
+            );
+        }
+
+        let action = Action::DeployGlobalContract(DeployGlobalContractAction {
+            code: self.code,
+            deploy_mode: GlobalContractDeployMode::CodeHash,
+        });
+
+        SelfActionBuilder::new().add_action(action)
+    }
+
+    /// Publishes the contract code as mutable account-based deployment.
+    ///
+    /// This method is used when `account_id` is `Some` - the code will be indexed
+    /// by the specified account and can be upgraded later. The transaction is bound
+    /// to the account provided in `publish_contract`.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let code = std::fs::read("path/to/your/contract.wasm")?;
+    /// let signer = Signer::new(Signer::from_ledger())?;
+    ///
+    /// // Publish as mutable account-based deployment
+    /// Contract::publish_contract(code, Some("nft-template.testnet".parse()?))
+    ///     .from_account()
     ///     .with_signer(signer)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn from_signer_account(self) -> SelfActionBuilder {
-        let deploy_mode = match self.account_id {
-            None => GlobalContractDeployMode::CodeHash,
-            Some(_) => GlobalContractDeployMode::AccountId,
-        };
+    ///
+    /// # Panics
+    ///
+    /// Panics if `account_id` was `None`. Use [`from_any_account`](Self::from_any_account) instead.
+    pub fn from_account(self) -> ConstructTransaction {
+        let account_id = self.account_id.expect(
+            "Cannot use from_account() when account_id is None. Use from_any_account() instead."
+        );
 
         let action = Action::DeployGlobalContract(DeployGlobalContractAction {
             code: self.code,
-            deploy_mode,
+            deploy_mode: GlobalContractDeployMode::AccountId,
         });
 
-        SelfActionBuilder::new().add_action(action)
+        Transaction::construct(account_id.clone(), account_id).add_action(action)
     }
 }
 

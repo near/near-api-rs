@@ -31,7 +31,7 @@ async fn main() {
 
     // Publish contract code as immutable hash
     Contract::publish_contract(code.clone(), None)
-        .from_signer_account()
+        .from_any_account()
         .with_signer(global.account_id.clone(), global_signer.clone())
         .send_to(&network)
         .await
@@ -40,8 +40,8 @@ async fn main() {
 
     // Publish contract code as mutable account ID
     Contract::publish_contract(code, Some(global.account_id.clone()))
-        .from_signer_account()
-        .with_signer(global.account_id.clone(), global_signer.clone())
+        .from_account()
+        .with_signer(global_signer.clone())
         .send_to(&network)
         .await
         .unwrap()
