@@ -1,5 +1,7 @@
-use near_api::{types::AccessKey, AccountId, NearToken, Signer, Staking};
-use near_sandbox::{config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, GenesisAccount, SandboxConfig};
+use near_api::{AccountId, NearToken, RPCEndpoint, Signer, Staking};
+use near_sandbox::{
+    config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, sandbox::patch::StateRecord, FetchData,
+};
 
 struct TestContext {
     _sandbox: near_sandbox::Sandbox,
@@ -11,14 +13,10 @@ struct TestContext {
 
 async fn init() -> TestContext {
     let staker: AccountId = "dev.near".parse().unwrap();
-    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
-        additional_accounts: vec![GenesisAccount::default_with_name(staker.clone()).clone()],
-        ..SandboxConfig::default()
-    })
-    .await
-    .unwrap();
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    sandbox.create_account(staker.clone()).send().await.unwrap();
 
     let signer = Signer::new(Signer::from_secret_key(
         DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
@@ -27,34 +25,21 @@ async fn init() -> TestContext {
 
     // Set-up staking pool.
     let staking_pool: AccountId = "qbit.poolv1.near".parse().unwrap();
-    let mut pool_account = near_api::Account(staking_pool.clone())
-        .view()
-        .fetch_from_mainnet()
-        .await
-        .unwrap()
-        .data;
-    pool_account.locked = NearToken::from_near(0);
-    let pool_code = near_api::Contract(staking_pool.clone())
-        .wasm()
-        .fetch_from_mainnet()
-        .await
-        .unwrap()
-        .data
-        .code_base64;
-    sandbox
+    let mut patch = sandbox
         .patch_state(staking_pool.clone())
-        .account(pool_account)
-        .access_key(
-            signer.get_public_key().await.unwrap().to_string(),
-            AccessKey {
-                nonce: 0.into(),
-                permission: near_api::types::AccessKeyPermission::FullAccess,
-            },
-        )
-        .code(pool_code)
-        .send()
+        .with_default_access_key()
+        .fetch_from(RPCEndpoint::mainnet().url, FetchData::NONE.account().code())
         .await
         .unwrap();
+
+    // Set locked as zero, so we can initialize the pool
+    patch.state.iter_mut().for_each(|e| {
+        if let StateRecord::Account { account, .. } = e {
+            account["locked"] = "0".into();
+        }
+    });
+
+    patch.send().await.unwrap();
 
     // Init staking pool
     near_api::Contract(staking_pool.clone())
