@@ -4,7 +4,7 @@ use near_api_types::{
     stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
     AccountId, Data, EpochReference, NearGas, NearToken, Reference,
 };
-use near_openapi_client::types::{RpcError, RpcQueryResponse};
+use near_openapi_client::types::{RpcQueryError, RpcQueryResponse};
 
 use crate::{
     advanced::{
@@ -752,9 +752,9 @@ impl RpcType for ActiveStakingPoolQuery {
         client: &near_openapi_client::Client,
         network: &NetworkConfig,
         reference: &Reference,
-    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcError>> {
+    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcQueryError>> {
         let Some(account_id) = network.staking_pools_factory_account_id.clone() else {
-            return RetryResponse::Critical(SendRequestError::QueryCreationError(
+            return RetryResponse::Critical(SendRequestError::RequestCreationError(
                 QueryCreationError::StakingPoolFactoryNotDefined,
             ));
         };
@@ -782,7 +782,7 @@ impl ResponseHandler for ActiveStakingHandler {
     fn process_response(
         &self,
         response: Vec<RpcQueryResponse>,
-    ) -> core::result::Result<Self::Response, QueryError<RpcError>> {
+    ) -> core::result::Result<Self::Response, QueryError<RpcQueryError>> {
         let query_result = ViewStateHandler {}.process_response(response)?;
 
         Ok(query_result
