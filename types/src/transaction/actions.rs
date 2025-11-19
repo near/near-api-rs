@@ -45,8 +45,17 @@ pub enum Action {
     /// See [NEP-616](https://github.com/near/NEPs/blob/master/neps/nep-0616.md) for more details
     DeterministicStateInit(Box<DeterministicStateInitAction>),
 
+    /// Creates a gas key for an account to be used for gas payments
+    ///
+    /// See [NEP-611](https://github.com/near/NEPs/blob/master/neps/nep-0611.md) for more details
     AddGasKey(Box<AddGasKeyAction>),
+    /// Deletes a gas key for an account
+    ///
+    /// See [NEP-611](https://github.com/near/NEPs/blob/master/neps/nep-0611.md) for more details
     DeleteGasKey(Box<DeleteGasKeyAction>),
+    /// Transfers tokens to a gas key
+    ///
+    /// See [NEP-611](https://github.com/near/NEPs/blob/master/neps/nep-0611.md) for more details
     TransferToGasKey(Box<TransferToGasKeyAction>),
 }
 
