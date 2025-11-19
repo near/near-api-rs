@@ -66,6 +66,7 @@ pub fn is_critical_query_error(err: &SendRequestError<RpcQueryError>) -> bool {
         | RpcQueryError::TooLargeContractState { .. }
         | RpcQueryError::UnknownAccessKey { .. }
         | RpcQueryError::ContractExecutionError { .. }
+        | RpcQueryError::UnknownGasKey { .. }
         | RpcQueryError::InternalError { .. } => true,
         // Might be critical, but also might not yet propagated across the network, so we will retry
         RpcQueryError::NoGlobalContractCode { .. } => false,

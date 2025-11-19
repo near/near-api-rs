@@ -318,9 +318,9 @@ pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
     TransportError(#[from] near_openapi_client::Error<()>),
 
     #[error("Internal error: {0:?}")]
-    InternalError(InternalError),
+    InternalError(#[from] InternalError),
     #[error("Request validation error: {0:?}")]
-    RequestValidationError(RpcRequestValidationErrorKind),
+    RequestValidationError(#[from] RpcRequestValidationErrorKind),
     #[error("Server error: {0}")]
     ServerError(RpcError),
 }

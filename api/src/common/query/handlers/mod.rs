@@ -27,6 +27,8 @@ const fn query_to_kind(response: &RpcQueryResponse) -> &'static str {
         RpcQueryResponse::Variant3 { .. } => "CallResult",
         RpcQueryResponse::Variant4 { .. } => "AccessKey",
         RpcQueryResponse::Variant5 { .. } => "AccessKeyList",
+        RpcQueryResponse::Variant6 { .. } => "ViewGasKey",
+        RpcQueryResponse::Variant7 { .. } => "ViewGasKeyList",
     }
 }
 
