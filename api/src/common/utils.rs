@@ -90,6 +90,7 @@ fn is_critical_json_rpc_error<RpcError: std::fmt::Debug + Send + Sync>(
 ) -> bool {
     match err {
         SendRequestError::ServerError(rpc_error) => is_critical_t(rpc_error),
+        SendRequestError::WasmExecutionError(_) => true,
         SendRequestError::InternalError { .. } => false,
         SendRequestError::RequestValidationError(_) => true,
         SendRequestError::RequestCreationError(_) => true,

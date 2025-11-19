@@ -1,6 +1,7 @@
 use near_api_types::errors::DataConversionError;
 use near_openapi_client::types::{
-    InternalError, RpcQueryError, RpcRequestValidationErrorKind, RpcTransactionError,
+    FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
+    RpcTransactionError,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -313,14 +314,43 @@ impl From<Vec<u8>> for PublicKeyParsingError {
 pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
     #[error("Query creation error: {0}")]
     RequestCreationError(#[from] QueryCreationError),
-
     #[error("Transport error: {0}")]
-    TransportError(#[from] near_openapi_client::Error<()>),
-
+    TransportError(near_openapi_client::Error<()>),
+    #[error("Wasm execution failed with error: {0}")]
+    WasmExecutionError(#[from] FunctionCallError),
     #[error("Internal error: {0:?}")]
     InternalError(#[from] InternalError),
     #[error("Request validation error: {0:?}")]
     RequestValidationError(#[from] RpcRequestValidationErrorKind),
     #[error("Server error: {0}")]
     ServerError(RpcError),
+}
+
+/// That's a BIG BIG HACK to handle inconsistent RPC errors
+///
+/// Node responds as a message instead of an error object, so we need to parse the message and return the error.
+/// https://github.com/near/nearcore/blob/ae6fd841eaad76a090a02e9dcf7406bc79b81dbb/chain/jsonrpc/src/lib.rs#L204
+///
+/// TODO: remove this once we have a proper error handling in the RPC API.
+/// - https://github.com/near/near-sdk-rs/pull/1165
+/// - nearcore PR
+impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()>>
+    for SendRequestError<RpcError>
+{
+    fn from(err: near_openapi_client::Error<()>) -> Self {
+        if let near_openapi_client::Error::InvalidResponsePayload(bytes, _error) = &err {
+            let error = serde_json::from_slice::<serde_json::Value>(bytes)
+                .unwrap_or_default()
+                .get("result")
+                .and_then(|result| result.get("error"))
+                .and_then(|message| message.as_str())
+                .and_then(|message| message.strip_prefix("wasm execution failed with error: "))
+                .and_then(|message| serde_dbgfmt::from_str::<FunctionCallError>(message).ok());
+            if let Some(error) = error {
+                return Self::WasmExecutionError(error);
+            }
+        }
+
+        Self::TransportError(err)
+    }
 }
