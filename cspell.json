@@ -5,6 +5,7 @@
     "dictionaries": [],
     "words": [
         "libudev",
+        "dbgfmt",
         "libsystemd",
         "clippy",
         "RUSTDOCFLAGS",

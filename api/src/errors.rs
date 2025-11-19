@@ -316,6 +316,7 @@ pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
     RequestCreationError(#[from] QueryCreationError),
     #[error("Transport error: {0}")]
     TransportError(near_openapi_client::Error<()>),
+    // This is a hack to support the old error handling in the RPC API.
     #[error("Wasm execution failed with error: {0}")]
     WasmExecutionError(#[from] FunctionCallError),
     #[error("Internal error: {0:?}")]
