@@ -1,4 +1,5 @@
 #[tokio::test]
+/// Regression test for https://github.com/near/near-api-rs/issues/85
 async fn regression_85() {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network_config =

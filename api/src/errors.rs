@@ -327,14 +327,14 @@ pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
     ServerError(RpcError),
 }
 
-/// That's a BIG BIG HACK to handle inconsistent RPC errors
-///
-/// Node responds as a message instead of an error object, so we need to parse the message and return the error.
-/// https://github.com/near/nearcore/blob/ae6fd841eaad76a090a02e9dcf7406bc79b81dbb/chain/jsonrpc/src/lib.rs#L204
-///
-/// TODO: remove this once we have a proper error handling in the RPC API.
-/// - https://github.com/near/near-sdk-rs/pull/1165
-/// - nearcore PR
+// That's a BIG BIG HACK to handle inconsistent RPC errors
+//
+// Node responds as a message instead of an error object, so we need to parse the message and return the error.
+// https://github.com/near/nearcore/blob/ae6fd841eaad76a090a02e9dcf7406bc79b81dbb/chain/jsonrpc/src/lib.rs#L204
+//
+// TODO: remove this once we have a proper error handling in the RPC API.
+// - https://github.com/near/near-sdk-rs/pull/1165
+// - nearcore PR
 impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()>>
     for SendRequestError<RpcError>
 {

@@ -43,7 +43,7 @@ pub fn is_critical_blocks_error(err: &SendRequestError<RpcBlockError>) -> bool {
     is_critical_json_rpc_error(err, |err| match err {
         RpcBlockError::UnknownBlock { .. }
         | RpcBlockError::NotSyncedYet
-        | RpcBlockError::InternalError { .. } => true,
+        | RpcBlockError::InternalError { .. } => false,
     })
 }
 
@@ -51,23 +51,25 @@ pub fn is_critical_validator_error(err: &SendRequestError<RpcValidatorError>) ->
     is_critical_json_rpc_error(err, |err| match err {
         RpcValidatorError::UnknownEpoch
         | RpcValidatorError::ValidatorInfoUnavailable
-        | RpcValidatorError::InternalError { .. } => true,
+        | RpcValidatorError::InternalError { .. } => false,
     })
 }
 pub fn is_critical_query_error(err: &SendRequestError<RpcQueryError>) -> bool {
     is_critical_json_rpc_error(err, |err| match err {
         RpcQueryError::NoSyncedBlocks
         | RpcQueryError::UnavailableShard { .. }
-        | RpcQueryError::GarbageCollectedBlock { .. }
         | RpcQueryError::UnknownBlock { .. }
+        | RpcQueryError::InternalError { .. } => false,
+
+        RpcQueryError::GarbageCollectedBlock { .. }
         | RpcQueryError::InvalidAccount { .. }
         | RpcQueryError::UnknownAccount { .. }
         | RpcQueryError::NoContractCode { .. }
         | RpcQueryError::TooLargeContractState { .. }
         | RpcQueryError::UnknownAccessKey { .. }
         | RpcQueryError::ContractExecutionError { .. }
-        | RpcQueryError::UnknownGasKey { .. }
-        | RpcQueryError::InternalError { .. } => true,
+        | RpcQueryError::UnknownGasKey { .. } => true,
+
         // Might be critical, but also might not yet propagated across the network, so we will retry
         RpcQueryError::NoGlobalContractCode { .. } => false,
     })
@@ -75,10 +77,9 @@ pub fn is_critical_query_error(err: &SendRequestError<RpcQueryError>) -> bool {
 
 pub fn is_critical_transaction_error(err: &SendRequestError<RpcTransactionError>) -> bool {
     is_critical_json_rpc_error(err, |err| match err {
-        RpcTransactionError::TimeoutError => false,
+        RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. } => false,
         RpcTransactionError::InvalidTransaction { .. }
         | RpcTransactionError::DoesNotTrackShard
-        | RpcTransactionError::RequestRouted { .. }
         | RpcTransactionError::UnknownTransaction { .. }
         | RpcTransactionError::InternalError { .. } => true,
     })
@@ -103,15 +104,19 @@ fn is_critical_json_rpc_error<RpcError: std::fmt::Debug + Send + Sync>(
             | near_openapi_client::Error::UnexpectedResponse(_)
             | near_openapi_client::Error::Custom(_) => true,
 
-            near_openapi_client::Error::ErrorResponse(response_value) => !matches!(
-                response_value.status(),
-                StatusCode::REQUEST_TIMEOUT
+            near_openapi_client::Error::ErrorResponse(response_value) => {
+                // It's more readable to use a match statement than a macro
+                #[allow(clippy::match_like_matches_macro)]
+                match response_value.status() {
+                    StatusCode::REQUEST_TIMEOUT
                     | StatusCode::TOO_MANY_REQUESTS
                     | StatusCode::INTERNAL_SERVER_ERROR
                     | StatusCode::BAD_GATEWAY
                     | StatusCode::SERVICE_UNAVAILABLE
-                    | StatusCode::GATEWAY_TIMEOUT
-            ),
+                    | StatusCode::GATEWAY_TIMEOUT => false,
+                    _ => true,
+                }
+            }
         },
     }
 }
