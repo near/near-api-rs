@@ -44,7 +44,7 @@ jobs:
           toolchain: ${{ needs.get_msrv.outputs.version }}
           target: wasm32-unknown-unknown
       - name: Set Default Toolchain
-        run: rustup override set $ ${{ needs.get_msrv.outputs.version }}
+        run: rustup override set ${{ needs.get_msrv.outputs.version }}
       - uses: Swatinem/rust-cache@v2
       - name: Rust version
         run: rustc --version --verbose
