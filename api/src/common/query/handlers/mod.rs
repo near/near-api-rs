@@ -29,6 +29,9 @@ const fn query_to_kind(response: &RpcQueryResponse) -> &'static str {
         RpcQueryResponse::Variant5 { .. } => "AccessKeyList",
         RpcQueryResponse::Variant6 { .. } => "ViewGasKey",
         RpcQueryResponse::Variant7 { .. } => "ViewGasKeyList",
+
+        #[allow(unreachable_patterns)]
+        _ => "UnknownQueryResponse",
     }
 }
 
