@@ -1,4 +1,5 @@
-// https://github.com/near/near-token-rs/blob/3feafec624e7d1028ed00695f2acf87e1d823fa7/src/utils.rs#L1-L49
+// New errors can be added to the codebase, so we want to handle them gracefully
+#![allow(unreachable_patterns)]
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use near_api_types::NearToken;
@@ -44,6 +45,7 @@ pub fn is_critical_blocks_error(err: &SendRequestError<RpcBlockError>) -> bool {
         RpcBlockError::UnknownBlock { .. }
         | RpcBlockError::NotSyncedYet
         | RpcBlockError::InternalError { .. } => false,
+        _ => false,
     })
 }
 
@@ -52,6 +54,7 @@ pub fn is_critical_validator_error(err: &SendRequestError<RpcValidatorError>) ->
         RpcValidatorError::UnknownEpoch
         | RpcValidatorError::ValidatorInfoUnavailable
         | RpcValidatorError::InternalError { .. } => false,
+        _ => false,
     })
 }
 pub fn is_critical_query_error(err: &SendRequestError<RpcQueryError>) -> bool {
@@ -72,6 +75,7 @@ pub fn is_critical_query_error(err: &SendRequestError<RpcQueryError>) -> bool {
 
         // Might be critical, but also might not yet propagated across the network, so we will retry
         RpcQueryError::NoGlobalContractCode { .. } => false,
+        _ => false,
     })
 }
 
@@ -82,6 +86,7 @@ pub fn is_critical_transaction_error(err: &SendRequestError<RpcTransactionError>
         | RpcTransactionError::DoesNotTrackShard
         | RpcTransactionError::UnknownTransaction { .. }
         | RpcTransactionError::InternalError { .. } => true,
+        _ => false,
     })
 }
 
@@ -117,6 +122,8 @@ fn is_critical_json_rpc_error<RpcError: std::fmt::Debug + Send + Sync>(
                     _ => true,
                 }
             }
+            _ => false,
         },
+        _ => false,
     }
 }
