@@ -85,6 +85,8 @@ pub enum AccessKeyFileError {
     SecretError(#[from] SecretError),
     #[error("Public key is not linked to the private key")]
     PrivatePublicKeyMismatch,
+    #[error(transparent)]
+    SignerError(#[from] SignerError),
 }
 
 #[cfg(feature = "keystore")]
