@@ -132,7 +132,7 @@ impl Contract {
     /// use serde_json::json;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract("some_contract.testnet".parse()?)
     ///     .call_function("set_number", json!({ "number": 100 }))
     ///     .transaction()
@@ -173,7 +173,7 @@ impl Contract {
     /// }
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let args = MyArgs { value: 42 };
     /// let result = Contract("some_contract.testnet".parse()?)
     ///     .call_function_borsh("set_value", args)
@@ -208,7 +208,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// // Pre-serialized or custom-encoded data
     /// let raw_args = vec![1, 2, 3, 4];
     /// let result = Contract("some_contract.testnet".parse()?)
@@ -239,7 +239,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy("contract.testnet".parse()?)
     ///     .use_code(code)
     ///     .without_init_call()
@@ -257,7 +257,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy("contract.testnet".parse()?)
     ///     .use_code(code)
     ///     .with_init_call("init", json!({ "number": 100 }))?
@@ -287,7 +287,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_hash()
     ///     .with_signer("some-account.testnet".parse()?, signer)
@@ -307,7 +307,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_account_id("nft-contract.testnet".parse()?)
     ///     .with_signer(signer)
@@ -511,7 +511,7 @@ impl DeployBuilder {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy("contract.testnet".parse()?)
     ///     .use_code(code)
     ///     .without_init_call()
@@ -534,7 +534,7 @@ impl DeployBuilder {
     // /// use near_api::*;
     // ///
     // /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    // /// let signer = Signer::new(Signer::from_ledger())?;
+    // /// let signer = Signer::from_ledger()?;
     // /// let result = Contract::deploy("contract.testnet".parse()?)
     // ///     .use_global_hash("DxfRbrjT3QPmoANMDYTR6iXPGJr7xRUyDnQhcAWjcoFF".parse()?)
     // ///     .without_init_call()
@@ -562,7 +562,7 @@ impl DeployBuilder {
     // /// use near_api::*;
     // ///
     // /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    // /// let signer = Signer::new(Signer::from_ledger())?;
+    // /// let signer = Signer::from_ledger()?;
     // /// let result = Contract::deploy("contract.testnet".parse()?)
     // ///     .use_global_account_id("nft-contract.testnet".parse()?)
     // ///     .without_init_call()
@@ -708,7 +708,7 @@ impl GlobalDeployBuilder {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_hash()
     ///     .with_signer("some-account.testnet".parse()?, signer)
@@ -737,7 +737,7 @@ impl GlobalDeployBuilder {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let code = std::fs::read("path/to/your/contract.wasm")?;
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// let result = Contract::deploy_global_contract_code(code)
     ///     .as_account_id("some-account.testnet".parse()?)
     ///     .with_signer(signer)

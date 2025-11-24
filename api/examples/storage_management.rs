@@ -16,10 +16,8 @@ async fn main() {
         .send()
         .await
         .unwrap();
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     // Import wNEAR contract from mainnet
     sandbox

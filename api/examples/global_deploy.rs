@@ -14,14 +14,10 @@ async fn main() {
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
-    let global_signer = Signer::new(Signer::from_secret_key(
-        global.private_key.clone().parse().unwrap(),
-    ))
-    .unwrap();
-    let instance_of_global_signer = Signer::new(Signer::from_secret_key(
-        instance_of_global.private_key.clone().parse().unwrap(),
-    ))
-    .unwrap();
+    let global_signer =
+        Signer::from_secret_key(global.private_key.clone().parse().unwrap()).unwrap();
+    let instance_of_global_signer =
+        Signer::from_secret_key(instance_of_global.private_key.clone().parse().unwrap()).unwrap();
 
     let code: Vec<u8> = include_bytes!("../resources/counter.wasm").to_vec();
     let contract_hash = CryptoHash::hash(&code);

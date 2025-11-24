@@ -15,10 +15,8 @@ pub struct TestContext {
 pub async fn setup_social_contract() -> TestContext {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     let contract = Contract("social.near".parse().unwrap());
     let account: AccountId = "user.sandbox".parse().unwrap();
@@ -65,10 +63,8 @@ pub async fn setup_social_contract() -> TestContext {
 pub async fn setup_ft_contract() -> TestContext {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     let contract = Contract("wrap.near".parse().unwrap());
     let account: AccountId = "user.sandbox".parse().unwrap();

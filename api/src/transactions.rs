@@ -142,7 +142,7 @@ impl Transaction {
     /// use near_api::{*, types::{transaction::actions::{Action, TransferAction}, json::U128}};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     ///
     /// let transaction_result = Transaction::construct(
     ///     "sender.near".parse()?,
@@ -178,7 +178,7 @@ impl Transaction {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let signer = Signer::new(Signer::from_ledger())?;
+    /// let signer = Signer::from_ledger()?;
     /// # let unsigned_tx = todo!();
     ///
     /// let transaction_result = Transaction::use_transaction(

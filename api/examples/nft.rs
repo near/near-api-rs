@@ -22,14 +22,9 @@ async fn main() {
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
 
-    let nft_signer = Signer::new(Signer::from_secret_key(
-        nft.private_key.clone().parse().unwrap(),
-    ))
-    .unwrap();
-    let account_signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let nft_signer = Signer::from_secret_key(nft.private_key.clone().parse().unwrap()).unwrap();
+    let account_signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     // Deploying token contract
     Contract::deploy(nft.account_id.clone())

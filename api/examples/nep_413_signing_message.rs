@@ -1,4 +1,4 @@
-use near_api::{Signer, SignerTrait};
+use near_api::Signer;
 
 use openssl::rand::rand_bytes;
 
@@ -23,7 +23,7 @@ async fn main() {
     let signature = signer
         .sign_message_nep413(
             "round-toad.testnet".parse().unwrap(),
-            signer.get_public_key().unwrap(),
+            signer.get_public_key().await.unwrap(),
             payload,
         )
         .await

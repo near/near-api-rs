@@ -23,10 +23,8 @@ async fn multiple_tx_at_same_time_from_same_key() {
         .unwrap();
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await.unwrap())
@@ -79,10 +77,8 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap();
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     let secret = generate_secret_key().unwrap();
     Account(account.clone())
@@ -93,10 +89,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap()
         .assert_success();
 
-    signer
-        .add_signer_to_pool(Signer::from_secret_key(secret.clone()))
-        .await
-        .unwrap();
+    signer.add_secret_key_to_pool(secret.clone()).await.unwrap();
 
     let secret2 = generate_secret_key().unwrap();
     Account(account.clone())
@@ -107,7 +100,7 @@ async fn multiple_tx_at_same_time_from_different_keys() {
         .unwrap()
         .assert_success();
     signer
-        .add_signer_to_pool(Signer::from_secret_key(secret2.clone()))
+        .add_secret_key_to_pool(secret2.clone())
         .await
         .unwrap();
 

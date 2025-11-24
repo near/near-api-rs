@@ -193,7 +193,7 @@ impl Account {
     /// let pk = PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?;
     /// let result = Account("alice.testnet".parse()?)
     ///     .add_key(AccessKeyPermission::FullAccess, pk)
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -224,7 +224,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Account("alice.testnet".parse()?)
     ///     .delete_key(PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?)
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -248,7 +248,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Account("alice.testnet".parse()?)
     ///     .delete_keys(vec![PublicKey::from_str("ed25519:H4sIAAAAAAAAA+2X0Q6CMBAAtVlJQgYAAAA=")?])
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -278,7 +278,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Account("alice.testnet".parse()?)
     ///     .delete_account_with_beneficiary("bob.testnet".parse()?)
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -327,7 +327,7 @@ impl Account {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
-    /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
+    /// let bob_signer = Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?;
     /// let result = Account::create_account("alice.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?
@@ -349,7 +349,7 @@ impl Account {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let secret = near_api::signer::generate_secret_key()?;
-    /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
+    /// let bob_signer = Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?;
     /// let result = Account::create_account("sub.bob.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
     ///     .public_key(secret.public_key())?

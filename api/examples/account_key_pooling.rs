@@ -27,10 +27,8 @@ async fn main() {
     .await
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     println!(
         "Initial public key: {}",
@@ -49,7 +47,7 @@ async fn main() {
         .assert_success();
 
     signer
-        .add_signer_to_pool(Signer::from_secret_key(secret_key))
+        .add_secret_key_to_pool(secret_key)
         .await
         .unwrap();
 

@@ -30,7 +30,7 @@
 //!     .await?;
 //!
 //! // Create an account instance
-//! let signer = Signer::new(Signer::from_seed_phrase(bob_seed_phrase, None)?)?;
+//! let signer = Signer::from_seed_phrase(bob_seed_phrase, None)?;
 //! let alice_secret_key = generate_secret_key()?;
 //! Account::create_account(AccountId::from_str("alice.testnet")?)
 //!     .fund_myself(bob.clone(), NearToken::from_near(1))

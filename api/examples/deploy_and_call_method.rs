@@ -10,10 +10,8 @@ async fn main() {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
 
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     // Let's deploy the contract. The contract is simple counter with `get_num`, `increase`, `decrease` arguments
     Contract::deploy(account.clone())

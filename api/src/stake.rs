@@ -260,7 +260,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .deposit("pool.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -291,7 +291,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .deposit_and_stake("pool.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -323,7 +323,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .stake("pool.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -356,7 +356,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// Staking::delegation("alice.testnet".parse()?)
     ///     .stake_all("pool.testnet".parse()?)
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -383,7 +383,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .unstake("pool.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -414,7 +414,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .unstake_all("pool.testnet".parse()?)
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -441,7 +441,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .withdraw("pool.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -472,7 +472,7 @@ impl Delegation {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = Staking::delegation("alice.testnet".parse()?)
     ///     .withdraw_all("pool.testnet".parse()?)
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())

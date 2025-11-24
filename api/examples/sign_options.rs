@@ -3,7 +3,7 @@ use std::str::FromStr;
 use near_api::{
     signer::generate_seed_phrase_with_passphrase,
     types::{AccessKeyPermission, AccountId},
-    Account, NetworkConfig, PublicKey, Signer, SignerTrait,
+    Account, NetworkConfig, PublicKey, Signer,
 };
 use near_sandbox::config::{
     DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY,
@@ -23,10 +23,7 @@ async fn main() {
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, public_key)
         .with_signer(
-            Signer::new(Signer::from_secret_key(
-                DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-            ))
-            .unwrap(),
+            Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap(),
         )
         .send_to(&network)
         .await
@@ -37,14 +34,11 @@ async fn main() {
         println!("Skipping ledger signing in CI");
     } else {
         // Let's add ledger to the account with the new seed phrase
-        let ledger = Signer::from_ledger();
-        let ledger_pubkey = ledger.get_public_key().unwrap();
+        let ledger = Signer::from_ledger().unwrap();
+        let ledger_pubkey = ledger.get_public_key().await.unwrap();
         Account(account.clone())
             .add_key(AccessKeyPermission::FullAccess, ledger_pubkey)
-            .with_signer(
-                Signer::new(Signer::from_seed_phrase(&new_seed_phrase, Some("smile")).unwrap())
-                    .unwrap(),
-            )
+            .with_signer(Signer::from_seed_phrase(&new_seed_phrase, Some("smile")).unwrap())
             .send_to(&network)
             .await
             .unwrap()
@@ -55,7 +49,7 @@ async fn main() {
         // Let's sign some tx with the ledger key
         Account(account.clone())
             .delete_key(PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY).unwrap())
-            .with_signer(Signer::new(ledger).unwrap())
+            .with_signer(ledger)
             .send_to(&network)
             .await
             .unwrap()

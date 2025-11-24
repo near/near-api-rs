@@ -15,10 +15,8 @@ async fn create_and_delete_account() {
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network: NetworkConfig =
         NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     let new_account: AccountId = format!("{}.{}", "bob", account_id).parse().unwrap();
     let secret = generate_secret_key().unwrap();
@@ -82,9 +80,9 @@ async fn transfer_funds() {
         .send_to(bob.account_id.clone())
         .near(NearToken::from_near(50))
         .with_signer(
-            Signer::new(Signer::from_secret_key(
+            Signer::from_secret_key(
                 DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-            ))
+            )
             .unwrap(),
         )
         .send_to(&network)
@@ -117,10 +115,8 @@ async fn access_key_management() {
     let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let alice_acc = Account(alice.clone());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     let keys = alice_acc.list_keys().fetch_from(&network).await.unwrap();
     assert_eq!(keys.data.len(), 1);
@@ -168,10 +164,8 @@ async fn access_key_management() {
         .await
         .expect_err("Shouldn't exist");
 
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+    let signer =
+        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
 
     for _ in 0..10 {
         let secret = generate_secret_key().unwrap();
