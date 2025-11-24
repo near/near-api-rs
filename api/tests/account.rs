@@ -80,10 +80,7 @@ async fn transfer_funds() {
         .send_to(bob.account_id.clone())
         .near(NearToken::from_near(50))
         .with_signer(
-            Signer::from_secret_key(
-                DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-            )
-            .unwrap(),
+            Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap(),
         )
         .send_to(&network)
         .await

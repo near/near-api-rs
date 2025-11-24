@@ -46,10 +46,7 @@ async fn main() {
         .unwrap()
         .assert_success();
 
-    signer
-        .add_secret_key_to_pool(secret_key)
-        .await
-        .unwrap();
+    signer.add_secret_key_to_pool(secret_key).await.unwrap();
 
     let txs = (0..2).map(|_| {
         Tokens::account(account.clone())
