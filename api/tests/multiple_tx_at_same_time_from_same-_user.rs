@@ -15,7 +15,6 @@ async fn multiple_tx_at_same_time_from_same_key() {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-
     sandbox
         .create_account(receiver.clone())
         .send()
