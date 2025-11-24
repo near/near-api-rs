@@ -1,5 +1,8 @@
 use near_api_types::errors::DataConversionError;
-use near_openapi_client::types::RpcError;
+use near_openapi_client::types::{
+    FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
+    RpcTransactionError,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -51,7 +54,7 @@ pub enum SignerError {
     #[error("Secret key is not available")]
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0:?}")]
-    FetchNonceError(Box<QueryError<RpcError>>),
+    FetchNonceError(Box<QueryError<RpcQueryError>>),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
 
@@ -86,7 +89,7 @@ pub enum KeyStoreError {
     #[error(transparent)]
     Keystore(#[from] keyring::Error),
     #[error("Failed to query account keys: {0:?}")]
-    QueryError(QueryError<RpcError>),
+    QueryError(QueryError<RpcQueryError>),
     #[error("Failed to parse access key file: {0}")]
     ParseError(#[from] serde_json::Error),
     #[error(transparent)]
@@ -192,16 +195,6 @@ pub enum RetryError<E> {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SendRequestError<E: std::fmt::Debug> {
-    #[error("Client error: {0}")]
-    ClientError(near_openapi_client::Error<()>),
-    #[error("Server returned an error: {0}")]
-    ServerError(E),
-    #[error("Query creation error: {0}")]
-    QueryCreationError(#[from] QueryCreationError),
-}
-
-#[derive(thiserror::Error, Debug)]
 pub enum ExecuteTransactionError {
     #[error("Transaction validation error: {0}")]
     ValidationError(#[from] ValidationError),
@@ -210,9 +203,9 @@ pub enum ExecuteTransactionError {
     #[error("Meta-signing error: {0}")]
     MetaSignError(#[from] MetaSignError),
     #[error("Pre-query error: {0:?}")]
-    PreQueryError(QueryError<RpcError>),
+    PreQueryError(QueryError<RpcQueryError>),
     #[error("Transaction error: {0:?}")]
-    TransactionError(RetryError<SendRequestError<RpcError>>),
+    TransactionError(RetryError<SendRequestError<RpcTransactionError>>),
     #[error(transparent)]
     NonEmptyVecError(#[from] NonEmptyVecError),
     #[error("Data conversion error: {0}")]
@@ -226,7 +219,7 @@ pub enum ExecuteMetaTransactionsError {
     #[error("Meta-signing error: {0}")]
     SignError(#[from] MetaSignError),
     #[error("Pre-query error: {0:?}")]
-    PreQueryError(QueryError<RpcError>),
+    PreQueryError(QueryError<RpcQueryError>),
 
     #[error("Relayer is not defined in the network config")]
     RelayerIsNotDefined,
@@ -266,7 +259,7 @@ pub enum FastNearError {
 #[derive(thiserror::Error, Debug)]
 pub enum ValidationError {
     #[error("Query error: {0:?}")]
-    QueryError(QueryError<RpcError>),
+    QueryError(QueryError<RpcQueryError>),
 
     #[error("Query creation error: {0}")]
     RequestBuilderError(#[from] BuilderError),
@@ -314,5 +307,51 @@ pub enum PublicKeyParsingError {
 impl From<Vec<u8>> for PublicKeyParsingError {
     fn from(_: Vec<u8>) -> Self {
         Self::InvalidKeyLength
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
+    #[error("Query creation error: {0}")]
+    RequestCreationError(#[from] QueryCreationError),
+    #[error("Transport error: {0}")]
+    TransportError(near_openapi_client::Error<()>),
+    // This is a hack to support the old error handling in the RPC API.
+    #[error("Wasm execution failed with error: {0}")]
+    WasmExecutionError(#[from] FunctionCallError),
+    #[error("Internal error: {0:?}")]
+    InternalError(#[from] InternalError),
+    #[error("Request validation error: {0:?}")]
+    RequestValidationError(#[from] RpcRequestValidationErrorKind),
+    #[error("Server error: {0}")]
+    ServerError(RpcError),
+}
+
+// That's a BIG BIG HACK to handle inconsistent RPC errors
+//
+// Node responds as a message instead of an error object, so we need to parse the message and return the error.
+// https://github.com/near/nearcore/blob/ae6fd841eaad76a090a02e9dcf7406bc79b81dbb/chain/jsonrpc/src/lib.rs#L204
+//
+// TODO: remove this once we have a proper error handling in the RPC API.
+// - https://github.com/near/near-sdk-rs/pull/1165
+// - nearcore PR
+impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()>>
+    for SendRequestError<RpcError>
+{
+    fn from(err: near_openapi_client::Error<()>) -> Self {
+        if let near_openapi_client::Error::InvalidResponsePayload(bytes, _error) = &err {
+            let error = serde_json::from_slice::<serde_json::Value>(bytes)
+                .unwrap_or_default()
+                .get("result")
+                .and_then(|result| result.get("error"))
+                .and_then(|message| message.as_str())
+                .and_then(|message| message.strip_prefix("wasm execution failed with error: "))
+                .and_then(|message| serde_dbgfmt::from_str::<FunctionCallError>(message).ok());
+            if let Some(error) = error {
+                return Self::WasmExecutionError(error);
+            }
+        }
+
+        Self::TransportError(err)
     }
 }

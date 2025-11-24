@@ -1,14 +1,16 @@
 use near_api_types::EpochReference;
 use near_openapi_client::types::{
-    BlockId, EpochId, JsonRpcRequestForValidators, JsonRpcRequestForValidatorsMethod,
-    JsonRpcResponseForRpcValidatorResponseAndRpcError, RpcError, RpcValidatorRequest,
-    RpcValidatorResponse,
+    BlockId, EpochId, ErrorWrapperForRpcValidatorError, JsonRpcRequestForValidators,
+    JsonRpcRequestForValidatorsMethod, JsonRpcResponseForRpcValidatorResponseAndRpcValidatorError,
+    RpcValidatorError, RpcValidatorRequest, RpcValidatorResponse,
 };
 use near_openapi_client::Client;
 
+use crate::common::utils::to_retry_error;
+use crate::errors::SendRequestError;
 use crate::{
     advanced::RpcType, common::utils::is_critical_validator_error, config::RetryResponse,
-    errors::SendRequestError, NetworkConfig,
+    NetworkConfig,
 };
 
 #[derive(Clone, Debug)]
@@ -18,13 +20,13 @@ pub struct SimpleValidatorRpc;
 impl RpcType for SimpleValidatorRpc {
     type RpcReference = EpochReference;
     type Response = RpcValidatorResponse;
-    type Error = RpcError;
+    type Error = RpcValidatorError;
     async fn send_query(
         &self,
         client: &Client,
         _network: &NetworkConfig,
         reference: &EpochReference,
-    ) -> RetryResponse<RpcValidatorResponse, SendRequestError<RpcError>> {
+    ) -> RetryResponse<RpcValidatorResponse, SendRequestError<RpcValidatorError>> {
         let request = match reference {
             EpochReference::Latest => RpcValidatorRequest::Latest,
             EpochReference::AtEpoch(epoch) => {
@@ -45,19 +47,38 @@ impl RpcType for SimpleValidatorRpc {
                 params: request,
             })
             .await
-            .map(|r| r.into_inner());
+            .map(|r| r.into_inner())
+            .map_err(SendRequestError::from);
+
         match response {
-            Ok(JsonRpcResponseForRpcValidatorResponseAndRpcError::Variant0 { result, .. }) => {
-                RetryResponse::Ok(result)
+            Ok(JsonRpcResponseForRpcValidatorResponseAndRpcValidatorError::Variant0 {
+                result,
+                ..
+            }) => RetryResponse::Ok(result),
+            Ok(JsonRpcResponseForRpcValidatorResponseAndRpcValidatorError::Variant1 {
+                error,
+                ..
+            }) => {
+                let error: SendRequestError<RpcValidatorError> = SendRequestError::from(error);
+                to_retry_error(error, is_critical_validator_error)
             }
-            Ok(JsonRpcResponseForRpcValidatorResponseAndRpcError::Variant1 { error, .. }) => {
-                if is_critical_validator_error(&error) {
-                    RetryResponse::Critical(SendRequestError::ServerError(error))
-                } else {
-                    RetryResponse::Retry(SendRequestError::ServerError(error))
-                }
+            Err(err) => to_retry_error(err, is_critical_validator_error),
+        }
+    }
+}
+
+impl From<ErrorWrapperForRpcValidatorError> for SendRequestError<RpcValidatorError> {
+    fn from(err: ErrorWrapperForRpcValidatorError) -> Self {
+        match err {
+            ErrorWrapperForRpcValidatorError::InternalError(internal_error) => {
+                Self::InternalError(internal_error)
             }
-            Err(err) => RetryResponse::Critical(SendRequestError::ClientError(err)),
+            ErrorWrapperForRpcValidatorError::RequestValidationError(
+                rpc_request_validation_error_kind,
+            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
+            ErrorWrapperForRpcValidatorError::HandlerError(server_error) => {
+                Self::ServerError(server_error)
+            }
         }
     }
 }
