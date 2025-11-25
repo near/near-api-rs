@@ -60,5 +60,4 @@ jobs:
         with:
           fail_ci_if_error: true
           files: ./llvm-cov-output.lcov
-          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
