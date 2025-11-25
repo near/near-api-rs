@@ -3,7 +3,7 @@ use serde_json::json;
 
 use crate::{
     common::query::{CallResultHandler, PostprocessHandler, RequestBuilder},
-    contract::{Contract, ContractTransactBuilder},
+    contract::ContractTransactBuilder,
     errors::BuilderError,
     transactions::ConstructTransaction,
 };
@@ -35,11 +35,11 @@ use crate::{
 /// # }
 /// ```
 #[derive(Clone, Debug)]
-pub struct StorageDeposit(AccountId);
+pub struct StorageDeposit(crate::Contract);
 
 impl StorageDeposit {
     pub const fn on_contract(contract_id: AccountId) -> Self {
-        Self(contract_id)
+        Self(crate::Contract(contract_id))
     }
 
     /// Returns the underlying contract account ID for this storage deposit wrapper.
@@ -56,7 +56,7 @@ impl StorageDeposit {
     /// # }
     /// ```
     pub const fn contract_id(&self) -> &AccountId {
-        &self.0
+        self.0.account_id()
     }
 
     /// Converts this storage deposit wrapper to a Contract for other contract operations.
@@ -76,7 +76,7 @@ impl StorageDeposit {
     /// # }
     /// ```
     pub fn as_contract(&self) -> crate::contract::Contract {
-        crate::contract::Contract(self.0.clone())
+        self.0.clone()
     }
 
     /// Prepares a new contract query (`storage_balance_of`) for fetching the storage balance (Option<[StorageBalance]>) of the account on the contract.
@@ -107,7 +107,8 @@ impl StorageDeposit {
         >,
         BuilderError,
     > {
-        Ok(Contract(self.0.clone())
+        Ok(self
+            .0
             .call_function(
                 "storage_balance_of",
                 json!({
@@ -148,7 +149,8 @@ impl StorageDeposit {
         receiver_account_id: AccountId,
         amount: NearToken,
     ) -> Result<ContractTransactBuilder, BuilderError> {
-        Ok(Contract(self.0.clone())
+        Ok(self
+            .0
             .call_function(
                 "storage_deposit",
                 json!({
@@ -179,7 +181,8 @@ impl StorageDeposit {
         account_id: AccountId,
         amount: NearToken,
     ) -> Result<ConstructTransaction, BuilderError> {
-        Ok(Contract(self.0.clone())
+        Ok(self
+            .0
             .call_function(
                 "storage_withdraw",
                 json!({
