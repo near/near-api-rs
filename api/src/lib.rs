@@ -74,7 +74,7 @@ pub use crate::{
     contract::Contract,
     signer::{Signer, SignerTrait},
     stake::{Delegation, Staking},
-    storage::StorageDeposit,
+    storage::{StorageDeposit, StorageDepositBuilder, StorageUnregisterBuilder},
     tokens::Tokens,
     transactions::Transaction,
     types::{
