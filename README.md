@@ -26,12 +26,13 @@ The minimum required version is located in the [rust-version](./Cargo.toml#L4) f
 * `ledger`: Enables integration with a Ledger hardware signer for secure key management.
 * `keystore`: Enables integration with a system keystore signer for managing keys securely on the local system.
 
+
 ## Current issues
 
 The library is in good condition, but lacks a few points to be even better:
 - [x] documentation
 - [ ] good quality examples
-- [ ] integration tests for all API calls
+- [ ] integration tests for all API calls (in progress - targeting 60% coverage)
 - [x] CI
 - [x] anyhow -> thiserror
 - [x] ledger is blocking and it's not good in the async runtime
