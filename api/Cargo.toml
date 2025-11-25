@@ -20,9 +20,6 @@ borsh.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 
-# Remove this after https://github.com/near/near-sandbox-rs/pull/14
-chrono = { version = "0.4", features = ["now"], default-features = false }
-
 reqwest = { workspace = true, features = ["blocking", "json"] }
 futures.workspace = true
 # Ad-hoc fix for compilation errors (rustls is used instead of openssl to ease the deployment avoiding the system dependency on openssl)
@@ -53,7 +50,7 @@ keyring = { workspace = true, features = [
 
 
 [features]
-default = ["keystore", "ledger"]
+default = []
 ledger = ["near-ledger"]
 keystore = ["dep:keyring"]
 
