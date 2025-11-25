@@ -12,7 +12,7 @@ struct TestContext {
     signer: Arc<Signer>,
 }
 
-async fn setup_ft_contract() -> TestContext {
+async fn setup_social_contract() -> TestContext {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let signer = Signer::new(Signer::from_secret_key(
@@ -66,7 +66,7 @@ async fn setup_ft_contract() -> TestContext {
 
 #[tokio::test]
 async fn test_that_generic_account_has_no_storage() {
-    let ctx: TestContext = setup_ft_contract().await;
+    let ctx: TestContext = setup_social_contract().await;
 
     let balance: Data<Option<StorageBalance>> = ctx
         .storage
@@ -81,7 +81,7 @@ async fn test_that_generic_account_has_no_storage() {
 
 #[tokio::test]
 async fn test_deposit_integration() {
-    let ctx = setup_ft_contract().await;
+    let ctx = setup_social_contract().await;
 
     // Make a storage deposit for ourselves
     let deposit_amount = NearToken::from_near(10);
@@ -109,7 +109,7 @@ async fn test_deposit_integration() {
 
 #[tokio::test]
 async fn test_withdraw_integration() {
-    let ctx = setup_ft_contract().await;
+    let ctx = setup_social_contract().await;
 
     // First deposit storage
     let deposit_amount = NearToken::from_near(10);
