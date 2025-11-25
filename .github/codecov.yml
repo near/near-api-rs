@@ -1,0 +1,14 @@
+codecov:
+  # Feel free to use this token to upload arbitrary coverage information to codecov.
+  # We do not care. The best you can do is make us facepalm.
+  # Best,
+  token: 7c4d63e6-1136-4039-84f9-b5629218a653
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+    patch:
+      default: false
