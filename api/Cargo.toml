@@ -53,7 +53,7 @@ keyring = { workspace = true, features = [
 
 
 [features]
-default = ["keystore", "ledger"]
+default = []
 ledger = ["near-ledger"]
 keystore = ["dep:keyring"]
 
