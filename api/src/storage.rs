@@ -29,8 +29,8 @@ use crate::{
 /// println!("Storage balance: {:?}", balance);
 ///
 /// // Bob pays for Alice's storage on the contract contract.testnet
-/// let deposit_tx = storage.deposit("alice.testnet".parse()?, NearToken::from_near(1))?
-///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+/// let deposit_tx = storage.deposit("alice.testnet".parse()?, NearToken::from_near(1))
+///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
 ///     .send_to_testnet()
 ///     .await
 ///     .unwrap();
@@ -144,16 +144,16 @@ impl StorageDeposit {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// // Basic deposit for another account
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
-    ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))?
-    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))
+    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
     ///     .send_to_testnet()
     ///     .await?;
     ///
     /// // Registration-only deposit (refunds excess above minimum)
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
-    ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))?
+    ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))
     ///     .registration_only()
-    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -181,7 +181,7 @@ impl StorageDeposit {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .withdraw("alice.testnet".parse()?, NearToken::from_near(1))?
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer( Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -212,7 +212,7 @@ impl StorageDeposit {
     ///
     /// By default, the contract will panic if the caller has existing account data (such as
     /// a positive token balance). Use [`force()`](StorageUnregisterBuilder::force) to ignore
-    /// existing account data and force unregistration (which may burn token balances).
+    /// existing account data and force unregistering (which may burn token balances).
     ///
     /// **Note:** Requires exactly 1 yoctoNEAR attached for security purposes.
     ///
@@ -223,16 +223,16 @@ impl StorageDeposit {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// // Normal unregister (fails if account has data like token balance)
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
-    ///     .unregister()?
-    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .unregister()
+    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
     ///     .send_to_testnet()
     ///     .await?;
     ///
     /// // Force unregister (burns any remaining token balance)
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
-    ///     .unregister()?
+    ///     .unregister()
     ///     .force()
-    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -262,7 +262,7 @@ impl StorageDepositBuilder {
     ///
     /// When enabled, the contract will refund any deposit above the minimum balance
     /// if the account wasn't registered, and refund the full deposit if already registered.
-    pub fn registration_only(mut self) -> Self {
+    pub const fn registration_only(mut self) -> Self {
         self.registration_only = true;
         self
     }
@@ -309,13 +309,13 @@ pub struct StorageUnregisterBuilder {
 }
 
 impl StorageUnregisterBuilder {
-    /// Sets `force=true` for the unregistration.
+    /// Sets `force=true` for the unregistering.
     ///
     /// When enabled, the contract will ignore existing account data (such as non-zero
     /// token balances) and close the account anyway, potentially burning those balances.
     ///
     /// **Warning:** This may result in permanent loss of tokens or other account data.
-    pub fn force(mut self) -> Self {
+    pub const fn force(mut self) -> Self {
         self.force = true;
         self
     }
