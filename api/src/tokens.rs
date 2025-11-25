@@ -628,7 +628,8 @@ impl Transactionable for FTTransactionable {
 
         if storage_balance.data.is_none() {
             let mut action = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
-                .deposit(self.receiver.clone(), NearToken::from_millinear(100))?
+                .deposit(self.receiver.clone(), NearToken::from_millinear(100))
+                .into_transaction()?
                 .with_signer_account(self.prepopulated.signer_id.clone())
                 .tr
                 .actions;

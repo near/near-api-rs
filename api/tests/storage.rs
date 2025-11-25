@@ -1,75 +1,16 @@
-use near_api::*;
+use near_api_types::{Data, NearToken, StorageBalance};
 
-use near_api_types::{AccountId, Data, NearToken, StorageBalance};
-use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY;
-use std::sync::Arc;
+mod common;
 
-struct TestContext {
-    _sandbox: near_sandbox::Sandbox,
-    network: NetworkConfig,
-    account: AccountId,
-    storage: StorageDeposit,
-    signer: Arc<Signer>,
-}
-
-async fn setup_social_contract() -> TestContext {
-    let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
-
-    let contract = Contract("social.near".parse().unwrap());
-    let account: AccountId = "user.sandbox".parse().unwrap();
-
-    sandbox
-        .create_account(account.clone())
-        .send()
-        .await
-        .unwrap();
-
-    sandbox
-        .import_account(RPCEndpoint::mainnet().url, contract.account_id().clone())
-        .send()
-        .await
-        .unwrap();
-
-    contract
-        .call_function("new", ())
-        .unwrap()
-        .transaction()
-        .with_signer(contract.account_id().clone(), signer.clone())
-        .send_to(&network)
-        .await
-        .unwrap()
-        .assert_success();
-
-    contract
-        .call_function("set_status", serde_json::json!({ "status": "Live" }))
-        .unwrap()
-        .transaction()
-        .with_signer(contract.account_id().clone(), signer.clone())
-        .send_to(&network)
-        .await
-        .unwrap()
-        .assert_success();
-
-    TestContext {
-        storage: StorageDeposit::on_contract(contract.account_id().clone()),
-        _sandbox: sandbox,
-        network,
-        account,
-        signer,
-    }
-}
+use common::{setup_ft_contract, setup_social_contract, TestContext};
 
 #[tokio::test]
 async fn test_that_generic_account_has_no_storage() {
     let ctx: TestContext = setup_social_contract().await;
 
     let balance: Data<Option<StorageBalance>> = ctx
-        .storage
+        .contract
+        .storage_deposit()
         .view_account_storage(ctx.account.clone())
         .unwrap()
         .fetch_from(&ctx.network)
@@ -85,10 +26,11 @@ async fn test_deposit_integration() {
 
     // Make a storage deposit for ourselves
     let deposit_amount = NearToken::from_near(10);
-    ctx.storage
+    ctx.contract
+        .storage_deposit()
         .deposit(ctx.account.clone(), deposit_amount)
-        .unwrap()
         .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -96,7 +38,8 @@ async fn test_deposit_integration() {
 
     // Verify the storage balance increased
     let balance: Data<Option<StorageBalance>> = ctx
-        .storage
+        .contract
+        .storage_deposit()
         .view_account_storage(ctx.account.clone())
         .unwrap()
         .fetch_from(&ctx.network)
@@ -113,10 +56,11 @@ async fn test_withdraw_integration() {
 
     // First deposit storage
     let deposit_amount = NearToken::from_near(10);
-    ctx.storage
+    ctx.contract
+        .storage_deposit()
         .deposit(ctx.account.clone(), deposit_amount)
-        .unwrap()
         .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -124,7 +68,8 @@ async fn test_withdraw_integration() {
 
     // Get initial balance
     let initial_balance: Data<Option<StorageBalance>> = ctx
-        .storage
+        .contract
+        .storage_deposit()
         .view_account_storage(ctx.account.clone())
         .unwrap()
         .fetch_from(&ctx.network)
@@ -134,7 +79,8 @@ async fn test_withdraw_integration() {
     let initial_available = initial_balance.data.as_ref().unwrap().total;
 
     // Try to withdraw (might fail if there's no available balance, but tests the flow)
-    ctx.storage
+    ctx.contract
+        .storage_deposit()
         .withdraw(ctx.account.clone(), NearToken::from_yoctonear(1000))
         .unwrap()
         .with_signer(ctx.signer.clone())
@@ -144,7 +90,8 @@ async fn test_withdraw_integration() {
         .assert_success();
 
     let balance: Data<Option<StorageBalance>> = ctx
-        .storage
+        .contract
+        .storage_deposit()
         .view_account_storage(ctx.account.clone())
         .unwrap()
         .fetch_from(&ctx.network)
@@ -155,4 +102,133 @@ async fn test_withdraw_integration() {
         balance.data.unwrap().total,
         initial_available.saturating_sub(NearToken::from_yoctonear(1000))
     );
+}
+
+#[tokio::test]
+async fn test_unregister_integration() {
+    // Social doesn't support unregistering
+    let ctx = setup_ft_contract().await;
+
+    // First deposit storage
+    let deposit_amount = NearToken::from_near(10);
+    ctx.contract
+        .storage_deposit()
+        .deposit(ctx.account.clone(), deposit_amount)
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_success();
+
+    let balance = ctx
+        .contract
+        .storage_deposit()
+        .view_account_storage(ctx.account.clone())
+        .unwrap()
+        .fetch_from(&ctx.network)
+        .await
+        .unwrap();
+    assert!(balance.data.is_some());
+
+    ctx.contract
+        .storage_deposit()
+        .unregister()
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_success();
+
+    let balance = ctx
+        .contract
+        .storage_deposit()
+        .view_account_storage(ctx.account.clone())
+        .unwrap()
+        .fetch_from(&ctx.network)
+        .await
+        .unwrap();
+    assert!(balance.data.is_none());
+}
+
+#[tokio::test]
+async fn test_registration_only_integration() {
+    let ctx = setup_social_contract().await;
+
+    let deposit_amount = NearToken::from_near(10);
+    ctx.contract
+        .storage_deposit()
+        .deposit(ctx.account.clone(), deposit_amount)
+        .registration_only()
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_success();
+
+    let balance = ctx
+        .contract
+        .storage_deposit()
+        .view_account_storage(ctx.account.clone())
+        .unwrap()
+        .fetch_from(&ctx.network)
+        .await
+        .unwrap();
+
+    assert!(
+        balance.data.as_ref().unwrap().total < deposit_amount,
+        "Should have refunded the excess deposit, but got {}",
+        balance.data.as_ref().unwrap().total
+    );
+}
+
+#[tokio::test]
+async fn test_force_unregister_integration() {
+    let ctx = setup_ft_contract().await;
+
+    let deposit_amount = NearToken::from_near(10);
+    ctx.contract
+        .storage_deposit()
+        .deposit(ctx.account.clone(), deposit_amount)
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_success();
+
+    ctx.contract
+        .call_function("near_deposit", ())
+        .unwrap()
+        .transaction()
+        .deposit(NearToken::from_yoctonear(1000))
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_success();
+
+    // Should fail because we have a balance
+    ctx.contract
+        .storage_deposit()
+        .unregister()
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_failure();
+
+    ctx.contract
+        .storage_deposit()
+        .unregister()
+        .force()
+        .with_signer(ctx.account.clone(), ctx.signer.clone())
+        .unwrap()
+        .send_to(&ctx.network)
+        .await
+        .unwrap()
+        .assert_success();
 }
