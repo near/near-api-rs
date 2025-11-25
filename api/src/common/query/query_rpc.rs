@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use near_openapi_client::types::{
-    JsonRpcRequestForQuery, JsonRpcRequestForQueryMethod,
-    JsonRpcResponseForRpcQueryResponseAndRpcError, RpcError, RpcQueryResponse,
+    ErrorWrapperForRpcQueryError, JsonRpcRequestForQuery, JsonRpcRequestForQueryMethod,
+    JsonRpcResponseForRpcQueryResponseAndRpcQueryError, RpcQueryError, RpcQueryResponse,
 };
 
 use crate::{
     advanced::{query_request::QueryRequest, RpcType},
-    common::utils::is_critical_query_error,
+    common::utils::{is_critical_query_error, to_retry_error},
     config::RetryResponse,
     errors::SendRequestError,
     NetworkConfig,
@@ -22,13 +22,13 @@ pub struct SimpleQueryRpc {
 impl RpcType for SimpleQueryRpc {
     type RpcReference = Reference;
     type Response = RpcQueryResponse;
-    type Error = RpcError;
+    type Error = RpcQueryError;
     async fn send_query(
         &self,
         client: &near_openapi_client::Client,
         _network: &NetworkConfig,
         reference: &Reference,
-    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcError>> {
+    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcQueryError>> {
         let request = self.request.clone().to_rpc_query_request(reference.clone());
         let response = client
             .query(&JsonRpcRequestForQuery {
@@ -38,19 +38,34 @@ impl RpcType for SimpleQueryRpc {
                 params: request,
             })
             .await
-            .map(|r| r.into_inner());
+            .map(|r| r.into_inner())
+            .map_err(SendRequestError::from);
+
         match response {
-            Ok(JsonRpcResponseForRpcQueryResponseAndRpcError::Variant0 { result, .. }) => {
+            Ok(JsonRpcResponseForRpcQueryResponseAndRpcQueryError::Variant0 { result, .. }) => {
                 RetryResponse::Ok(result)
             }
-            Ok(JsonRpcResponseForRpcQueryResponseAndRpcError::Variant1 { error, .. }) => {
-                if is_critical_query_error(&error) {
-                    RetryResponse::Critical(SendRequestError::ServerError(error))
-                } else {
-                    RetryResponse::Retry(SendRequestError::ServerError(error))
-                }
+            Ok(JsonRpcResponseForRpcQueryResponseAndRpcQueryError::Variant1 { error, .. }) => {
+                let error = SendRequestError::from(error);
+                to_retry_error(error, is_critical_query_error)
             }
-            Err(err) => RetryResponse::Critical(SendRequestError::ClientError(err)),
+            Err(err) => to_retry_error(err, is_critical_query_error),
+        }
+    }
+}
+
+impl From<ErrorWrapperForRpcQueryError> for SendRequestError<RpcQueryError> {
+    fn from(err: ErrorWrapperForRpcQueryError) -> Self {
+        match err {
+            ErrorWrapperForRpcQueryError::InternalError(internal_error) => {
+                Self::InternalError(internal_error)
+            }
+            ErrorWrapperForRpcQueryError::RequestValidationError(
+                rpc_request_validation_error_kind,
+            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
+            ErrorWrapperForRpcQueryError::HandlerError(server_error) => {
+                Self::ServerError(server_error)
+            }
         }
     }
 }

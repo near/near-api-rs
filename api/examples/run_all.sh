@@ -7,6 +7,6 @@ for example in $(find . -name "*.rs" -type f); do
     echo "--------------------------------"
     echo "Running $example_name"
     echo "--------------------------------"
-    CI=true cargo run --release --example $example_name
+    CI=true cargo run --release --all-features --example $example_name
     echo "--------------------------------"
 done

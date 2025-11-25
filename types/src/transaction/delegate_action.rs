@@ -100,6 +100,17 @@ impl TryFrom<near_openapi_types::NonDelegateAction> for NonDelegateAction {
             ) => Ok(Self(Action::UseGlobalContract(Box::new(
                 use_global_contract_action.try_into()?,
             )))),
+            near_openapi_types::NonDelegateAction::AddGasKey(add_gas_key_action) => Ok(Self(
+                Action::AddGasKey(Box::new(add_gas_key_action.try_into()?)),
+            )),
+            near_openapi_types::NonDelegateAction::DeleteGasKey(delete_gas_key_action) => Ok(Self(
+                Action::DeleteGasKey(Box::new(delete_gas_key_action.try_into()?)),
+            )),
+            near_openapi_types::NonDelegateAction::TransferToGasKey(transfer_to_gas_key_action) => {
+                Ok(Self(Action::TransferToGasKey(Box::new(
+                    transfer_to_gas_key_action.try_into()?,
+                ))))
+            }
         }
     }
 }

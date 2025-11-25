@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use near_openapi_client::types::{
-    FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
-    JsonRpcResponseForRpcTransactionResponseAndRpcError, RpcSendTransactionRequest,
-    RpcTransactionResponse,
+    ErrorWrapperForRpcTransactionError, FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
+    JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError, RpcSendTransactionRequest,
+    RpcTransactionError, RpcTransactionResponse,
 };
 
 use near_api_types::{
@@ -18,7 +18,7 @@ use reqwest::Response;
 use tracing::{debug, info};
 
 use crate::{
-    common::utils::is_critical_transaction_error,
+    common::utils::{is_critical_transaction_error, to_retry_error},
     config::{retry, NetworkConfig, RetryResponse},
     errors::{
         ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SendRequestError,
@@ -268,24 +268,26 @@ impl ExecuteSignedTransaction {
                         },
                     })
                     .await
+                    .map(|r| r.into_inner())
+                    .map_err(SendRequestError::from)
                 {
-                    Ok(result) => match result.into_inner() {
-                        JsonRpcResponseForRpcTransactionResponseAndRpcError::Variant0 {
+                    Ok(
+                        JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant0 {
                             result,
                             ..
-                        } => RetryResponse::Ok(result),
-                        JsonRpcResponseForRpcTransactionResponseAndRpcError::Variant1 {
+                        },
+                    ) => RetryResponse::Ok(result),
+                    Ok(
+                        JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant1 {
                             error,
                             ..
-                        } => {
-                            if is_critical_transaction_error(&error) {
-                                RetryResponse::Critical(SendRequestError::ServerError(error))
-                            } else {
-                                RetryResponse::Retry(SendRequestError::ServerError(error))
-                            }
-                        }
-                    },
-                    Err(err) => RetryResponse::Critical(SendRequestError::ClientError(err)),
+                        },
+                    ) => {
+                        let error: SendRequestError<RpcTransactionError> =
+                            SendRequestError::from(error);
+                        to_retry_error(error, is_critical_transaction_error)
+                    }
+                    Err(err) => to_retry_error(err, is_critical_transaction_error),
                 };
 
                 tracing::debug!(
@@ -561,5 +563,21 @@ impl ExecuteMetaTransaction {
             tr.delegate_action.receiver_id
         );
         Ok(resp)
+    }
+}
+
+impl From<ErrorWrapperForRpcTransactionError> for SendRequestError<RpcTransactionError> {
+    fn from(err: ErrorWrapperForRpcTransactionError) -> Self {
+        match err {
+            ErrorWrapperForRpcTransactionError::InternalError(internal_error) => {
+                Self::InternalError(internal_error)
+            }
+            ErrorWrapperForRpcTransactionError::RequestValidationError(
+                rpc_request_validation_error_kind,
+            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
+            ErrorWrapperForRpcTransactionError::HandlerError(server_error) => {
+                Self::ServerError(server_error)
+            }
+        }
     }
 }

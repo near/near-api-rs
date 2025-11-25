@@ -44,6 +44,19 @@ pub enum Action {
     ///
     /// See [NEP-616](https://github.com/near/NEPs/blob/master/neps/nep-0616.md) for more details
     DeterministicStateInit(Box<DeterministicStateInitAction>),
+
+    /// Creates a gas key for an account to be used for gas payments
+    ///
+    /// See [NEP-611](https://github.com/near/NEPs/blob/master/neps/nep-0611.md) for more details
+    AddGasKey(Box<AddGasKeyAction>),
+    /// Deletes a gas key for an account
+    ///
+    /// See [NEP-611](https://github.com/near/NEPs/blob/master/neps/nep-0611.md) for more details
+    DeleteGasKey(Box<DeleteGasKeyAction>),
+    /// Transfers tokens to a gas key
+    ///
+    /// See [NEP-611](https://github.com/near/NEPs/blob/master/neps/nep-0611.md) for more details
+    TransferToGasKey(Box<TransferToGasKeyAction>),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -197,6 +210,64 @@ impl TryFrom<near_openapi_types::StakeAction> for StakeAction {
         Ok(Self {
             public_key: public_key.try_into()?,
             stake,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub struct AddGasKeyAction {
+    pub public_key: PublicKey,
+    pub num_nonces: u32,
+    pub permission: AccessKeyPermission,
+}
+
+impl TryFrom<near_openapi_types::AddGasKeyAction> for AddGasKeyAction {
+    type Error = DataConversionError;
+    fn try_from(val: near_openapi_types::AddGasKeyAction) -> Result<Self, Self::Error> {
+        let near_openapi_types::AddGasKeyAction {
+            public_key,
+            num_nonces,
+            permission,
+        } = val;
+        Ok(Self {
+            public_key: public_key.try_into()?,
+            num_nonces,
+            permission: permission.try_into()?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub struct DeleteGasKeyAction {
+    pub public_key: PublicKey,
+}
+
+impl TryFrom<near_openapi_types::DeleteGasKeyAction> for DeleteGasKeyAction {
+    type Error = DataConversionError;
+    fn try_from(val: near_openapi_types::DeleteGasKeyAction) -> Result<Self, Self::Error> {
+        let near_openapi_types::DeleteGasKeyAction { public_key } = val;
+        Ok(Self {
+            public_key: public_key.try_into()?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub struct TransferToGasKeyAction {
+    pub public_key: PublicKey,
+    pub deposit: NearToken,
+}
+
+impl TryFrom<near_openapi_types::TransferToGasKeyAction> for TransferToGasKeyAction {
+    type Error = DataConversionError;
+    fn try_from(val: near_openapi_types::TransferToGasKeyAction) -> Result<Self, Self::Error> {
+        let near_openapi_types::TransferToGasKeyAction {
+            public_key,
+            deposit,
+        } = val;
+        Ok(Self {
+            public_key: public_key.try_into()?,
+            deposit,
         })
     }
 }
@@ -508,6 +579,27 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
                     contract_identifier: GlobalContractIdentifier::AccountId(account_id),
                 })))
             }
+            near_openapi_types::ActionView::AddGasKey {
+                num_nonces,
+                permission,
+                public_key,
+            } => Ok(Self::AddGasKey(Box::new(AddGasKeyAction {
+                public_key: public_key.try_into()?,
+                num_nonces,
+                permission: permission.try_into()?,
+            }))),
+            near_openapi_types::ActionView::DeleteGasKey { public_key } => {
+                Ok(Self::DeleteGasKey(Box::new(DeleteGasKeyAction {
+                    public_key: public_key.try_into()?,
+                })))
+            }
+            near_openapi_types::ActionView::TransferToGasKey {
+                amount: deposit,
+                public_key,
+            } => Ok(Self::TransferToGasKey(Box::new(TransferToGasKeyAction {
+                public_key: public_key.try_into()?,
+                deposit,
+            }))),
         }
     }
 }

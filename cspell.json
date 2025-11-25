@@ -8,6 +8,7 @@
     "words": [
         "rustc",
         "libudev",
+        "dbgfmt",
         "libsystemd",
         "clippy",
         "RUSTDOCFLAGS",
