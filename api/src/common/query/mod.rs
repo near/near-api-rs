@@ -7,7 +7,7 @@ use tracing::{debug, error, info, instrument};
 
 use crate::{
     config::{retry, NetworkConfig, RetryResponse},
-    errors::{BuilderError, QueryError, SendRequestError},
+    errors::{ArgumentSerializationError, QueryError, SendRequestError},
 };
 
 pub mod block_rpc;
@@ -70,7 +70,7 @@ where
     >,
     handler: Handler,
 
-    deferred_errors: Vec<BuilderError>,
+    deferred_errors: Vec<ArgumentSerializationError>,
 }
 
 impl<Query, Handler> MultiRpcBuilder<Query, Handler>
@@ -106,7 +106,7 @@ where
         }
     }
 
-    pub fn with_deferred_error(mut self, error: BuilderError) -> Self {
+    pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
         self.deferred_errors.push(error);
         self
     }
@@ -234,7 +234,7 @@ where
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
         if !self.deferred_errors.is_empty() {
             return Err(QueryError::ConversionError(Box::new(
-                BuilderError::MultipleErrors(self.deferred_errors),
+                ArgumentSerializationError::multiple(self.deferred_errors),
             )));
         }
 
@@ -306,7 +306,7 @@ where
             + Sync,
     >,
     handler: Handler,
-    deferred_error: Option<BuilderError>,
+    deferred_error: Option<ArgumentSerializationError>,
 }
 
 impl<Query, Handler> RpcBuilder<Query, Handler>
@@ -329,7 +329,7 @@ where
         }
     }
 
-    pub fn with_deferred_error(mut self, error: BuilderError) -> Self {
+    pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
         self.deferred_error = Some(error);
         self
     }

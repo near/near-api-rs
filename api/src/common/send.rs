@@ -21,8 +21,8 @@ use crate::{
     common::utils::{is_critical_transaction_error, to_retry_error},
     config::{retry, NetworkConfig, RetryResponse},
     errors::{
-        BuilderError, ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError,
-        SendRequestError, SignerError, ValidationError,
+        ArgumentSerializationError, ExecuteMetaTransactionsError, ExecuteTransactionError,
+        MetaSignError, SendRequestError, SignerError, ValidationError,
     },
     signer::Signer,
 };
@@ -35,7 +35,7 @@ const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
 #[async_trait::async_trait]
 pub trait Transactionable: Send + Sync {
     fn prepopulated(&self) -> PrepopulateTransaction;
-    fn deferred_error(&self) -> Option<BuilderError>;
+    fn deferred_error(&self) -> Option<ArgumentSerializationError>;
 
     /// Validate the transaction before sending it to the network
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError>;

@@ -151,29 +151,29 @@ pub enum SecretBuilderError<E: std::fmt::Debug> {
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
-pub enum BuilderError {
+pub enum ArgumentSerializationError {
     #[error("Failed to serialize arguments as JSON: {0}")]
     JsonSerializationError(Arc<serde_json::Error>),
     #[error("Failed to serialize arguments as Borsh: {0}")]
     BorshSerializationError(Arc<std::io::Error>),
     #[error("Multiple errors: {0:?}")]
-    MultipleErrors(Vec<BuilderError>),
+    MultipleErrors(Vec<ArgumentSerializationError>),
 }
 
-impl BuilderError {
-    pub const fn multiple(errors: Vec<BuilderError>) -> Self {
+impl ArgumentSerializationError {
+    pub const fn multiple(errors: Vec<ArgumentSerializationError>) -> Self {
         Self::MultipleErrors(errors)
     }
 }
 
-impl From<serde_json::Error> for BuilderError {
+impl From<serde_json::Error> for ArgumentSerializationError {
     fn from(err: serde_json::Error) -> Self {
         Self::JsonSerializationError(Arc::new(err))
     }
 }
 
-impl From<std::io::Error> for BuilderError {
-    fn from(err: std::io::Error) -> Self {
+impl From<std::io::Error> for ArgumentSerializationError {
+    fn from(err: std::io::Error) -> ArgumentSerializationError {
         Self::BorshSerializationError(Arc::new(err))
     }
 }
@@ -181,7 +181,7 @@ impl From<std::io::Error> for BuilderError {
 #[derive(thiserror::Error, Debug)]
 pub enum AccountCreationError {
     #[error(transparent)]
-    BuilderError(#[from] BuilderError),
+    ArgumentSerializationError(#[from] ArgumentSerializationError),
 
     #[error(transparent)]
     PublicKeyParsingError(#[from] PublicKeyParsingError),
@@ -235,7 +235,7 @@ pub enum ExecuteTransactionError {
     #[error("Data conversion error: {0}")]
     DataConversionError(#[from] DataConversionError),
     #[error(transparent)]
-    BuilderError(#[from] BuilderError),
+    BuilderError(#[from] ArgumentSerializationError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -256,7 +256,7 @@ pub enum ExecuteMetaTransactionsError {
     #[error(transparent)]
     NonEmptyVecError(#[from] NonEmptyVecError),
     #[error(transparent)]
-    BuilderError(#[from] BuilderError),
+    BuilderError(#[from] ArgumentSerializationError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -289,8 +289,8 @@ pub enum ValidationError {
     #[error("Query error: {0:?}")]
     QueryError(QueryError<RpcQueryError>),
 
-    #[error("Query creation error: {0}")]
-    RequestBuilderError(#[from] BuilderError),
+    #[error(transparent)]
+    ArgumentSerializationError(#[from] ArgumentSerializationError),
 
     #[error("FT Validation Error: {0}")]
     FTValidatorError(#[from] FTValidatorError),

@@ -21,7 +21,7 @@ use crate::{
         send::ExecuteSignedTransaction,
         utils::to_base64,
     },
-    errors::BuilderError,
+    errors::ArgumentSerializationError,
     signer::Signer,
     transactions::{ConstructTransaction, SelfActionBuilder, Transaction},
 };
@@ -148,7 +148,7 @@ impl Contract {
     where
         Args: serde::Serialize,
     {
-        let args = serde_json::to_vec(&args).map_err(BuilderError::from);
+        let args = serde_json::to_vec(&args).map_err(Into::into);
 
         CallFunctionBuilder {
             contract: self.0.clone(),
@@ -609,7 +609,7 @@ impl SetDeployActionBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> Result<SetDeployActionWithInitCallBuilder, BuilderError> {
+    ) -> Result<SetDeployActionWithInitCallBuilder, ArgumentSerializationError> {
         let args = serde_json::to_vec(&args)?;
 
         Ok(SetDeployActionWithInitCallBuilder::new(
@@ -756,11 +756,11 @@ impl GlobalDeployBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallFunctionBuilder {
     contract: AccountId,
     method_name: String,
-    args: Result<Vec<u8>, BuilderError>,
+    args: Result<Vec<u8>, ArgumentSerializationError>,
 }
 
 impl CallFunctionBuilder {
@@ -845,17 +845,21 @@ impl CallFunctionBuilder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,
-    args: Result<Vec<u8>, BuilderError>,
+    args: Result<Vec<u8>, ArgumentSerializationError>,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
 
 impl ContractTransactBuilder {
-    fn new(contract: AccountId, method_name: String, args: Result<Vec<u8>, BuilderError>) -> Self {
+    fn new(
+        contract: AccountId,
+        method_name: String,
+        args: Result<Vec<u8>, ArgumentSerializationError>,
+    ) -> Self {
         Self {
             contract,
             method_name,
@@ -902,15 +906,17 @@ impl ContractTransactBuilder {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
+        let err = self.args.as_deref().err().cloned();
+
         let mut tr = Transaction::construct(signer_id, self.contract).add_action(
             Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: self.method_name.to_owned(),
-                args: self.args.as_deref().unwrap_or_default().to_vec(),
+                args: self.args.unwrap_or_default(),
                 gas,
                 deposit,
             })),
         );
-        if let Err(err) = self.args {
+        if let Some(err) = err {
             tr = tr.with_deferred_error(err);
         }
         tr

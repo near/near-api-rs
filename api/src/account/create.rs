@@ -13,7 +13,7 @@ use url::Url;
 
 use crate::{
     common::send::Transactionable,
-    errors::{AccountCreationError, BuilderError, FaucetError, ValidationError},
+    errors::{AccountCreationError, ArgumentSerializationError, FaucetError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     Contract, NetworkConfig,
 };
@@ -165,7 +165,7 @@ impl Transactionable for CreateAccountFundMyselfTx {
         self.prepopulated.clone()
     }
 
-    fn deferred_error(&self) -> Option<BuilderError> {
+    fn deferred_error(&self) -> Option<ArgumentSerializationError> {
         None
     }
 

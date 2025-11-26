@@ -19,7 +19,7 @@ use crate::{
         send::Transactionable,
     },
     contract::Contract,
-    errors::{BuilderError, FTValidatorError, ValidationError},
+    errors::{ArgumentSerializationError, FTValidatorError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     NetworkConfig, StorageDeposit,
 };
@@ -563,7 +563,7 @@ pub struct FTTransactionable {
     prepopulated: PrepopulateTransaction,
     receiver: AccountId,
     decimals: u8,
-    deferred_error: Option<BuilderError>,
+    deferred_error: Option<ArgumentSerializationError>,
 }
 
 impl FTTransactionable {
@@ -594,7 +594,7 @@ impl Transactionable for FTTransactionable {
         self.prepopulated.clone()
     }
 
-    fn deferred_error(&self) -> Option<BuilderError> {
+    fn deferred_error(&self) -> Option<ArgumentSerializationError> {
         self.deferred_error.clone()
     }
 
