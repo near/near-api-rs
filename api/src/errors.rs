@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use near_api_types::errors::DataConversionError;
 use near_openapi_client::types::{
     FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
@@ -148,10 +150,32 @@ pub enum SecretBuilderError<E: std::fmt::Debug> {
     CallbackError(E),
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum BuilderError {
-    #[error("Incorrect arguments: {0}")]
-    IncorrectArguments(#[from] serde_json::Error),
+    #[error("Failed to serialize arguments as JSON: {0}")]
+    JsonSerializationError(Arc<serde_json::Error>),
+    #[error("Failed to serialize arguments as Borsh: {0}")]
+    BorshSerializationError(Arc<std::io::Error>),
+    #[error("Multiple errors: {0:?}")]
+    MultipleErrors(Vec<BuilderError>),
+}
+
+impl BuilderError {
+    pub const fn multiple(errors: Vec<BuilderError>) -> Self {
+        Self::MultipleErrors(errors)
+    }
+}
+
+impl From<serde_json::Error> for BuilderError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::JsonSerializationError(Arc::new(err))
+    }
+}
+
+impl From<std::io::Error> for BuilderError {
+    fn from(err: std::io::Error) -> Self {
+        Self::BorshSerializationError(Arc::new(err))
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -210,6 +234,8 @@ pub enum ExecuteTransactionError {
     NonEmptyVecError(#[from] NonEmptyVecError),
     #[error("Data conversion error: {0}")]
     DataConversionError(#[from] DataConversionError),
+    #[error(transparent)]
+    BuilderError(#[from] BuilderError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -229,6 +255,8 @@ pub enum ExecuteMetaTransactionsError {
 
     #[error(transparent)]
     NonEmptyVecError(#[from] NonEmptyVecError),
+    #[error(transparent)]
+    BuilderError(#[from] BuilderError),
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -152,7 +152,7 @@ impl Contract {
     where
         Args: serde::Serialize,
     {
-        let args = serde_json::to_vec(&args)?;
+        let args = serde_json::to_vec(&args).map_err(BuilderError::from);
 
         Ok(CallFunctionBuilder {
             contract: self.0.clone(),
@@ -192,11 +192,11 @@ impl Contract {
         &self,
         method_name: &str,
         args: Args,
-    ) -> Result<CallFunctionBuilder, std::io::Error>
+    ) -> Result<CallFunctionBuilder, BuilderError>
     where
         Args: borsh::BorshSerialize,
     {
-        let args = borsh::to_vec(&args)?;
+        let args = borsh::to_vec(&args).map_err(Into::into);
 
         Ok(CallFunctionBuilder {
             contract: self.0.clone(),
@@ -232,7 +232,7 @@ impl Contract {
         CallFunctionBuilder {
             contract: self.0.clone(),
             method_name: method_name.to_string(),
-            args,
+            args: Ok(args),
         }
     }
 
@@ -766,11 +766,11 @@ impl GlobalDeployBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct CallFunctionBuilder {
     contract: AccountId,
     method_name: String,
-    args: Vec<u8>,
+    args: Result<Vec<u8>, BuilderError>,
 }
 
 impl CallFunctionBuilder {
@@ -795,14 +795,18 @@ impl CallFunctionBuilder {
         let request = QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
-            args_base64: FunctionArgs(to_base64(&self.args)),
+            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
         };
 
-        RequestBuilder::new(
+        let mut builder = RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultHandler::<Response>::new(),
-        )
+        );
+        if let Err(err) = self.args {
+            builder = builder.with_deferred_error(err);
+        }
+        builder
     }
 
     /// Prepares a read-only query that deserializes the response using Borsh instead of JSON.
@@ -829,14 +833,18 @@ impl CallFunctionBuilder {
         let request = QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
-            args_base64: FunctionArgs(to_base64(&self.args)),
+            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
         };
 
-        RequestBuilder::new(
+        let mut builder = RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultBorshHandler::<Response>::new(),
-        )
+        );
+        if let Err(err) = self.args {
+            builder = builder.with_deferred_error(err);
+        }
+        builder
     }
 
     /// Prepares a transaction that will call a contract function leading to a state change.
@@ -847,17 +855,17 @@ impl CallFunctionBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,
-    args: Vec<u8>,
+    args: Result<Vec<u8>, BuilderError>,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
 
 impl ContractTransactBuilder {
-    const fn new(contract: AccountId, method_name: String, args: Vec<u8>) -> Self {
+    fn new(contract: AccountId, method_name: String, args: Result<Vec<u8>, BuilderError>) -> Self {
         Self {
             contract,
             method_name,
@@ -904,14 +912,18 @@ impl ContractTransactBuilder {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
-        Transaction::construct(signer_id, self.contract).add_action(Action::FunctionCall(Box::new(
-            FunctionCallAction {
+        let mut tr = Transaction::construct(signer_id, self.contract).add_action(
+            Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: self.method_name.to_owned(),
-                args: self.args,
+                args: self.args.as_deref().unwrap_or_default().to_vec(),
                 gas,
                 deposit,
-            },
-        )))
+            })),
+        );
+        if let Err(err) = self.args {
+            tr = tr.with_deferred_error(err);
+        }
+        tr
     }
 }
 

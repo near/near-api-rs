@@ -5,7 +5,7 @@ use near_api_types::{transaction::PrepopulateTransaction, AccountId, Action};
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::ValidationError,
+    errors::{BuilderError, ValidationError},
     signer::Signer,
 };
 
@@ -63,9 +63,10 @@ impl SelfActionBuilder {
 }
 
 /// A builder for constructing transactions using Actions.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ConstructTransaction {
     pub tr: PrepopulateTransaction,
+    pub deferred_error: Option<BuilderError>,
 }
 
 impl ConstructTransaction {
@@ -77,7 +78,13 @@ impl ConstructTransaction {
                 receiver_id,
                 actions: Vec::new(),
             },
+            deferred_error: None,
         }
+    }
+
+    pub fn with_deferred_error(mut self, error: BuilderError) -> Self {
+        self.deferred_error = Some(error);
+        self
     }
 
     /// Adds an action to the transaction.
@@ -101,11 +108,11 @@ impl ConstructTransaction {
 #[async_trait::async_trait]
 impl Transactionable for ConstructTransaction {
     fn prepopulated(&self) -> PrepopulateTransaction {
-        PrepopulateTransaction {
-            signer_id: self.tr.signer_id.clone(),
-            receiver_id: self.tr.receiver_id.clone(),
-            actions: self.tr.actions.clone(),
-        }
+        self.tr.clone()
+    }
+
+    fn deferred_error(&self) -> Option<BuilderError> {
+        self.deferred_error.clone()
     }
 
     async fn validate_with_network(&self, _: &NetworkConfig) -> Result<(), ValidationError> {

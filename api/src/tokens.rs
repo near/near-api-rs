@@ -430,6 +430,7 @@ impl SendToBuilder {
                 receiver: self.receiver_id,
                 prepopulated: tr.tr,
                 decimals: amount.decimals(),
+                deferred_error: tr.deferred_error,
             },
         })
     }
@@ -506,6 +507,7 @@ impl SendToBuilder {
                 receiver: self.receiver_id,
                 prepopulated: tr.tr,
                 decimals: amount.decimals(),
+                deferred_error: tr.deferred_error,
             },
         })
     }
@@ -565,6 +567,7 @@ pub struct FTTransactionable {
     prepopulated: PrepopulateTransaction,
     receiver: AccountId,
     decimals: u8,
+    deferred_error: Option<BuilderError>,
 }
 
 impl FTTransactionable {
@@ -593,6 +596,10 @@ impl FTTransactionable {
 impl Transactionable for FTTransactionable {
     fn prepopulated(&self) -> PrepopulateTransaction {
         self.prepopulated.clone()
+    }
+
+    fn deferred_error(&self) -> Option<BuilderError> {
+        self.deferred_error.clone()
     }
 
     async fn validate_with_network(

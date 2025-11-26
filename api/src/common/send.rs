@@ -21,8 +21,8 @@ use crate::{
     common::utils::{is_critical_transaction_error, to_retry_error},
     config::{retry, NetworkConfig, RetryResponse},
     errors::{
-        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SendRequestError,
-        SignerError, ValidationError,
+        BuilderError, ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError,
+        SendRequestError, SignerError, ValidationError,
     },
     signer::Signer,
 };
@@ -35,6 +35,8 @@ const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
 #[async_trait::async_trait]
 pub trait Transactionable: Send + Sync {
     fn prepopulated(&self) -> PrepopulateTransaction;
+    fn deferred_error(&self) -> Option<BuilderError>;
+
     /// Validate the transaction before sending it to the network
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError>;
 
@@ -147,6 +149,10 @@ impl ExecuteSignedTransaction {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
+
+        if let Some(err) = tr.deferred_error() {
+            return Err(err.into());
+        }
 
         let signer_key = self.signer.get_public_key().await?;
         let tr = tr.prepopulated();
@@ -423,6 +429,10 @@ impl ExecuteMetaTransaction {
             TransactionableOrSigned::Transactionable(tr) => tr,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
+
+        if let Some(err) = tr.deferred_error() {
+            return Err(err.into());
+        }
 
         let signer_key = self
             .signer
