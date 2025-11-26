@@ -24,8 +24,6 @@ use crate::{
     NetworkConfig, StorageDeposit,
 };
 
-type Result<T> = core::result::Result<T, BuilderError>;
-
 // This is not too long as most of the size is a links to the docs
 #[allow(clippy::too_long_first_doc_paragraph)]
 /// A wrapper struct that simplifies interactions with
@@ -48,7 +46,7 @@ type Result<T> = core::result::Result<T, BuilderError>;
 /// let bob_tokens = Tokens::account("bob.testnet".parse()?);
 ///
 /// // Check FT balance
-/// let balance = bob_tokens.ft_balance("usdt.tether-token.near".parse()?)?.fetch_from_mainnet().await?;
+/// let balance = bob_tokens.ft_balance("usdt.tether-token.near".parse()?).fetch_from_mainnet().await?;
 /// println!("Bob balance: {}", balance);
 ///
 /// // Transfer FT tokens
@@ -56,7 +54,7 @@ type Result<T> = core::result::Result<T, BuilderError>;
 ///     .ft(
 ///         "usdt.tether-token.near".parse()?,
 ///         USDT_BALANCE.with_whole_amount(100)
-///     )?
+///     )
 ///     .with_signer(Signer::new(Signer::from_ledger())?)
 ///     .send_to_mainnet()
 ///     .await?;
@@ -72,12 +70,12 @@ type Result<T> = core::result::Result<T, BuilderError>;
 /// let alice_tokens = Tokens::account("alice.testnet".parse()?);
 ///
 /// // Check NFT assets
-/// let tokens = alice_tokens.nft_assets("nft-contract.testnet".parse()?)?.fetch_from_testnet().await?;
+/// let tokens = alice_tokens.nft_assets("nft-contract.testnet".parse()?).fetch_from_testnet().await?;
 /// println!("NFT count: {}", tokens.data.len());
 ///
 /// // Transfer NFT
 /// alice_tokens.send_to("bob.testnet".parse()?)
-///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())?
+///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())
 ///     .with_signer(Signer::new(Signer::from_ledger())?)
 ///     .send_to_testnet()
 ///     .await?;
@@ -198,7 +196,7 @@ impl Tokens {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let metadata = Tokens::nft_metadata("nft-contract.testnet".parse()?)?
+    /// let metadata = Tokens::nft_metadata("nft-contract.testnet".parse()?)
     ///     .fetch_from_testnet()
     ///     .await?;
     /// println!("NFT metadata: {:?}", metadata);
@@ -207,10 +205,10 @@ impl Tokens {
     /// ```
     pub fn nft_metadata(
         contract_id: AccountId,
-    ) -> Result<RequestBuilder<CallResultHandler<NFTContractMetadata>>> {
-        Ok(Contract(contract_id)
-            .call_function("nft_metadata", ())?
-            .read_only())
+    ) -> RequestBuilder<CallResultHandler<NFTContractMetadata>> {
+        Contract(contract_id)
+            .call_function("nft_metadata", ())
+            .read_only()
     }
 
     /// Prepares a new contract query (`nft_tokens_for_owner`) for fetching the NFT assets of the account ([Vec]<[Token]>).
@@ -223,7 +221,7 @@ impl Tokens {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let alice_tokens = Tokens::account("alice.testnet".parse()?);
-    /// let alice_assets = alice_tokens.nft_assets("nft-contract.testnet".parse()?)?
+    /// let alice_assets = alice_tokens.nft_assets("nft-contract.testnet".parse()?)
     ///     .fetch_from_testnet()
     ///     .await?;
     /// println!("Alice's NFT assets: {:?}", alice_assets);
@@ -233,15 +231,15 @@ impl Tokens {
     pub fn nft_assets(
         &self,
         nft_contract: AccountId,
-    ) -> Result<RequestBuilder<CallResultHandler<Vec<Token>>>> {
-        Ok(Contract(nft_contract)
+    ) -> RequestBuilder<CallResultHandler<Vec<Token>>> {
+        Contract(nft_contract)
             .call_function(
                 "nft_tokens_for_owner",
                 json!({
                     "account_id": self.account_id.to_string(),
                 }),
-            )?
-            .read_only())
+            )
+            .read_only()
     }
 
     /// Prepares a new contract query (`ft_metadata`) for fetching the FT metadata ([FungibleTokenMetadata]).
@@ -253,7 +251,7 @@ impl Tokens {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let metadata = Tokens::ft_metadata("usdt.tether-token.near".parse()?)?
+    /// let metadata = Tokens::ft_metadata("usdt.tether-token.near".parse()?)
     ///     .fetch_from_testnet()
     ///     .await?
     ///     .data;
@@ -263,10 +261,10 @@ impl Tokens {
     /// ```
     pub fn ft_metadata(
         contract_id: AccountId,
-    ) -> Result<RequestBuilder<CallResultHandler<FungibleTokenMetadata>>> {
-        Ok(Contract(contract_id)
-            .call_function("ft_metadata", ())?
-            .read_only())
+    ) -> RequestBuilder<CallResultHandler<FungibleTokenMetadata>> {
+        Contract(contract_id)
+            .call_function("ft_metadata", ())
+            .read_only()
     }
 
     /// Prepares a new contract query (`ft_balance_of`, `ft_metadata`) for fetching the [FTBalance] of the account.
@@ -282,7 +280,7 @@ impl Tokens {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let alice_usdt_balance = Tokens::account("alice.near".parse()?)
-    ///     .ft_balance("usdt.tether-token.near".parse()?)?
+    ///     .ft_balance("usdt.tether-token.near".parse()?)
     ///     .fetch_from_mainnet()
     ///     .await?;
     /// println!("Alice's USDT balance: {}", alice_usdt_balance);
@@ -293,23 +291,22 @@ impl Tokens {
     pub fn ft_balance(
         &self,
         ft_contract: AccountId,
-    ) -> Result<
-        MultiRequestBuilder<
-            PostprocessHandler<
-                FTBalance,
-                MultiQueryHandler<(
-                    CallResultHandler<FungibleTokenMetadata>,
-                    CallResultHandler<U128>,
-                )>,
-            >,
+    ) -> MultiRequestBuilder<
+        PostprocessHandler<
+            FTBalance,
+            MultiQueryHandler<(
+                CallResultHandler<FungibleTokenMetadata>,
+                CallResultHandler<U128>,
+            )>,
         >,
     > {
         let handler = MultiQueryHandler::new((
             CallResultHandler::<FungibleTokenMetadata>::new(),
             CallResultHandler::<U128>::new(),
         ));
-        let multiquery = MultiRequestBuilder::new(handler, Reference::Optimistic)
-            .add_query_builder(Self::ft_metadata(ft_contract.clone())?)
+
+        MultiRequestBuilder::new(handler, Reference::Optimistic)
+            .add_query_builder(Self::ft_metadata(ft_contract.clone()))
             .add_query_builder(
                 Contract(ft_contract)
                     .call_function(
@@ -317,15 +314,14 @@ impl Tokens {
                         json!({
                             "account_id": self.account_id.clone()
                         }),
-                    )?
+                    )
                     .read_only::<()>(),
             )
             .map(
                 |(metadata, amount): (Data<FungibleTokenMetadata>, Data<U128>)| {
                     FTBalance::with_decimals(metadata.data.decimals).with_amount(amount.data.0)
                 },
-            );
-        Ok(multiquery)
+            )
     }
 
     /// Prepares a new transaction builder for sending tokens to another account.
@@ -356,7 +352,7 @@ impl Tokens {
     /// let alice_tokens = Tokens::account("alice.near".parse()?);
     ///
     /// let result = alice_tokens.send_to("bob.near".parse()?)
-    ///     .ft("usdt.tether-token.near".parse()?, USDT_BALANCE.with_whole_amount(100))?
+    ///     .ft("usdt.tether-token.near".parse()?, USDT_BALANCE.with_whole_amount(100))
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_mainnet()
     ///     .await?;
@@ -372,7 +368,7 @@ impl Tokens {
     /// let alice_tokens = Tokens::account("alice.near".parse()?);
     ///
     /// let result = alice_tokens.send_to("bob.near".parse()?)
-    ///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())?
+    ///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
@@ -412,7 +408,7 @@ impl SendToBuilder {
         self,
         ft_contract: AccountId,
         amount: FTBalance,
-    ) -> Result<TransactionWithSign<FTTransactionable>> {
+    ) -> TransactionWithSign<FTTransactionable> {
         let tr = Contract(ft_contract)
             .call_function(
                 "ft_transfer",
@@ -420,19 +416,19 @@ impl SendToBuilder {
                     "receiver_id": self.receiver_id,
                     "amount": amount.amount().to_string(),
                 }),
-            )?
+            )
             .transaction()
             .deposit(NearToken::from_yoctonear(1))
             .with_signer_account(self.from);
 
-        Ok(TransactionWithSign {
+        TransactionWithSign {
             tx: FTTransactionable {
                 receiver: self.receiver_id,
                 prepopulated: tr.tr,
                 decimals: amount.decimals(),
                 deferred_error: tr.deferred_error,
             },
-        })
+        }
     }
 
     /// Prepares a new transaction contract call (`nft_transfer`) for sending NFT tokens to another account.
@@ -440,18 +436,18 @@ impl SendToBuilder {
     /// The provided function depends that the contract implements [`NEP-171`](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core#nep-171)
     ///
     /// For transferring an NFT and calling a receiver contract method in a single transaction, see [`nft_call`](Self::nft_call).
-    pub fn nft(self, nft_contract: AccountId, token_id: String) -> Result<ConstructTransaction> {
-        Ok(Contract(nft_contract)
+    pub fn nft(self, nft_contract: AccountId, token_id: String) -> ConstructTransaction {
+        Contract(nft_contract)
             .call_function(
                 "nft_transfer",
                 json!({
                     "receiver_id": self.receiver_id,
                     "token_id": token_id
                 }),
-            )?
+            )
             .transaction()
             .deposit(NearToken::from_yoctonear(1))
-            .with_signer_account(self.from))
+            .with_signer_account(self.from)
     }
 
     /// Prepares a new transaction contract call (`ft_transfer_call`, `ft_metadata`, `storage_balance_of`, `storage_deposit`) for transferring FT tokens and calling a receiver contract method.
@@ -476,7 +472,7 @@ impl SendToBuilder {
     ///         "usdt.tether-token.near".parse()?,
     ///         USDT_BALANCE.with_whole_amount(100),
     ///         "deposit".to_string(),
-    ///     )?
+    ///     )
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_mainnet()
     ///     .await?;
@@ -488,7 +484,7 @@ impl SendToBuilder {
         ft_contract: AccountId,
         amount: FTBalance,
         msg: String,
-    ) -> Result<TransactionWithSign<FTTransactionable>> {
+    ) -> TransactionWithSign<FTTransactionable> {
         let tr = Contract(ft_contract)
             .call_function(
                 "ft_transfer_call",
@@ -497,19 +493,19 @@ impl SendToBuilder {
                     "amount": amount.amount().to_string(),
                     "msg": msg,
                 }),
-            )?
+            )
             .transaction()
             .deposit(NearToken::from_yoctonear(1))
             .with_signer_account(self.from);
 
-        Ok(TransactionWithSign {
+        TransactionWithSign {
             tx: FTTransactionable {
                 receiver: self.receiver_id,
                 prepopulated: tr.tr,
                 decimals: amount.decimals(),
                 deferred_error: tr.deferred_error,
             },
-        })
+        }
     }
 
     /// Prepares a new transaction contract call (`nft_transfer_call`) for transferring an NFT and calling a receiver contract method.
@@ -531,7 +527,7 @@ impl SendToBuilder {
     ///         "nft-contract.testnet".parse()?,
     ///         "token-123".to_string(),
     ///         "list_for_sale".to_string(),
-    ///     )?
+    ///     )
     ///     .with_signer(Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
@@ -543,8 +539,8 @@ impl SendToBuilder {
         nft_contract: AccountId,
         token_id: String,
         msg: String,
-    ) -> Result<ConstructTransaction> {
-        Ok(Contract(nft_contract)
+    ) -> ConstructTransaction {
+        Contract(nft_contract)
             .call_function(
                 "nft_transfer_call",
                 json!({
@@ -552,10 +548,10 @@ impl SendToBuilder {
                     "token_id": token_id,
                     "msg": msg,
                 }),
-            )?
+            )
             .transaction()
             .deposit(NearToken::from_yoctonear(1))
-            .with_signer_account(self.from))
+            .with_signer_account(self.from)
     }
 }
 
@@ -575,7 +571,7 @@ impl FTTransactionable {
         &self,
         network: &NetworkConfig,
     ) -> core::result::Result<(), ValidationError> {
-        let metadata = Tokens::ft_metadata(self.prepopulated.receiver_id.clone())?;
+        let metadata = Tokens::ft_metadata(self.prepopulated.receiver_id.clone());
 
         let Ok(metadata) = metadata.fetch_from(network).await else {
             // If there is no metadata, than we can't check it
@@ -609,7 +605,7 @@ impl Transactionable for FTTransactionable {
         self.check_decimals(network).await?;
 
         let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
-            .view_account_storage(self.receiver.clone())?
+            .view_account_storage(self.receiver.clone())
             .fetch_from(network)
             .await
             .map_err(ValidationError::QueryError)?;
@@ -628,7 +624,7 @@ impl Transactionable for FTTransactionable {
         self.check_decimals(network).await?;
 
         let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
-            .view_account_storage(self.receiver.clone())?
+            .view_account_storage(self.receiver.clone())
             .fetch_from(network)
             .await
             .map_err(ValidationError::QueryError)?;
@@ -636,7 +632,7 @@ impl Transactionable for FTTransactionable {
         if storage_balance.data.is_none() {
             let mut action = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
                 .deposit(self.receiver.clone(), NearToken::from_millinear(100))
-                .into_transaction()?
+                .into_transaction()
                 .with_signer_account(self.prepopulated.signer_id.clone())
                 .tr
                 .actions;

@@ -6,7 +6,6 @@ use serde_json::json;
 use crate::{
     common::query::{CallResultHandler, PostprocessHandler, RequestBuilder},
     contract::ContractTransactBuilder,
-    errors::BuilderError,
     transactions::ConstructTransaction,
     Signer,
 };
@@ -25,12 +24,12 @@ use crate::{
 /// let storage = StorageDeposit::on_contract("contract.testnet".parse()?);
 ///
 /// // Check storage balance
-/// let balance = storage.view_account_storage("alice.testnet".parse()?)?.fetch_from_testnet().await?;
+/// let balance = storage.view_account_storage("alice.testnet".parse()?).fetch_from_testnet().await?;
 /// println!("Storage balance: {:?}", balance);
 ///
 /// // Bob pays for Alice's storage on the contract contract.testnet
 /// let deposit_tx = storage.deposit("alice.testnet".parse()?, NearToken::from_near(1))
-///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
+///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
 ///     .send_to_testnet()
 ///     .await
 ///     .unwrap();
@@ -73,7 +72,7 @@ impl StorageDeposit {
     /// let contract = storage.as_contract();
     ///
     /// // Now you can call other contract methods
-    /// let metadata: serde_json::Value = contract.call_function("ft_metadata", ())?.read_only().fetch_from_mainnet().await?.data;
+    /// let metadata: serde_json::Value = contract.call_function("ft_metadata", ()).read_only().fetch_from_mainnet().await?.data;
     /// println!("Token metadata: {:?}", metadata);
     /// # Ok(())
     /// # }
@@ -90,7 +89,7 @@ impl StorageDeposit {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance = StorageDeposit::on_contract("contract.testnet".parse()?)
-    ///     .view_account_storage("alice.testnet".parse()?)?
+    ///     .view_account_storage("alice.testnet".parse()?)
     ///     .fetch_from_testnet()
     ///     .await?;
     /// println!("Storage balance: {:?}", balance);
@@ -101,23 +100,19 @@ impl StorageDeposit {
     pub fn view_account_storage(
         &self,
         account_id: AccountId,
-    ) -> Result<
-        RequestBuilder<
-            PostprocessHandler<
-                Data<Option<StorageBalance>>,
-                CallResultHandler<Option<StorageBalanceInternal>>,
-            >,
+    ) -> RequestBuilder<
+        PostprocessHandler<
+            Data<Option<StorageBalance>>,
+            CallResultHandler<Option<StorageBalanceInternal>>,
         >,
-        BuilderError,
     > {
-        Ok(self
-            .0
+        self.0
             .call_function(
                 "storage_balance_of",
                 json!({
                     "account_id": account_id,
                 }),
-            )?
+            )
             .read_only()
             .map(|storage: Data<Option<StorageBalanceInternal>>| {
                 storage.map(|option_storage| {
@@ -129,7 +124,7 @@ impl StorageDeposit {
                         ),
                     })
                 })
-            }))
+            })
     }
 
     /// Prepares a new transaction contract call (`storage_deposit`) for depositing storage on the contract.
@@ -145,7 +140,7 @@ impl StorageDeposit {
     /// // Basic deposit for another account
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
+    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
     ///
@@ -153,7 +148,7 @@ impl StorageDeposit {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))
     ///     .registration_only()
-    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
+    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -180,29 +175,19 @@ impl StorageDeposit {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
-    ///     .withdraw("alice.testnet".parse()?, NearToken::from_near(1))?
+    ///     .withdraw("alice.testnet".parse()?, NearToken::from_near(1))
     ///     .with_signer( Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn withdraw(
-        &self,
-        account_id: AccountId,
-        amount: NearToken,
-    ) -> Result<ConstructTransaction, BuilderError> {
-        Ok(self
-            .0
-            .call_function(
-                "storage_withdraw",
-                json!({
-                    "amount": amount
-                }),
-            )?
+    pub fn withdraw(&self, account_id: AccountId, amount: NearToken) -> ConstructTransaction {
+        self.0
+            .call_function("storage_withdraw", json!({ "amount": amount }))
             .transaction()
             .deposit(NearToken::from_yoctonear(1))
-            .with_signer_account(account_id))
+            .with_signer_account(account_id)
     }
 
     /// Prepares a new transaction contract call (`storage_unregister`) for unregistering
@@ -224,7 +209,7 @@ impl StorageDeposit {
     /// // Normal unregister (fails if account has data like token balance)
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .unregister()
-    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
+    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
     ///
@@ -232,7 +217,7 @@ impl StorageDeposit {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .unregister()
     ///     .force()
-    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)?
+    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -268,7 +253,7 @@ impl StorageDepositBuilder {
     }
 
     /// Builds and returns the transaction builder for this storage deposit.
-    pub fn into_transaction(self) -> Result<ContractTransactBuilder, BuilderError> {
+    pub fn into_transaction(self) -> ContractTransactBuilder {
         let args = if self.registration_only {
             json!({
                 "account_id": self.account_id.to_string(),
@@ -280,11 +265,10 @@ impl StorageDepositBuilder {
             })
         };
 
-        Ok(self
-            .contract
-            .call_function("storage_deposit", args)?
+        self.contract
+            .call_function("storage_deposit", args)
             .transaction()
-            .deposit(self.amount))
+            .deposit(self.amount)
     }
 
     /// Adds a signer to the transaction.
@@ -294,8 +278,8 @@ impl StorageDepositBuilder {
         self,
         signer_id: AccountId,
         signer: Arc<Signer>,
-    ) -> Result<crate::common::send::ExecuteSignedTransaction, BuilderError> {
-        Ok(self.into_transaction()?.with_signer(signer_id, signer))
+    ) -> crate::common::send::ExecuteSignedTransaction {
+        self.into_transaction().with_signer(signer_id, signer)
     }
 }
 
@@ -321,18 +305,17 @@ impl StorageUnregisterBuilder {
     }
 
     /// Builds and returns the transaction builder for this storage unregister.
-    pub fn into_transaction(self) -> Result<ContractTransactBuilder, BuilderError> {
+    pub fn into_transaction(self) -> ContractTransactBuilder {
         let args = if self.force {
             json!({ "force": true })
         } else {
             json!({})
         };
 
-        Ok(self
-            .contract
-            .call_function("storage_unregister", args)?
+        self.contract
+            .call_function("storage_unregister", args)
             .transaction()
-            .deposit(NearToken::from_yoctonear(1)))
+            .deposit(NearToken::from_yoctonear(1))
     }
 
     /// Adds a signer to the transaction.
@@ -342,7 +325,7 @@ impl StorageUnregisterBuilder {
         self,
         signer_id: AccountId,
         signer: Arc<Signer>,
-    ) -> Result<crate::common::send::ExecuteSignedTransaction, BuilderError> {
-        Ok(self.into_transaction()?.with_signer(signer_id, signer))
+    ) -> crate::common::send::ExecuteSignedTransaction {
+        self.into_transaction().with_signer(signer_id, signer)
     }
 }

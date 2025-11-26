@@ -167,7 +167,7 @@ where
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
-    ///         .call_function("get_balance", ())?
+    ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
     ///         .fetch_from_testnet()
@@ -352,7 +352,7 @@ where
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
-    ///         .call_function("get_balance", ())?
+    ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .map(|balance: Data<u128>| NearToken::from_yoctonear(balance.data))
     ///         .fetch_from_testnet()
@@ -385,7 +385,7 @@ where
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
-    ///         .call_function("get_balance", ())?
+    ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
     ///         .fetch_from_testnet()

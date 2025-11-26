@@ -23,7 +23,6 @@ async fn main() {
     let staker_delegation = Staking::delegation(staker.clone());
     staker_delegation
         .deposit(staking_pool.clone(), NearToken::from_near(5))
-        .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -32,7 +31,6 @@ async fn main() {
 
     staker_delegation
         .withdraw(staking_pool.clone(), NearToken::from_near(2))
-        .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -41,7 +39,6 @@ async fn main() {
 
     staker_delegation
         .stake(staking_pool.clone(), NearToken::from_near(1))
-        .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -50,7 +47,6 @@ async fn main() {
 
     let balance = staker_delegation
         .view_balance(staking_pool.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -61,7 +57,6 @@ async fn main() {
 
     staker_delegation
         .deposit_and_stake(staking_pool.clone(), NearToken::from_near(1))
-        .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -70,7 +65,6 @@ async fn main() {
 
     let balance = staker_delegation
         .view_balance(staking_pool.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -81,7 +75,6 @@ async fn main() {
 
     staker_delegation
         .unstake(staking_pool.clone(), NearToken::from_near(1))
-        .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -90,7 +83,6 @@ async fn main() {
 
     let balance = staker_delegation
         .view_balance(staking_pool.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -101,7 +93,6 @@ async fn main() {
     // Can't be withdrawn yet as it should pass the minimum withdrawal period
     staker_delegation
         .withdraw_all(staking_pool.clone())
-        .unwrap()
         .with_signer(signer.clone())
         .send_to(&network)
         .await
@@ -144,7 +135,6 @@ async fn setup_staking_pool(
                 }
             }),
         )
-        .unwrap()
         .transaction()
         .with_signer(staking_pool.clone(), signer)
         .send_to(network)

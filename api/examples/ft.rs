@@ -43,7 +43,6 @@ async fn main() {
     // Verifying that user has 1000 tokens
     let tokens = Tokens::account(token.account_id.clone())
         .ft_balance(token.account_id.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -59,7 +58,6 @@ async fn main() {
             // Send 1.5 tokens
             FTBalance::with_decimals(24).with_whole_amount(100),
         )
-        .unwrap()
         .with_signer(token_signer.clone())
         .send_to(&network)
         .await
@@ -68,7 +66,6 @@ async fn main() {
 
     let tokens = Tokens::account(account.clone())
         .ft_balance(token.account_id.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -77,7 +74,6 @@ async fn main() {
 
     let tokens = Tokens::account(token.account_id.clone())
         .ft_balance(token.account_id.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -91,7 +87,6 @@ async fn main() {
             token.account_id.clone(),
             FTBalance::with_decimals(8).with_whole_amount(100),
         )
-        .unwrap()
         .with_signer(token_signer)
         .send_to(&network)
         .await;

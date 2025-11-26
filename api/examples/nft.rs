@@ -63,7 +63,6 @@ async fn main() {
                 }
             }),
         )
-        .unwrap()
         .transaction()
         .deposit(NearToken::from_millinear(100))
         .with_signer(nft.account_id.clone(), nft_signer.clone())
@@ -75,7 +74,6 @@ async fn main() {
     // Verifying that account has our nft token
     let tokens = Tokens::account(account.clone())
         .nft_assets(nft.account_id.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -86,7 +84,6 @@ async fn main() {
     Tokens::account(account.clone())
         .send_to(account2.account_id.clone())
         .nft(nft.account_id.clone(), "1".to_string())
-        .unwrap()
         .with_signer(account_signer.clone())
         .send_to(&network)
         .await
@@ -96,7 +93,6 @@ async fn main() {
     // Verifying that account doesn't have nft anymore
     let tokens = Tokens::account(account.clone())
         .nft_assets(nft.account_id.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -105,7 +101,6 @@ async fn main() {
 
     let tokens = Tokens::account(account2.account_id.clone())
         .nft_assets(nft.account_id.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();

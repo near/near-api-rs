@@ -37,7 +37,6 @@ pub async fn setup_social_contract() -> TestContext {
 
     contract
         .call_function("new", ())
-        .unwrap()
         .transaction()
         .with_signer(contract.account_id().clone(), signer.clone())
         .send_to(&network)
@@ -47,7 +46,6 @@ pub async fn setup_social_contract() -> TestContext {
 
     contract
         .call_function("set_status", serde_json::json!({ "status": "Live" }))
-        .unwrap()
         .transaction()
         .with_signer(contract.account_id().clone(), signer.clone())
         .send_to(&network)
@@ -89,7 +87,6 @@ pub async fn setup_ft_contract() -> TestContext {
 
     contract
         .call_function("new", ())
-        .unwrap()
         .transaction()
         .with_signer(contract.account_id().clone(), signer.clone())
         .send_to(&network)

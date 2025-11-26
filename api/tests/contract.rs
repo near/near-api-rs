@@ -45,7 +45,6 @@ async fn contract_without_init_call() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await
@@ -54,7 +53,6 @@ async fn contract_without_init_call() {
 
     contract
         .call_function("increment", ())
-        .unwrap()
         .transaction()
         .with_signer(account.clone(), signer.clone())
         .send_to(&network)
@@ -64,7 +62,6 @@ async fn contract_without_init_call() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await

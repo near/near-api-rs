@@ -60,7 +60,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let account = Account("contract.testnet".parse()?);
     /// let contract = account.as_contract();
-    /// let result: String = contract.call_function("get_value", ())?.read_only().fetch_from_testnet().await?.data;
+    /// let result: String = contract.call_function("get_value", ()).read_only().fetch_from_testnet().await?.data;
     /// println!("Contract value: {:?}", result);
     /// # Ok(())
     /// # }
@@ -96,7 +96,7 @@ impl Account {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let account = Account("alice.testnet".parse()?);
     /// let delegation = account.delegation();
-    /// let staked = delegation.view_staked_balance("pool.testnet".parse()?)?.fetch_from_testnet().await?;
+    /// let staked = delegation.view_staked_balance("pool.testnet".parse()?).fetch_from_testnet().await?;
     /// println!("Staked balance: {:?}", staked);
     /// # Ok(())
     /// # }

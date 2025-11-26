@@ -60,7 +60,7 @@ impl CreateAccountBuilder {
                                 "new_account_id": self.account_id.to_string(),
                                 "new_public_key": public_key,
                             }),
-                        )?
+                        )
                         .transaction()
                         .gas(NearGas::from_tgas(30))
                         .deposit(initial_balance)
