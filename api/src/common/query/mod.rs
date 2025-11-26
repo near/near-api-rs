@@ -233,9 +233,9 @@ where
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
         if !self.deferred_errors.is_empty() {
-            return Err(QueryError::ConversionError(Box::new(
+            return Err(QueryError::ArgumentSerializationError(
                 ArgumentSerializationError::multiple(self.deferred_errors),
-            )));
+            ));
         }
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing queries");
@@ -416,7 +416,7 @@ where
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
         if let Some(err) = self.deferred_error {
-            return Err(QueryError::ConversionError(Box::new(err)));
+            return Err(QueryError::ArgumentSerializationError(err));
         }
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");

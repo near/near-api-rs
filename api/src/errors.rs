@@ -28,6 +28,8 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     QueryError(Box<RetryError<SendRequestError<RpcError>>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
+    #[error("Argument serialization error: {0}")]
+    ArgumentSerializationError(#[from] ArgumentSerializationError),
     #[error("Failed to convert response: {0}")]
     ConversionError(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -161,7 +163,7 @@ pub enum ArgumentSerializationError {
 }
 
 impl ArgumentSerializationError {
-    pub const fn multiple(errors: Vec<ArgumentSerializationError>) -> Self {
+    pub const fn multiple(errors: Vec<Self>) -> Self {
         Self::MultipleErrors(errors)
     }
 }
@@ -173,7 +175,7 @@ impl From<serde_json::Error> for ArgumentSerializationError {
 }
 
 impl From<std::io::Error> for ArgumentSerializationError {
-    fn from(err: std::io::Error) -> ArgumentSerializationError {
+    fn from(err: std::io::Error) -> Self {
         Self::BorshSerializationError(Arc::new(err))
     }
 }

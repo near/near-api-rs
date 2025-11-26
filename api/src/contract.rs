@@ -855,7 +855,7 @@ pub struct ContractTransactBuilder {
 }
 
 impl ContractTransactBuilder {
-    fn new(
+    const fn new(
         contract: AccountId,
         method_name: String,
         args: Result<Vec<u8>, ArgumentSerializationError>,
