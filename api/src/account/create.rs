@@ -65,7 +65,7 @@ impl CreateAccountBuilder {
                         .gas(NearGas::from_tgas(30))
                         .deposit(initial_balance)
                         .with_signer_account(signer_account_id.clone())
-                        .tr
+                        .transaction?
                         .actions,
                     linkdrop_account_id.to_owned(),
                 )
@@ -75,7 +75,7 @@ impl CreateAccountBuilder {
 
             let prepopulated = ConstructTransaction::new(signer_account_id, receiver_id)
                 .add_actions(actions)
-                .tr;
+                .transaction?;
 
             Ok(TransactionWithSign {
                 tx: CreateAccountFundMyselfTx { prepopulated },
@@ -161,12 +161,8 @@ pub struct CreateAccountFundMyselfTx {
 
 #[async_trait::async_trait]
 impl Transactionable for CreateAccountFundMyselfTx {
-    fn prepopulated(&self) -> PrepopulateTransaction {
-        self.prepopulated.clone()
-    }
-
-    fn deferred_error(&self) -> Option<ArgumentSerializationError> {
-        None
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentSerializationError> {
+        Ok(self.prepopulated.clone())
     }
 
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError> {

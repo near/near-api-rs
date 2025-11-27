@@ -59,18 +59,19 @@ where
     reference: Query::RpcReference,
     #[allow(clippy::type_complexity)]
     requests: Vec<
-        Arc<
-            dyn RpcType<
-                    Response = Query::Response,
-                    RpcReference = Query::RpcReference,
-                    Error = Query::Error,
-                > + Send
-                + Sync,
+        Result<
+            Arc<
+                dyn RpcType<
+                        Response = Query::Response,
+                        RpcReference = Query::RpcReference,
+                        Error = Query::Error,
+                    > + Send
+                    + Sync,
+            >,
+            ArgumentSerializationError,
         >,
     >,
     handler: Handler,
-
-    deferred_errors: Vec<ArgumentSerializationError>,
 }
 
 impl<Query, Handler> MultiRpcBuilder<Query, Handler>
@@ -85,7 +86,6 @@ where
             reference: reference.into(),
             requests: vec![],
             handler: Default::default(),
-            deferred_errors: vec![],
         }
     }
 }
@@ -102,13 +102,7 @@ where
             reference: reference.into(),
             requests: vec![],
             handler,
-            deferred_errors: vec![],
         }
-    }
-
-    pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
-        self.deferred_errors.push(error);
-        self
     }
 
     /// Map response of the queries to another type. The `map` function is executed after the queries are fetched.
@@ -151,7 +145,6 @@ where
             handler: PostprocessHandler::new(self.handler, map),
             requests: self.requests,
             reference: self.reference,
-            deferred_errors: self.deferred_errors,
         }
     }
 
@@ -187,7 +180,6 @@ where
             handler: AndThenHandler::new(self.handler, map),
             requests: self.requests,
             reference: self.reference,
-            deferred_errors: self.deferred_errors,
         }
     }
 
@@ -204,7 +196,7 @@ where
                 + Sync,
         >,
     ) -> Self {
-        self.requests.push(request);
+        self.requests.push(Ok(request));
         self
     }
 
@@ -214,7 +206,6 @@ where
         Handler2: ResponseHandler<Query = Query> + Send + Sync,
     {
         self.requests.push(query_builder.request);
-        self.deferred_errors.extend(query_builder.deferred_error);
         self
     }
 
@@ -232,9 +223,14 @@ where
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
-        if !self.deferred_errors.is_empty() {
+        let errors = self
+            .requests
+            .iter()
+            .filter_map(|request| request.as_ref().err())
+            .collect::<Vec<_>>();
+        if !errors.is_empty() {
             return Err(QueryError::ArgumentSerializationError(
-                ArgumentSerializationError::multiple(self.deferred_errors),
+                ArgumentSerializationError::multiple(errors.into_iter().cloned().collect()),
             ));
         }
 
@@ -245,7 +241,7 @@ where
             let reference = &self.reference;
             async move {
                 retry(network.clone(), |client| {
-                    let request = &request;
+                    let request = request.as_ref().expect("Checked above");
 
                     async move {
                         let result = request.send_query(&client, network, reference).await;
@@ -297,16 +293,19 @@ where
     Handler: Send + Sync,
 {
     reference: Query::RpcReference,
-    request: Arc<
-        dyn RpcType<
-                Response = Query::Response,
-                RpcReference = Query::RpcReference,
-                Error = Query::Error,
-            > + Send
-            + Sync,
+    #[allow(clippy::type_complexity)]
+    request: Result<
+        Arc<
+            dyn RpcType<
+                    Response = Query::Response,
+                    RpcReference = Query::RpcReference,
+                    Error = Query::Error,
+                > + Send
+                + Sync,
+        >,
+        ArgumentSerializationError,
     >,
     handler: Handler,
-    deferred_error: Option<ArgumentSerializationError>,
 }
 
 impl<Query, Handler> RpcBuilder<Query, Handler>
@@ -323,14 +322,13 @@ where
     ) -> Self {
         Self {
             reference: reference.into(),
-            request: Arc::new(request),
+            request: Ok(Arc::new(request)),
             handler,
-            deferred_error: None,
         }
     }
 
     pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
-        self.deferred_error = Some(error);
+        self.request = Err(error);
         self
     }
 
@@ -369,7 +367,6 @@ where
             handler: PostprocessHandler::new(self.handler, map),
             request: self.request,
             reference: self.reference,
-            deferred_error: self.deferred_error,
         }
     }
 
@@ -405,7 +402,6 @@ where
             handler: AndThenHandler::new(self.handler, map),
             request: self.request,
             reference: self.reference,
-            deferred_error: self.deferred_error,
         }
     }
 
@@ -415,7 +411,7 @@ where
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
-        if let Some(err) = self.deferred_error {
+        if let Err(err) = self.request {
             return Err(QueryError::ArgumentSerializationError(err));
         }
 
@@ -425,7 +421,11 @@ where
             let request = &self.request;
             let reference = &self.reference;
             async move {
-                let result = request.send_query(&client, network, reference).await;
+                let result = request
+                    .as_ref()
+                    .expect("Checked above")
+                    .send_query(&client, network, reference)
+                    .await;
                 tracing::debug!(
                     target: QUERY_EXECUTOR_TARGET,
                     "Querying RPC with {:?} resulted in {:?}",

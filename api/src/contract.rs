@@ -908,7 +908,7 @@ impl ContractTransactBuilder {
 
         let err = self.args.as_deref().err().cloned();
 
-        let mut tr = Transaction::construct(signer_id, self.contract).add_action(
+        let mut transaction = Transaction::construct(signer_id, self.contract).add_action(
             Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: self.method_name.to_owned(),
                 args: self.args.unwrap_or_default(),
@@ -917,9 +917,9 @@ impl ContractTransactBuilder {
             })),
         );
         if let Some(err) = err {
-            tr = tr.with_deferred_error(err);
+            transaction = transaction.with_deferred_error(err);
         }
-        tr
+        transaction
     }
 }
 

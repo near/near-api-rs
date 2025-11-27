@@ -165,18 +165,18 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
 }
 
 impl From<SignedTransaction> for near_openapi_types::SignedTransaction {
-    fn from(tr: SignedTransaction) -> Self {
-        let bytes = borsh::to_vec(&tr).expect("Failed to serialize");
+    fn from(transaction: SignedTransaction) -> Self {
+        let bytes = borsh::to_vec(&transaction).expect("Failed to serialize");
         Self(BASE64_STANDARD.encode(bytes))
     }
 }
 
 impl From<SignedTransaction> for PrepopulateTransaction {
-    fn from(mut tr: SignedTransaction) -> Self {
+    fn from(mut transaction: SignedTransaction) -> Self {
         Self {
-            signer_id: tr.transaction.signer_id().clone(),
-            receiver_id: tr.transaction.receiver_id().clone(),
-            actions: tr.transaction.take_actions(),
+            signer_id: transaction.transaction.signer_id().clone(),
+            receiver_id: transaction.transaction.receiver_id().clone(),
+            actions: transaction.transaction.take_actions(),
         }
     }
 }

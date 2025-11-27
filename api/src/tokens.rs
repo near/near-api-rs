@@ -409,7 +409,7 @@ impl SendToBuilder {
         ft_contract: AccountId,
         amount: FTBalance,
     ) -> TransactionWithSign<FTTransactionable> {
-        let tr = Contract(ft_contract)
+        let transaction = Contract(ft_contract)
             .call_function(
                 "ft_transfer",
                 json!({
@@ -424,9 +424,8 @@ impl SendToBuilder {
         TransactionWithSign {
             tx: FTTransactionable {
                 receiver: self.receiver_id,
-                prepopulated: tr.tr,
+                transaction: transaction.transaction,
                 decimals: amount.decimals(),
-                deferred_error: tr.deferred_error,
             },
         }
     }
@@ -485,7 +484,7 @@ impl SendToBuilder {
         amount: FTBalance,
         msg: String,
     ) -> TransactionWithSign<FTTransactionable> {
-        let tr = Contract(ft_contract)
+        let transaction = Contract(ft_contract)
             .call_function(
                 "ft_transfer_call",
                 json!({
@@ -501,9 +500,8 @@ impl SendToBuilder {
         TransactionWithSign {
             tx: FTTransactionable {
                 receiver: self.receiver_id,
-                prepopulated: tr.tr,
+                transaction: transaction.transaction,
                 decimals: amount.decimals(),
-                deferred_error: tr.deferred_error,
             },
         }
     }
@@ -560,18 +558,19 @@ impl SendToBuilder {
 /// the receiver doesn't have any allocated storage in the provided FT contract
 #[derive(Clone, Debug)]
 pub struct FTTransactionable {
-    prepopulated: PrepopulateTransaction,
+    transaction: Result<PrepopulateTransaction, ArgumentSerializationError>,
     receiver: AccountId,
     decimals: u8,
-    deferred_error: Option<ArgumentSerializationError>,
 }
 
 impl FTTransactionable {
-    pub async fn check_decimals(
-        &self,
-        network: &NetworkConfig,
-    ) -> core::result::Result<(), ValidationError> {
-        let metadata = Tokens::ft_metadata(self.prepopulated.receiver_id.clone());
+    pub async fn check_decimals(&self, network: &NetworkConfig) -> Result<(), ValidationError> {
+        let transaction = match &self.transaction {
+            Ok(transaction) => transaction,
+            Err(e) => return Err(e.to_owned().into()),
+        };
+
+        let metadata = Tokens::ft_metadata(transaction.receiver_id.clone());
 
         let Ok(metadata) = metadata.fetch_from(network).await else {
             // If there is no metadata, than we can't check it
@@ -590,12 +589,8 @@ impl FTTransactionable {
 
 #[async_trait::async_trait]
 impl Transactionable for FTTransactionable {
-    fn prepopulated(&self) -> PrepopulateTransaction {
-        self.prepopulated.clone()
-    }
-
-    fn deferred_error(&self) -> Option<ArgumentSerializationError> {
-        self.deferred_error.clone()
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentSerializationError> {
+        self.transaction.clone()
     }
 
     async fn validate_with_network(
@@ -604,7 +599,12 @@ impl Transactionable for FTTransactionable {
     ) -> core::result::Result<(), ValidationError> {
         self.check_decimals(network).await?;
 
-        let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
+        let transaction = match &self.transaction {
+            Ok(transaction) => transaction,
+            Err(_) => return Ok(()),
+        };
+
+        let storage_balance = StorageDeposit::on_contract(transaction.receiver_id.clone())
             .view_account_storage(self.receiver.clone())
             .fetch_from(network)
             .await
@@ -623,21 +623,26 @@ impl Transactionable for FTTransactionable {
     ) -> core::result::Result<(), ValidationError> {
         self.check_decimals(network).await?;
 
-        let storage_balance = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
+        let transaction = match &mut self.transaction {
+            Ok(transaction) => transaction,
+            Err(_) => return Ok(()),
+        };
+
+        let storage_balance = StorageDeposit::on_contract(transaction.receiver_id.clone())
             .view_account_storage(self.receiver.clone())
             .fetch_from(network)
             .await
             .map_err(ValidationError::QueryError)?;
 
         if storage_balance.data.is_none() {
-            let mut action = StorageDeposit::on_contract(self.prepopulated.receiver_id.clone())
+            let mut action = StorageDeposit::on_contract(transaction.receiver_id.clone())
                 .deposit(self.receiver.clone(), NearToken::from_millinear(100))
                 .into_transaction()
-                .with_signer_account(self.prepopulated.signer_id.clone())
-                .tr
+                .with_signer_account(transaction.signer_id.clone())
+                .prepopulated()?
                 .actions;
-            action.append(&mut self.prepopulated.actions);
-            self.prepopulated.actions = action;
+            action.append(&mut transaction.actions);
+            transaction.actions = action;
         }
         Ok(())
     }

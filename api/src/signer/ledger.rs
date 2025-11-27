@@ -33,22 +33,22 @@ impl LedgerSigner {
 
 #[async_trait::async_trait]
 impl SignerTrait for LedgerSigner {
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
+    #[instrument(skip(self, transaction), fields(signer_id = %transaction.signer_id, receiver_id = %transaction.receiver_id))]
     async fn sign(
         &self,
-        tr: PrepopulateTransaction,
+        transaction: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
         debug!(target: LEDGER_SIGNER_TARGET, "Preparing unsigned transaction");
         let unsigned_tx = Transaction::V0(TransactionV0 {
-            signer_id: tr.signer_id.clone(),
+            signer_id: transaction.signer_id.clone(),
             public_key,
-            receiver_id: tr.receiver_id,
+            receiver_id: transaction.receiver_id,
             nonce,
             block_hash,
-            actions: tr.actions,
+            actions: transaction.actions,
         });
         let unsigned_tx_bytes = borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?;
         let hd_path = self.hd_path.clone();
@@ -74,25 +74,25 @@ impl SignerTrait for LedgerSigner {
         Ok(SignedTransaction::new(signature, unsigned_tx))
     }
 
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
+    #[instrument(skip(self, transaction), fields(signer_id = %transaction.signer_id, receiver_id = %transaction.receiver_id))]
     async fn sign_meta(
         &self,
-        tr: PrepopulateTransaction,
+        transaction: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         _block_hash: CryptoHash,
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
         debug!(target: LEDGER_SIGNER_TARGET, "Preparing delegate action");
-        let actions = tr
+        let actions = transaction
             .actions
             .into_iter()
             .map(NonDelegateAction::try_from)
             .collect::<Result<_, _>>()
             .map_err(|_| MetaSignError::DelegateActionIsNotSupported)?;
         let delegate_action = DelegateAction {
-            sender_id: tr.signer_id,
-            receiver_id: tr.receiver_id,
+            sender_id: transaction.signer_id,
+            receiver_id: transaction.receiver_id,
             actions,
             nonce,
             max_block_height,

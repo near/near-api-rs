@@ -65,37 +65,39 @@ impl SelfActionBuilder {
 /// A builder for constructing transactions using Actions.
 #[derive(Debug, Clone)]
 pub struct ConstructTransaction {
-    pub tr: PrepopulateTransaction,
-    pub deferred_error: Option<ArgumentSerializationError>,
+    pub transaction: Result<PrepopulateTransaction, ArgumentSerializationError>,
 }
 
 impl ConstructTransaction {
     /// Pre-populates a transaction with the given signer and receiver IDs.
     pub const fn new(signer_id: AccountId, receiver_id: AccountId) -> Self {
         Self {
-            tr: PrepopulateTransaction {
+            transaction: Ok(PrepopulateTransaction {
                 signer_id,
                 receiver_id,
                 actions: Vec::new(),
-            },
-            deferred_error: None,
+            }),
         }
     }
 
     pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
-        self.deferred_error = Some(error);
+        self.transaction = Err(error);
         self
     }
 
     /// Adds an action to the transaction.
     pub fn add_action(mut self, action: Action) -> Self {
-        self.tr.actions.push(action);
+        if let Ok(transaction) = &mut self.transaction {
+            transaction.actions.push(action);
+        }
         self
     }
 
     /// Adds multiple actions to the transaction.
     pub fn add_actions(mut self, actions: Vec<Action>) -> Self {
-        self.tr.actions.extend(actions);
+        if let Ok(transaction) = &mut self.transaction {
+            transaction.actions.extend(actions);
+        }
         self
     }
 
@@ -107,15 +109,14 @@ impl ConstructTransaction {
 
 #[async_trait::async_trait]
 impl Transactionable for ConstructTransaction {
-    fn prepopulated(&self) -> PrepopulateTransaction {
-        self.tr.clone()
-    }
-
-    fn deferred_error(&self) -> Option<ArgumentSerializationError> {
-        self.deferred_error.clone()
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentSerializationError> {
+        self.transaction.clone()
     }
 
     async fn validate_with_network(&self, _: &NetworkConfig) -> Result<(), ValidationError> {
+        if let Err(e) = &self.transaction {
+            return Err(e.to_owned().into());
+        }
         Ok(())
     }
 }

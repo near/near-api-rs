@@ -140,18 +140,6 @@ impl From<near_ledger::NEARLedgerError> for LedgerError {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum SecretBuilderError<E: std::fmt::Debug> {
-    #[error("Public key is not available")]
-    PublicKeyIsNotAvailable,
-    #[error(transparent)]
-    SecretError(#[from] SecretError),
-    #[error(transparent)]
-    IO(#[from] std::io::Error),
-    #[error(transparent)]
-    CallbackError(E),
-}
-
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ArgumentSerializationError {
     #[error("Failed to serialize arguments as JSON: {0}")]
@@ -184,9 +172,6 @@ impl From<std::io::Error> for ArgumentSerializationError {
 pub enum AccountCreationError {
     #[error(transparent)]
     ArgumentSerializationError(#[from] ArgumentSerializationError),
-
-    #[error(transparent)]
-    PublicKeyParsingError(#[from] PublicKeyParsingError),
 
     #[error("Top-level account is not allowed")]
     TopLevelAccountIsNotAllowed,
@@ -222,43 +207,41 @@ pub enum RetryError<E> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ExecuteTransactionError {
-    #[error("Transaction validation error: {0}")]
-    ValidationError(#[from] ValidationError),
-    #[error("Transaction signing error: {0}")]
-    SignerError(#[from] SignerError),
-    #[error("Meta-signing error: {0}")]
-    MetaSignError(#[from] MetaSignError),
+    #[error(transparent)]
+    ArgumentSerializationError(#[from] ArgumentSerializationError),
+
     #[error("Pre-query error: {0:?}")]
     PreQueryError(QueryError<RpcQueryError>),
+    #[error("Transaction validation error: {0}")]
+    ValidationError(#[from] ValidationError),
+    #[error("Meta-signing error: {0}")]
+    MetaSignError(#[from] MetaSignError),
+    #[error("Transaction signing error: {0}")]
+    SignerError(#[from] SignerError),
+
     #[error("Transaction error: {0:?}")]
     TransactionError(RetryError<SendRequestError<RpcTransactionError>>),
-    #[error(transparent)]
-    NonEmptyVecError(#[from] NonEmptyVecError),
     #[error("Data conversion error: {0}")]
     DataConversionError(#[from] DataConversionError),
-    #[error(transparent)]
-    BuilderError(#[from] ArgumentSerializationError),
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum ExecuteMetaTransactionsError {
-    #[error("Transaction validation error: {0}")]
-    ValidationError(#[from] ValidationError),
-    #[error("Meta-signing error: {0}")]
-    SignError(#[from] MetaSignError),
+    #[error(transparent)]
+    ArgumentSerializationError(#[from] ArgumentSerializationError),
+
     #[error("Pre-query error: {0:?}")]
     PreQueryError(QueryError<RpcQueryError>),
-
+    #[error("Transaction validation error: {0}")]
+    ValidationError(#[from] ValidationError),
     #[error("Relayer is not defined in the network config")]
     RelayerIsNotDefined,
 
+    #[error("Meta-signing error: {0}")]
+    SignError(#[from] MetaSignError),
+
     #[error("Failed to send meta-transaction: {0}")]
     SendError(#[from] reqwest::Error),
-
-    #[error(transparent)]
-    NonEmptyVecError(#[from] NonEmptyVecError),
-    #[error(transparent)]
-    BuilderError(#[from] ArgumentSerializationError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -275,16 +258,6 @@ pub enum FTValidatorError {
     StorageDepositNeeded,
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum FastNearError {
-    #[error("FastNear URL is not defined in the network config")]
-    FastNearUrlIsNotDefined,
-    #[error("Failed to send request: {0}")]
-    SendError(#[from] reqwest::Error),
-    #[error("Url parsing error: {0}")]
-    UrlParseError(#[from] url::ParseError),
-}
-
 //TODO: it's better to have a separate errors, but for now it would be aggregated here
 #[derive(thiserror::Error, Debug)]
 pub enum ValidationError {
@@ -299,45 +272,6 @@ pub enum ValidationError {
 
     #[error("Account creation error: {0}")]
     AccountCreationError(#[from] AccountCreationError),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum MultiTransactionError {
-    #[error(transparent)]
-    NonEmptyVecError(#[from] NonEmptyVecError),
-
-    #[error(transparent)]
-    SignerError(#[from] SignerError),
-    #[error("Duplicate signer")]
-    DuplicateSigner,
-
-    #[error(transparent)]
-    SignedTransactionError(#[from] ExecuteTransactionError),
-
-    #[error("Failed to send meta-transaction: {0}")]
-    MetaTransactionError(#[from] ExecuteMetaTransactionsError),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum NonEmptyVecError {
-    #[error("Vector is empty")]
-    EmptyVector,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum PublicKeyParsingError {
-    #[error("Invalid prefix: {0}")]
-    InvalidPrefix(String),
-    #[error("Base64 decoding error: {0}")]
-    Base64DecodeError(#[from] base64::DecodeError),
-    #[error("Invalid Key Length")]
-    InvalidKeyLength,
-}
-
-impl From<Vec<u8>> for PublicKeyParsingError {
-    fn from(_: Vec<u8>) -> Self {
-        Self::InvalidKeyLength
-    }
 }
 
 #[derive(thiserror::Error, Debug)]
