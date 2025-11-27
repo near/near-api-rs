@@ -29,7 +29,7 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
     #[error("Argument serialization error: {0}")]
-    ArgumentSerializationError(#[from] ArgumentSerializationError),
+    ArgumentValidationError(#[from] ArgumentValidationError),
     #[error("Failed to convert response: {0}")]
     ConversionError(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -141,28 +141,28 @@ impl From<near_ledger::NEARLedgerError> for LedgerError {
 }
 
 #[derive(thiserror::Error, Debug, Clone)]
-pub enum ArgumentSerializationError {
+pub enum ArgumentValidationError {
     #[error("Failed to serialize arguments as JSON: {0}")]
     JsonSerializationError(Arc<serde_json::Error>),
     #[error("Failed to serialize arguments as Borsh: {0}")]
     BorshSerializationError(Arc<std::io::Error>),
     #[error("Multiple errors: {0:?}")]
-    MultipleErrors(Vec<ArgumentSerializationError>),
+    MultipleErrors(Vec<ArgumentValidationError>),
 }
 
-impl ArgumentSerializationError {
+impl ArgumentValidationError {
     pub const fn multiple(errors: Vec<Self>) -> Self {
         Self::MultipleErrors(errors)
     }
 }
 
-impl From<serde_json::Error> for ArgumentSerializationError {
+impl From<serde_json::Error> for ArgumentValidationError {
     fn from(err: serde_json::Error) -> Self {
         Self::JsonSerializationError(Arc::new(err))
     }
 }
 
-impl From<std::io::Error> for ArgumentSerializationError {
+impl From<std::io::Error> for ArgumentValidationError {
     fn from(err: std::io::Error) -> Self {
         Self::BorshSerializationError(Arc::new(err))
     }
@@ -171,7 +171,7 @@ impl From<std::io::Error> for ArgumentSerializationError {
 #[derive(thiserror::Error, Debug)]
 pub enum AccountCreationError {
     #[error(transparent)]
-    ArgumentSerializationError(#[from] ArgumentSerializationError),
+    ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("Top-level account is not allowed")]
     TopLevelAccountIsNotAllowed,
@@ -208,7 +208,7 @@ pub enum RetryError<E> {
 #[derive(thiserror::Error, Debug)]
 pub enum ExecuteTransactionError {
     #[error(transparent)]
-    ArgumentSerializationError(#[from] ArgumentSerializationError),
+    ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("Pre-query error: {0:?}")]
     PreQueryError(QueryError<RpcQueryError>),
@@ -228,7 +228,7 @@ pub enum ExecuteTransactionError {
 #[derive(thiserror::Error, Debug)]
 pub enum ExecuteMetaTransactionsError {
     #[error(transparent)]
-    ArgumentSerializationError(#[from] ArgumentSerializationError),
+    ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("Pre-query error: {0:?}")]
     PreQueryError(QueryError<RpcQueryError>),
@@ -265,7 +265,7 @@ pub enum ValidationError {
     QueryError(QueryError<RpcQueryError>),
 
     #[error(transparent)]
-    ArgumentSerializationError(#[from] ArgumentSerializationError),
+    ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("FT Validation Error: {0}")]
     FTValidatorError(#[from] FTValidatorError),

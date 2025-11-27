@@ -13,7 +13,7 @@ use url::Url;
 
 use crate::{
     common::send::Transactionable,
-    errors::{AccountCreationError, ArgumentSerializationError, FaucetError, ValidationError},
+    errors::{AccountCreationError, ArgumentValidationError, FaucetError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     Contract, NetworkConfig,
 };
@@ -161,7 +161,7 @@ pub struct CreateAccountFundMyselfTx {
 
 #[async_trait::async_trait]
 impl Transactionable for CreateAccountFundMyselfTx {
-    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentSerializationError> {
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
         Ok(self.prepopulated.clone())
     }
 

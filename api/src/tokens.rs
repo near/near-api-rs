@@ -19,7 +19,7 @@ use crate::{
         send::Transactionable,
     },
     contract::Contract,
-    errors::{ArgumentSerializationError, FTValidatorError, ValidationError},
+    errors::{ArgumentValidationError, FTValidatorError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     NetworkConfig, StorageDeposit,
 };
@@ -558,7 +558,7 @@ impl SendToBuilder {
 /// the receiver doesn't have any allocated storage in the provided FT contract
 #[derive(Clone, Debug)]
 pub struct FTTransactionable {
-    transaction: Result<PrepopulateTransaction, ArgumentSerializationError>,
+    transaction: Result<PrepopulateTransaction, ArgumentValidationError>,
     receiver: AccountId,
     decimals: u8,
 }
@@ -589,7 +589,7 @@ impl FTTransactionable {
 
 #[async_trait::async_trait]
 impl Transactionable for FTTransactionable {
-    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentSerializationError> {
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
         self.transaction.clone()
     }
 

@@ -5,7 +5,7 @@ use near_api_types::{transaction::PrepopulateTransaction, AccountId, Action};
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::{ArgumentSerializationError, ValidationError},
+    errors::{ArgumentValidationError, ValidationError},
     signer::Signer,
 };
 
@@ -65,7 +65,7 @@ impl SelfActionBuilder {
 /// A builder for constructing transactions using Actions.
 #[derive(Debug, Clone)]
 pub struct ConstructTransaction {
-    pub transaction: Result<PrepopulateTransaction, ArgumentSerializationError>,
+    pub transaction: Result<PrepopulateTransaction, ArgumentValidationError>,
 }
 
 impl ConstructTransaction {
@@ -80,7 +80,7 @@ impl ConstructTransaction {
         }
     }
 
-    pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
+    pub fn with_deferred_error(mut self, error: ArgumentValidationError) -> Self {
         self.transaction = Err(error);
         self
     }
@@ -109,7 +109,7 @@ impl ConstructTransaction {
 
 #[async_trait::async_trait]
 impl Transactionable for ConstructTransaction {
-    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentSerializationError> {
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
         self.transaction.clone()
     }
 

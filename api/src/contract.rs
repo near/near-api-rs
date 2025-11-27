@@ -21,7 +21,7 @@ use crate::{
         send::ExecuteSignedTransaction,
         utils::to_base64,
     },
-    errors::ArgumentSerializationError,
+    errors::ArgumentValidationError,
     signer::Signer,
     transactions::{ConstructTransaction, SelfActionBuilder, Transaction},
 };
@@ -609,7 +609,7 @@ impl SetDeployActionBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> Result<SetDeployActionWithInitCallBuilder, ArgumentSerializationError> {
+    ) -> Result<SetDeployActionWithInitCallBuilder, ArgumentValidationError> {
         let args = serde_json::to_vec(&args)?;
 
         Ok(SetDeployActionWithInitCallBuilder::new(
@@ -760,7 +760,7 @@ impl GlobalDeployBuilder {
 pub struct CallFunctionBuilder {
     contract: AccountId,
     method_name: String,
-    args: Result<Vec<u8>, ArgumentSerializationError>,
+    args: Result<Vec<u8>, ArgumentValidationError>,
 }
 
 impl CallFunctionBuilder {
@@ -849,7 +849,7 @@ impl CallFunctionBuilder {
 pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,
-    args: Result<Vec<u8>, ArgumentSerializationError>,
+    args: Result<Vec<u8>, ArgumentValidationError>,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
@@ -858,7 +858,7 @@ impl ContractTransactBuilder {
     const fn new(
         contract: AccountId,
         method_name: String,
-        args: Result<Vec<u8>, ArgumentSerializationError>,
+        args: Result<Vec<u8>, ArgumentValidationError>,
     ) -> Self {
         Self {
             contract,

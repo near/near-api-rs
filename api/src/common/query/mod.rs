@@ -7,7 +7,7 @@ use tracing::{debug, error, info, instrument};
 
 use crate::{
     config::{retry, NetworkConfig, RetryResponse},
-    errors::{ArgumentSerializationError, QueryError, SendRequestError},
+    errors::{ArgumentValidationError, QueryError, SendRequestError},
 };
 
 pub mod block_rpc;
@@ -68,7 +68,7 @@ where
                     > + Send
                     + Sync,
             >,
-            ArgumentSerializationError,
+            ArgumentValidationError,
         >,
     >,
     handler: Handler,
@@ -229,8 +229,8 @@ where
             .filter_map(|request| request.as_ref().err())
             .collect::<Vec<_>>();
         if !errors.is_empty() {
-            return Err(QueryError::ArgumentSerializationError(
-                ArgumentSerializationError::multiple(errors.into_iter().cloned().collect()),
+            return Err(QueryError::ArgumentValidationError(
+                ArgumentValidationError::multiple(errors.into_iter().cloned().collect()),
             ));
         }
 
@@ -303,7 +303,7 @@ where
                 > + Send
                 + Sync,
         >,
-        ArgumentSerializationError,
+        ArgumentValidationError,
     >,
     handler: Handler,
 }
@@ -327,7 +327,7 @@ where
         }
     }
 
-    pub fn with_deferred_error(mut self, error: ArgumentSerializationError) -> Self {
+    pub fn with_deferred_error(mut self, error: ArgumentValidationError) -> Self {
         self.request = Err(error);
         self
     }
@@ -412,7 +412,7 @@ where
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
         if let Err(err) = self.request {
-            return Err(QueryError::ArgumentSerializationError(err));
+            return Err(QueryError::ArgumentValidationError(err));
         }
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
