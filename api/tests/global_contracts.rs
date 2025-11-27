@@ -20,18 +20,21 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
     ))
     .unwrap();
 
-    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
-        additional_accounts: vec![global_contract.clone()],
-        ..Default::default()
-    })
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config_and_version(
+        SandboxConfig {
+            additional_accounts: vec![global_contract.clone()],
+            ..Default::default()
+        },
+        "2.9.0",
+    )
     .await
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
     let code_bytes = include_bytes!("../resources/counter.wasm");
     let base64_code_bytes = BASE64_STANDARD.encode(code_bytes);
 
-    Contract::deploy_global_contract_code(code_bytes.to_vec())
-        .as_account_id(global_contract.account_id.clone())
+    Contract::publish_contract(code_bytes.to_vec())
+        .as_account(global_contract.account_id.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
         .await
@@ -39,7 +42,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .assert_success();
 
     Contract::deploy(global_contract.account_id.clone())
-        .use_global_account_id(global_contract.account_id.clone())
+        .deploy_from_published(global_contract.account_id.clone())
         .without_init_call()
         .with_signer(account_signer.clone())
         .send_to(&network)
@@ -123,10 +126,13 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     .unwrap();
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
-    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
-        additional_accounts: vec![global_contract.clone()],
-        ..Default::default()
-    })
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config_and_version(
+        SandboxConfig {
+            additional_accounts: vec![global_contract.clone()],
+            ..Default::default()
+        },
+        "2.9.0",
+    )
     .await
     .unwrap();
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
@@ -135,7 +141,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     let hash = CryptoHash::hash(&code);
     let base64_code = BASE64_STANDARD.encode(&code);
 
-    Contract::deploy_global_contract_code(code.clone())
+    Contract::publish_contract(code.clone())
         .as_hash()
         .with_signer(global_contract.account_id.clone(), global_signer.clone())
         .send_to(&network)
@@ -155,7 +161,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
     );
 
     Contract::deploy(account_id.clone())
-        .use_global_hash(hash)
+        .deploy_from_published(hash)
         .without_init_call()
         .with_signer(account_signer.clone())
         .send_to(&network)
