@@ -94,14 +94,6 @@ pub enum SecretKeyError {
     InvalidSecp256k1SecretKey(secp256k1::Error),
     #[error("Invalid conversion: {0}")]
     InvalidConversion(#[from] DataConversionError),
-    #[error("Invalid ED25519 secret key: {0}")]
-    InvalidEd25519SecretKey(ed25519_dalek::ed25519::signature::Error),
-}
-
-impl From<ed25519_dalek::ed25519::signature::Error> for SecretKeyError {
-    fn from(value: ed25519_dalek::ed25519::signature::Error) -> Self {
-        Self::InvalidEd25519SecretKey(value)
-    }
 }
 
 impl From<secp256k1::Error> for SecretKeyError {

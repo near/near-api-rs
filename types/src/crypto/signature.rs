@@ -251,23 +251,21 @@ impl Secp256K1Signature {
     }
 
     pub fn recover(&self, msg: [u8; 32]) -> Result<Secp256K1PublicKey, SignatureErrors> {
-        let recoverable_sig = secp256k1::ecdsa::RecoverableSignature::from_compact(
-            &self.0[0..64],
-            secp256k1::ecdsa::RecoveryId::from_i32(i32::from(self.0[64])).map_err(|_| {
-                SignatureErrors::InvalidSignatureData(secp256k1::Error::InvalidSignature)
-            })?,
-        )?;
-        let msg = Message::from_slice(&msg).map_err(|_| {
-            SignatureErrors::InvalidSignatureData(secp256k1::Error::InvalidSignature)
-        })?;
+        #[allow(clippy::expect_used)]
+        let recovery_id = secp256k1::ecdsa::RecoveryId::from_i32(i32::from(self.0[64]))
+            .expect("Invalid recovery id");
+
+        let recoverable_sig =
+            secp256k1::ecdsa::RecoverableSignature::from_compact(&self.0[0..64], recovery_id)?;
+        #[allow(clippy::expect_used)]
+        let msg = Message::from_slice(&msg).expect("32 bytes");
 
         let res = SECP256K1
             .recover_ecdsa(&msg, &recoverable_sig)?
             .serialize_uncompressed();
 
-        let pk = Secp256K1PublicKey::try_from(&res[1..65]).map_err(|_| {
-            SignatureErrors::InvalidSignatureData(secp256k1::Error::InvalidSignature)
-        })?;
+        #[allow(clippy::expect_used)]
+        let pk = Secp256K1PublicKey::try_from(&res[1..65]).expect("cannot fail");
 
         Ok(pk)
     }

@@ -118,7 +118,6 @@ use std::{
 };
 
 use near_api_types::{
-    errors::SecretKeyError,
     transaction::{
         delegate_action::{NonDelegateAction, SignedDelegateAction},
         PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
@@ -302,8 +301,8 @@ pub trait SignerTrait {
             block_hash,
             actions: transaction.actions,
         });
-        let hash = unsigned_transaction.get_hash().map_err(SignerError::from)?;
-        let signature = signer_secret_key.sign(hash.0.as_ref())?;
+
+        let signature = signer_secret_key.sign(unsigned_transaction.get_hash().0.as_ref());
 
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
@@ -324,7 +323,7 @@ pub trait SignerTrait {
         borsh::to_writer(&mut bytes, &payload)?;
         let hash = CryptoHash::hash(&bytes);
         let secret = self.get_secret_key(&signer_id, &public_key).await?;
-        let signature = secret.sign(hash.0.as_ref())?;
+        let signature = secret.sign(hash.0.as_ref());
         Ok(signature)
     }
 
@@ -443,7 +442,7 @@ impl Signer {
     }
 
     /// Creates a [SecretKeySigner](`SecretKeySigner`) using a secret key.
-    pub fn from_secret_key(secret_key: SecretKey) -> Result<SecretKeySigner, SecretKeyError> {
+    pub fn from_secret_key(secret_key: SecretKey) -> SecretKeySigner {
         SecretKeySigner::new(secret_key)
     }
 
@@ -454,7 +453,7 @@ impl Signer {
         password: Option<&str>,
     ) -> Result<SecretKeySigner, SecretError> {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
-        Ok(SecretKeySigner::new(secret_key)?)
+        Ok(SecretKeySigner::new(secret_key))
     }
 
     /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) using a path to the access key file.
@@ -462,17 +461,11 @@ impl Signer {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
         debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
 
-        if keypair.public_key
-            != keypair
-                .private_key
-                .public_key()
-                .map_err(|e| AccessKeyFileError::SecretError(SecretError::from(e)))?
-        {
+        if keypair.public_key != keypair.private_key.public_key() {
             return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
         }
 
-        SecretKeySigner::new(keypair.private_key)
-            .map_err(|e| AccessKeyFileError::SecretError(SecretError::from(e)))
+        Ok(SecretKeySigner::new(keypair.private_key))
     }
 
     /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using default HD path.
@@ -582,9 +575,7 @@ fn get_signed_delegate_action(
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
     let bytes = borsh::to_vec(&signable).expect("Failed to serialize");
     let hash = CryptoHash::hash(&bytes);
-    let signature = private_key
-        .sign(hash.0.as_ref())
-        .map_err(SignerError::from)?;
+    let signature = private_key.sign(hash.0.as_ref());
 
     Ok(SignedDelegateAction {
         delegate_action,
@@ -635,7 +626,7 @@ pub fn generate_seed_phrase_custom(
         &seed_phrase,
         passphrase,
     )?;
-    let public_key = secret_key.public_key()?;
+    let public_key = secret_key.public_key();
 
     Ok((seed_phrase, public_key))
 }

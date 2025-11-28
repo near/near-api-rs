@@ -90,9 +90,10 @@ impl Transaction {
         std::mem::take(actions)
     }
 
-    pub fn get_hash(&self) -> Result<CryptoHash, DataConversionError> {
-        let bytes = borsh::to_vec(&self).map_err(DataConversionError::BorshDeserializationError)?;
-        Ok(CryptoHash::hash(&bytes))
+    pub fn get_hash(&self) -> CryptoHash {
+        #[allow(clippy::expect_used)]
+        let bytes = borsh::to_vec(&self).expect("Failed to serialize");
+        CryptoHash::hash(&bytes)
     }
 }
 
@@ -164,12 +165,11 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
     }
 }
 
-impl TryFrom<SignedTransaction> for near_openapi_types::SignedTransaction {
-    type Error = DataConversionError;
-    fn try_from(transaction: SignedTransaction) -> Result<Self, Self::Error> {
-        let bytes =
-            borsh::to_vec(&transaction).map_err(DataConversionError::BorshDeserializationError)?;
-        Ok(Self(BASE64_STANDARD.encode(bytes)))
+impl From<SignedTransaction> for near_openapi_types::SignedTransaction {
+    fn from(transaction: SignedTransaction) -> Self {
+        #[allow(clippy::expect_used)]
+        let bytes = borsh::to_vec(&transaction).expect("Failed to serialize");
+        Self(BASE64_STANDARD.encode(bytes))
     }
 }
 
@@ -192,13 +192,8 @@ impl SignedTransaction {
         }
     }
 
-    pub fn get_hash(&self) -> Result<CryptoHash, DataConversionError> {
-        if let Some(hash) = self.hash.get() {
-            return Ok(*hash);
-        }
-        let hash = self.transaction.get_hash()?;
-        let hash = *self.hash.get_or_init(|| hash);
-        Ok(hash)
+    pub fn get_hash(&self) -> CryptoHash {
+        *self.hash.get_or_init(|| self.transaction.get_hash())
     }
 }
 
