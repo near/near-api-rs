@@ -13,7 +13,7 @@ use url::Url;
 
 use crate::{
     common::send::Transactionable,
-    errors::{AccountCreationError, FaucetError, ValidationError},
+    errors::{AccountCreationError, ArgumentValidationError, FaucetError, ValidationError},
     transactions::{ConstructTransaction, TransactionWithSign},
     Contract, NetworkConfig,
 };
@@ -60,12 +60,12 @@ impl CreateAccountBuilder {
                                 "new_account_id": self.account_id.to_string(),
                                 "new_public_key": public_key,
                             }),
-                        )?
+                        )
                         .transaction()
                         .gas(NearGas::from_tgas(30))
                         .deposit(initial_balance)
                         .with_signer_account(signer_account_id.clone())
-                        .prepopulated()
+                        .transaction?
                         .actions,
                     linkdrop_account_id.to_owned(),
                 )
@@ -75,7 +75,7 @@ impl CreateAccountBuilder {
 
             let prepopulated = ConstructTransaction::new(signer_account_id, receiver_id)
                 .add_actions(actions)
-                .prepopulated();
+                .transaction?;
 
             Ok(TransactionWithSign {
                 tx: CreateAccountFundMyselfTx { prepopulated },
@@ -161,8 +161,8 @@ pub struct CreateAccountFundMyselfTx {
 
 #[async_trait::async_trait]
 impl Transactionable for CreateAccountFundMyselfTx {
-    fn prepopulated(&self) -> PrepopulateTransaction {
-        self.prepopulated.clone()
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
+        Ok(self.prepopulated.clone())
     }
 
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError> {

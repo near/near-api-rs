@@ -82,7 +82,6 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await
@@ -91,7 +90,6 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 
     contract
         .call_function("increment", ())
-        .unwrap()
         .transaction()
         .with_signer(global_contract.account_id.clone(), account_signer.clone())
         .send_to(&network)
@@ -101,7 +99,6 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await
@@ -187,7 +184,6 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await
@@ -196,7 +192,6 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     contract
         .call_function("increment", ())
-        .unwrap()
         .transaction()
         .with_signer(account_id.clone(), account_signer.clone())
         .send_to(&network)
@@ -206,7 +201,6 @@ async fn deploy_global_contract_as_hash_and_use_it() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await

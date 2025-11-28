@@ -12,7 +12,6 @@ async fn test_that_generic_account_has_no_storage() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -30,7 +29,6 @@ async fn test_deposit_integration() {
         .storage_deposit()
         .deposit(ctx.account.clone(), deposit_amount)
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -41,7 +39,6 @@ async fn test_deposit_integration() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -60,7 +57,6 @@ async fn test_withdraw_integration() {
         .storage_deposit()
         .deposit(ctx.account.clone(), deposit_amount)
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -71,7 +67,6 @@ async fn test_withdraw_integration() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -82,7 +77,6 @@ async fn test_withdraw_integration() {
     ctx.contract
         .storage_deposit()
         .withdraw(ctx.account.clone(), NearToken::from_yoctonear(1000))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -93,7 +87,6 @@ async fn test_withdraw_integration() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -115,7 +108,6 @@ async fn test_unregister_integration() {
         .storage_deposit()
         .deposit(ctx.account.clone(), deposit_amount)
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -125,7 +117,6 @@ async fn test_unregister_integration() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -135,7 +126,6 @@ async fn test_unregister_integration() {
         .storage_deposit()
         .unregister()
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -145,7 +135,6 @@ async fn test_unregister_integration() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -162,7 +151,6 @@ async fn test_registration_only_integration() {
         .deposit(ctx.account.clone(), deposit_amount)
         .registration_only()
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -172,7 +160,6 @@ async fn test_registration_only_integration() {
         .contract
         .storage_deposit()
         .view_account_storage(ctx.account.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -193,7 +180,6 @@ async fn test_force_unregister_integration() {
         .storage_deposit()
         .deposit(ctx.account.clone(), deposit_amount)
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -201,7 +187,6 @@ async fn test_force_unregister_integration() {
 
     ctx.contract
         .call_function("near_deposit", ())
-        .unwrap()
         .transaction()
         .deposit(NearToken::from_yoctonear(1000))
         .with_signer(ctx.account.clone(), ctx.signer.clone())
@@ -215,7 +200,6 @@ async fn test_force_unregister_integration() {
         .storage_deposit()
         .unregister()
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()
@@ -226,7 +210,6 @@ async fn test_force_unregister_integration() {
         .unregister()
         .force()
         .with_signer(ctx.account.clone(), ctx.signer.clone())
-        .unwrap()
         .send_to(&ctx.network)
         .await
         .unwrap()

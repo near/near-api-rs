@@ -30,7 +30,6 @@ async fn main() {
 
     Contract(token.clone())
         .call_function("new", ())
-        .unwrap()
         .transaction()
         .with_signer(token.clone(), signer.clone())
         .send_to(&network)
@@ -43,7 +42,6 @@ async fn main() {
     // Check storage balance (None for unregistered account)
     let balance = storage
         .view_account_storage(account.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();
@@ -53,7 +51,6 @@ async fn main() {
     storage
         .deposit(account.clone(), NearToken::from_millinear(100))
         .with_signer(account.clone(), signer.clone())
-        .unwrap()
         .send_to(&network)
         .await
         .unwrap()
@@ -62,7 +59,6 @@ async fn main() {
     // Verify storage balance
     let balance = storage
         .view_account_storage(account.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap()
@@ -74,7 +70,6 @@ async fn main() {
     storage
         .unregister()
         .with_signer(account.clone(), signer.clone())
-        .unwrap()
         .send_to(&network)
         .await
         .unwrap()
@@ -82,7 +77,6 @@ async fn main() {
 
     let balance = storage
         .view_account_storage(account.clone())
-        .unwrap()
         .fetch_from(&network)
         .await
         .unwrap();

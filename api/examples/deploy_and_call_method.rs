@@ -33,7 +33,6 @@ async fn main() {
         // Please note that you can add any argument as long as it is deserializable by serde :)
         // feel free to use serde_json::json macro as well
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await
@@ -44,7 +43,6 @@ async fn main() {
     // Here is a transaction that require signing compared to view call that was used before.
     contract
         .call_function("increment", ())
-        .unwrap()
         .transaction()
         .with_signer(account.clone(), signer.clone())
         .send_to(&network)
@@ -54,7 +52,6 @@ async fn main() {
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
-        .unwrap()
         .read_only()
         .fetch_from(&network)
         .await

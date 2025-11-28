@@ -7,7 +7,6 @@ async fn regression_85() {
 
     let contract = near_api::Contract(near_sandbox::config::DEFAULT_GENESIS_ACCOUNT.into())
         .call_function("increment", ())
-        .unwrap()
         .read_only::<u64>()
         .fetch_from(&network_config)
         .await

@@ -7,7 +7,7 @@ use tracing::{debug, error, info, instrument};
 
 use crate::{
     config::{retry, NetworkConfig, RetryResponse},
-    errors::{QueryError, SendRequestError},
+    errors::{ArgumentValidationError, QueryError, SendRequestError},
 };
 
 pub mod block_rpc;
@@ -59,13 +59,16 @@ where
     reference: Query::RpcReference,
     #[allow(clippy::type_complexity)]
     requests: Vec<
-        Arc<
-            dyn RpcType<
-                    Response = Query::Response,
-                    RpcReference = Query::RpcReference,
-                    Error = Query::Error,
-                > + Send
-                + Sync,
+        Result<
+            Arc<
+                dyn RpcType<
+                        Response = Query::Response,
+                        RpcReference = Query::RpcReference,
+                        Error = Query::Error,
+                    > + Send
+                    + Sync,
+            >,
+            ArgumentValidationError,
         >,
     >,
     handler: Handler,
@@ -157,7 +160,7 @@ where
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
-    ///         .call_function("get_balance", ())?
+    ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
     ///         .fetch_from_testnet()
@@ -193,7 +196,7 @@ where
                 + Sync,
         >,
     ) -> Self {
-        self.requests.push(request);
+        self.requests.push(Ok(request));
         self
     }
 
@@ -220,10 +223,25 @@ where
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
-        debug!(target: QUERY_EXECUTOR_TARGET, "Preparing queries");
+        let (requests, errors) =
+            self.requests
+                .into_iter()
+                .fold((vec![], vec![]), |(mut v, mut e), r| {
+                    match r {
+                        Ok(val) => v.push(val),
+                        Err(err) => e.push(err),
+                    }
+                    (v, e)
+                });
+        if !errors.is_empty() {
+            return Err(QueryError::ArgumentValidationError(
+                ArgumentValidationError::multiple(errors),
+            ));
+        }
 
-        info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", self.requests.len());
-        let requests = self.requests.into_iter().map(|request| {
+        debug!(target: QUERY_EXECUTOR_TARGET, "Preparing queries");
+        info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", requests.len());
+        let requests = requests.into_iter().map(|request| {
             let reference = &self.reference;
             async move {
                 retry(network.clone(), |client| {
@@ -279,13 +297,17 @@ where
     Handler: Send + Sync,
 {
     reference: Query::RpcReference,
-    request: Arc<
-        dyn RpcType<
-                Response = Query::Response,
-                RpcReference = Query::RpcReference,
-                Error = Query::Error,
-            > + Send
-            + Sync,
+    #[allow(clippy::type_complexity)]
+    request: Result<
+        Arc<
+            dyn RpcType<
+                    Response = Query::Response,
+                    RpcReference = Query::RpcReference,
+                    Error = Query::Error,
+                > + Send
+                + Sync,
+        >,
+        ArgumentValidationError,
     >,
     handler: Handler,
 }
@@ -304,9 +326,14 @@ where
     ) -> Self {
         Self {
             reference: reference.into(),
-            request: Arc::new(request),
+            request: Ok(Arc::new(request)),
             handler,
         }
+    }
+
+    pub fn with_deferred_error(mut self, error: ArgumentValidationError) -> Self {
+        self.request = Err(error);
+        self
     }
 
     /// Set the block reference for the query.
@@ -327,7 +354,7 @@ where
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
-    ///         .call_function("get_balance", ())?
+    ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .map(|balance: Data<u128>| NearToken::from_yoctonear(balance.data))
     ///         .fetch_from_testnet()
@@ -359,7 +386,7 @@ where
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
-    ///         .call_function("get_balance", ())?
+    ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
     ///         .fetch_from_testnet()
@@ -388,10 +415,12 @@ where
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
+        let request = self.request?;
+
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
 
         let query_response = retry(network.clone(), |client| {
-            let request = &self.request;
+            let request = &request;
             let reference = &self.reference;
             async move {
                 let result = request.send_query(&client, network, reference).await;

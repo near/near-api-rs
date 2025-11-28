@@ -21,7 +21,7 @@ use crate::{
         send::ExecuteSignedTransaction,
         utils::to_base64,
     },
-    errors::BuilderError,
+    errors::ArgumentValidationError,
     signer::Signer,
     transactions::{ConstructTransaction, SelfActionBuilder, Transaction},
 };
@@ -93,7 +93,7 @@ impl Contract {
     /// let storage = contract.storage_deposit();
     ///
     /// // Check storage balance for an account
-    /// let balance = storage.view_account_storage("alice.near".parse()?)?.fetch_from_mainnet().await?;
+    /// let balance = storage.view_account_storage("alice.near".parse()?).fetch_from_mainnet().await?;
     /// println!("Storage balance: {:?}", balance);
     /// # Ok(())
     /// # }
@@ -117,7 +117,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let number: Data<u64> = Contract("some_contract.testnet".parse()?)
-    ///     .call_function("get_number", ())?
+    ///     .call_function("get_number", ())
     ///     .read_only()
     ///     .fetch_from_testnet()
     ///     .await?;
@@ -134,7 +134,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let result = Contract("some_contract.testnet".parse()?)
-    ///     .call_function("set_number", json!({ "number": 100 }))?
+    ///     .call_function("set_number", json!({ "number": 100 }))
     ///     .transaction()
     ///      // Optional
     ///     .gas(NearGas::from_tgas(200))
@@ -144,21 +144,17 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn call_function<Args>(
-        &self,
-        method_name: &str,
-        args: Args,
-    ) -> Result<CallFunctionBuilder, BuilderError>
+    pub fn call_function<Args>(&self, method_name: &str, args: Args) -> CallFunctionBuilder
     where
         Args: serde::Serialize,
     {
-        let args = serde_json::to_vec(&args)?;
+        let args = serde_json::to_vec(&args).map_err(Into::into);
 
-        Ok(CallFunctionBuilder {
+        CallFunctionBuilder {
             contract: self.0.clone(),
             method_name: method_name.to_string(),
             args,
-        })
+        }
     }
 
     /// Prepares a call to a contract function with Borsh-serialized arguments.
@@ -180,7 +176,7 @@ impl Contract {
     /// let signer = Signer::new(Signer::from_ledger())?;
     /// let args = MyArgs { value: 42 };
     /// let result = Contract("some_contract.testnet".parse()?)
-    ///     .call_function_borsh("set_value", args)?
+    ///     .call_function_borsh("set_value", args)
     ///     .transaction()
     ///     .with_signer("alice.testnet".parse()?, signer)
     ///     .send_to_testnet()
@@ -188,21 +184,17 @@ impl Contract {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn call_function_borsh<Args>(
-        &self,
-        method_name: &str,
-        args: Args,
-    ) -> Result<CallFunctionBuilder, std::io::Error>
+    pub fn call_function_borsh<Args>(&self, method_name: &str, args: Args) -> CallFunctionBuilder
     where
         Args: borsh::BorshSerialize,
     {
-        let args = borsh::to_vec(&args)?;
+        let args = borsh::to_vec(&args).map_err(Into::into);
 
-        Ok(CallFunctionBuilder {
+        CallFunctionBuilder {
             contract: self.0.clone(),
             method_name: method_name.to_string(),
             args,
-        })
+        }
     }
 
     /// Prepares a call to a contract function with pre-serialized raw bytes.
@@ -232,7 +224,7 @@ impl Contract {
         CallFunctionBuilder {
             contract: self.0.clone(),
             method_name: method_name.to_string(),
-            args,
+            args: Ok(args),
         }
     }
 
@@ -348,7 +340,6 @@ impl Contract {
         PostprocessHandler<Option<near_api_types::abi::AbiRoot>, CallResultHandler<Vec<u8>>>,
     > {
         self.call_function("__contract_abi", ())
-            .expect("arguments are always serializable")
             .read_only()
             .map(|data: Data<Vec<u8>>| {
                 serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice()).ok()
@@ -495,7 +486,6 @@ impl Contract {
         &self,
     ) -> RequestBuilder<CallResultHandler<ContractSourceMetadata>> {
         self.call_function("contract_source_metadata", ())
-            .expect("arguments are always serializable")
             .read_only()
     }
 }
@@ -619,7 +609,7 @@ impl SetDeployActionBuilder {
         self,
         method_name: &str,
         args: Args,
-    ) -> Result<SetDeployActionWithInitCallBuilder, BuilderError> {
+    ) -> Result<SetDeployActionWithInitCallBuilder, ArgumentValidationError> {
         let args = serde_json::to_vec(&args)?;
 
         Ok(SetDeployActionWithInitCallBuilder::new(
@@ -766,11 +756,11 @@ impl GlobalDeployBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct CallFunctionBuilder {
     contract: AccountId,
     method_name: String,
-    args: Vec<u8>,
+    args: Result<Vec<u8>, ArgumentValidationError>,
 }
 
 impl CallFunctionBuilder {
@@ -781,10 +771,10 @@ impl CallFunctionBuilder {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let balance: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ())?.read_only().fetch_from_testnet().await?;
+    /// let balance: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ()).read_only().fetch_from_testnet().await?;
     /// println!("Balance: {:?}", balance);
     ///
-    /// let balance_at_block: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ())?.read_only().at(Reference::AtBlock(1000000)).fetch_from_testnet().await?;
+    /// let balance_at_block: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ()).read_only().at(Reference::AtBlock(1000000)).fetch_from_testnet().await?;
     /// println!("Balance at block 1000000: {:?}", balance_at_block);
     /// # Ok(())
     /// # }
@@ -795,14 +785,18 @@ impl CallFunctionBuilder {
         let request = QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
-            args_base64: FunctionArgs(to_base64(&self.args)),
+            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
         };
 
-        RequestBuilder::new(
+        let mut builder = RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultHandler::<Response>::new(),
-        )
+        );
+        if let Err(err) = self.args {
+            builder = builder.with_deferred_error(err);
+        }
+        builder
     }
 
     /// Prepares a read-only query that deserializes the response using Borsh instead of JSON.
@@ -815,7 +809,7 @@ impl CallFunctionBuilder {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let value: Data<u64> = Contract("some_contract.testnet".parse()?)
-    ///     .call_function("get_number", ())?
+    ///     .call_function("get_number", ())
     ///     .read_only_borsh()
     ///     .fetch_from_testnet()
     ///     .await?;
@@ -829,14 +823,18 @@ impl CallFunctionBuilder {
         let request = QueryRequest::CallFunction {
             account_id: self.contract,
             method_name: self.method_name,
-            args_base64: FunctionArgs(to_base64(&self.args)),
+            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
         };
 
-        RequestBuilder::new(
+        let mut builder = RequestBuilder::new(
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultBorshHandler::<Response>::new(),
-        )
+        );
+        if let Err(err) = self.args {
+            builder = builder.with_deferred_error(err);
+        }
+        builder
     }
 
     /// Prepares a transaction that will call a contract function leading to a state change.
@@ -847,17 +845,21 @@ impl CallFunctionBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct ContractTransactBuilder {
     contract: AccountId,
     method_name: String,
-    args: Vec<u8>,
+    args: Result<Vec<u8>, ArgumentValidationError>,
     gas: Option<NearGas>,
     deposit: Option<NearToken>,
 }
 
 impl ContractTransactBuilder {
-    const fn new(contract: AccountId, method_name: String, args: Vec<u8>) -> Self {
+    const fn new(
+        contract: AccountId,
+        method_name: String,
+        args: Result<Vec<u8>, ArgumentValidationError>,
+    ) -> Self {
         Self {
             contract,
             method_name,
@@ -904,14 +906,20 @@ impl ContractTransactBuilder {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
-        Transaction::construct(signer_id, self.contract).add_action(Action::FunctionCall(Box::new(
-            FunctionCallAction {
+        let err = self.args.as_deref().err().cloned();
+
+        let mut transaction = Transaction::construct(signer_id, self.contract).add_action(
+            Action::FunctionCall(Box::new(FunctionCallAction {
                 method_name: self.method_name.to_owned(),
-                args: self.args,
+                args: self.args.unwrap_or_default(),
                 gas,
                 deposit,
-            },
-        )))
+            })),
+        );
+        if let Some(err) = err {
+            transaction = transaction.with_deferred_error(err);
+        }
+        transaction
     }
 }
 

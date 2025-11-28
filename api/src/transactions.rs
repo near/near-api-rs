@@ -5,7 +5,7 @@ use near_api_types::{transaction::PrepopulateTransaction, AccountId, Action};
 use crate::{
     common::send::{ExecuteSignedTransaction, Transactionable},
     config::NetworkConfig,
-    errors::ValidationError,
+    errors::{ArgumentValidationError, ValidationError},
     signer::Signer,
 };
 
@@ -65,30 +65,39 @@ impl SelfActionBuilder {
 /// A builder for constructing transactions using Actions.
 #[derive(Debug, Clone)]
 pub struct ConstructTransaction {
-    pub tr: PrepopulateTransaction,
+    pub transaction: Result<PrepopulateTransaction, ArgumentValidationError>,
 }
 
 impl ConstructTransaction {
     /// Pre-populates a transaction with the given signer and receiver IDs.
     pub const fn new(signer_id: AccountId, receiver_id: AccountId) -> Self {
         Self {
-            tr: PrepopulateTransaction {
+            transaction: Ok(PrepopulateTransaction {
                 signer_id,
                 receiver_id,
                 actions: Vec::new(),
-            },
+            }),
         }
+    }
+
+    pub fn with_deferred_error(mut self, error: ArgumentValidationError) -> Self {
+        self.transaction = Err(error);
+        self
     }
 
     /// Adds an action to the transaction.
     pub fn add_action(mut self, action: Action) -> Self {
-        self.tr.actions.push(action);
+        if let Ok(transaction) = &mut self.transaction {
+            transaction.actions.push(action);
+        }
         self
     }
 
     /// Adds multiple actions to the transaction.
     pub fn add_actions(mut self, actions: Vec<Action>) -> Self {
-        self.tr.actions.extend(actions);
+        if let Ok(transaction) = &mut self.transaction {
+            transaction.actions.extend(actions);
+        }
         self
     }
 
@@ -100,15 +109,14 @@ impl ConstructTransaction {
 
 #[async_trait::async_trait]
 impl Transactionable for ConstructTransaction {
-    fn prepopulated(&self) -> PrepopulateTransaction {
-        PrepopulateTransaction {
-            signer_id: self.tr.signer_id.clone(),
-            receiver_id: self.tr.receiver_id.clone(),
-            actions: self.tr.actions.clone(),
-        }
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
+        self.transaction.clone()
     }
 
     async fn validate_with_network(&self, _: &NetworkConfig) -> Result<(), ValidationError> {
+        if let Err(e) = &self.transaction {
+            return Err(e.to_owned().into());
+        }
         Ok(())
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use near_api_types::errors::DataConversionError;
 use near_openapi_client::types::{
     FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
@@ -26,6 +28,8 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     QueryError(Box<RetryError<SendRequestError<RpcError>>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
+    #[error("Argument serialization error: {0}")]
+    ArgumentValidationError(#[from] ArgumentValidationError),
     #[error("Failed to convert response: {0}")]
     ConversionError(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -136,31 +140,38 @@ impl From<near_ledger::NEARLedgerError> for LedgerError {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum SecretBuilderError<E: std::fmt::Debug> {
-    #[error("Public key is not available")]
-    PublicKeyIsNotAvailable,
-    #[error(transparent)]
-    SecretError(#[from] SecretError),
-    #[error(transparent)]
-    IO(#[from] std::io::Error),
-    #[error(transparent)]
-    CallbackError(E),
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ArgumentValidationError {
+    #[error("Failed to serialize arguments as JSON: {0}")]
+    JsonSerializationError(Arc<serde_json::Error>),
+    #[error("Failed to serialize arguments as Borsh: {0}")]
+    BorshSerializationError(Arc<std::io::Error>),
+    #[error("Multiple errors: {0:?}")]
+    MultipleErrors(Vec<ArgumentValidationError>),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum BuilderError {
-    #[error("Incorrect arguments: {0}")]
-    IncorrectArguments(#[from] serde_json::Error),
+impl ArgumentValidationError {
+    pub const fn multiple(errors: Vec<Self>) -> Self {
+        Self::MultipleErrors(errors)
+    }
+}
+
+impl From<serde_json::Error> for ArgumentValidationError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::JsonSerializationError(Arc::new(err))
+    }
+}
+
+impl From<std::io::Error> for ArgumentValidationError {
+    fn from(err: std::io::Error) -> Self {
+        Self::BorshSerializationError(Arc::new(err))
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum AccountCreationError {
     #[error(transparent)]
-    BuilderError(#[from] BuilderError),
-
-    #[error(transparent)]
-    PublicKeyParsingError(#[from] PublicKeyParsingError),
+    ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("Top-level account is not allowed")]
     TopLevelAccountIsNotAllowed,
@@ -196,39 +207,41 @@ pub enum RetryError<E> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ExecuteTransactionError {
-    #[error("Transaction validation error: {0}")]
-    ValidationError(#[from] ValidationError),
-    #[error("Transaction signing error: {0}")]
-    SignerError(#[from] SignerError),
-    #[error("Meta-signing error: {0}")]
-    MetaSignError(#[from] MetaSignError),
+    #[error(transparent)]
+    ArgumentValidationError(#[from] ArgumentValidationError),
+
     #[error("Pre-query error: {0:?}")]
     PreQueryError(QueryError<RpcQueryError>),
+    #[error("Transaction validation error: {0}")]
+    ValidationError(#[from] ValidationError),
+    #[error("Meta-signing error: {0}")]
+    MetaSignError(#[from] MetaSignError),
+    #[error("Transaction signing error: {0}")]
+    SignerError(#[from] SignerError),
+
     #[error("Transaction error: {0:?}")]
     TransactionError(RetryError<SendRequestError<RpcTransactionError>>),
-    #[error(transparent)]
-    NonEmptyVecError(#[from] NonEmptyVecError),
     #[error("Data conversion error: {0}")]
     DataConversionError(#[from] DataConversionError),
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum ExecuteMetaTransactionsError {
-    #[error("Transaction validation error: {0}")]
-    ValidationError(#[from] ValidationError),
-    #[error("Meta-signing error: {0}")]
-    SignError(#[from] MetaSignError),
+    #[error(transparent)]
+    ArgumentValidationError(#[from] ArgumentValidationError),
+
     #[error("Pre-query error: {0:?}")]
     PreQueryError(QueryError<RpcQueryError>),
-
+    #[error("Transaction validation error: {0}")]
+    ValidationError(#[from] ValidationError),
     #[error("Relayer is not defined in the network config")]
     RelayerIsNotDefined,
 
+    #[error("Meta-signing error: {0}")]
+    SignError(#[from] MetaSignError),
+
     #[error("Failed to send meta-transaction: {0}")]
     SendError(#[from] reqwest::Error),
-
-    #[error(transparent)]
-    NonEmptyVecError(#[from] NonEmptyVecError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -245,69 +258,20 @@ pub enum FTValidatorError {
     StorageDepositNeeded,
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum FastNearError {
-    #[error("FastNear URL is not defined in the network config")]
-    FastNearUrlIsNotDefined,
-    #[error("Failed to send request: {0}")]
-    SendError(#[from] reqwest::Error),
-    #[error("Url parsing error: {0}")]
-    UrlParseError(#[from] url::ParseError),
-}
-
 //TODO: it's better to have a separate errors, but for now it would be aggregated here
 #[derive(thiserror::Error, Debug)]
 pub enum ValidationError {
     #[error("Query error: {0:?}")]
     QueryError(QueryError<RpcQueryError>),
 
-    #[error("Query creation error: {0}")]
-    RequestBuilderError(#[from] BuilderError),
+    #[error(transparent)]
+    ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("FT Validation Error: {0}")]
     FTValidatorError(#[from] FTValidatorError),
 
     #[error("Account creation error: {0}")]
     AccountCreationError(#[from] AccountCreationError),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum MultiTransactionError {
-    #[error(transparent)]
-    NonEmptyVecError(#[from] NonEmptyVecError),
-
-    #[error(transparent)]
-    SignerError(#[from] SignerError),
-    #[error("Duplicate signer")]
-    DuplicateSigner,
-
-    #[error(transparent)]
-    SignedTransactionError(#[from] ExecuteTransactionError),
-
-    #[error("Failed to send meta-transaction: {0}")]
-    MetaTransactionError(#[from] ExecuteMetaTransactionsError),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum NonEmptyVecError {
-    #[error("Vector is empty")]
-    EmptyVector,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum PublicKeyParsingError {
-    #[error("Invalid prefix: {0}")]
-    InvalidPrefix(String),
-    #[error("Base64 decoding error: {0}")]
-    Base64DecodeError(#[from] base64::DecodeError),
-    #[error("Invalid Key Length")]
-    InvalidKeyLength,
-}
-
-impl From<Vec<u8>> for PublicKeyParsingError {
-    fn from(_: Vec<u8>) -> Self {
-        Self::InvalidKeyLength
-    }
 }
 
 #[derive(thiserror::Error, Debug)]

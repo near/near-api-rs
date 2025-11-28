@@ -54,7 +54,6 @@ async fn init() -> TestContext {
                 }
             }),
         )
-        .unwrap()
         .transaction()
         .with_signer(staking_pool.clone(), signer.clone())
         .send_to(&network)
@@ -78,7 +77,6 @@ async fn test_user_can_deposit_balance_reflected() {
 
     staker_delegation
         .deposit(ctx.staking_pool.clone(), NearToken::from_near(5))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -87,7 +85,6 @@ async fn test_user_can_deposit_balance_reflected() {
 
     let balance = staker_delegation
         .view_balance(ctx.staking_pool.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -104,7 +101,6 @@ async fn test_user_can_deposit_and_withdraw() {
 
     staker_delegation
         .deposit(ctx.staking_pool.clone(), NearToken::from_near(5))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -113,7 +109,6 @@ async fn test_user_can_deposit_and_withdraw() {
 
     staker_delegation
         .withdraw(ctx.staking_pool.clone(), NearToken::from_near(2))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -122,7 +117,6 @@ async fn test_user_can_deposit_and_withdraw() {
 
     let balance = staker_delegation
         .view_balance(ctx.staking_pool.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -139,7 +133,6 @@ async fn test_user_can_deposit_and_stake_two_calls() {
 
     staker_delegation
         .deposit(ctx.staking_pool.clone(), NearToken::from_near(5))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -148,7 +141,6 @@ async fn test_user_can_deposit_and_stake_two_calls() {
 
     staker_delegation
         .stake(ctx.staking_pool.clone(), NearToken::from_near(3))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -157,7 +149,6 @@ async fn test_user_can_deposit_and_stake_two_calls() {
 
     let balance = staker_delegation
         .view_balance(ctx.staking_pool.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -174,7 +165,6 @@ async fn test_user_can_deposit_and_stake_single_call() {
 
     staker_delegation
         .deposit_and_stake(ctx.staking_pool.clone(), NearToken::from_near(5))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -183,7 +173,6 @@ async fn test_user_can_deposit_and_stake_single_call() {
 
     let balance = staker_delegation
         .view_balance(ctx.staking_pool.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -200,7 +189,6 @@ async fn test_user_can_unstake_but_cannot_withdraw_immediately() {
 
     staker_delegation
         .deposit_and_stake(ctx.staking_pool.clone(), NearToken::from_near(5))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -209,7 +197,6 @@ async fn test_user_can_unstake_but_cannot_withdraw_immediately() {
 
     staker_delegation
         .unstake(ctx.staking_pool.clone(), NearToken::from_near(3))
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await
@@ -218,7 +205,6 @@ async fn test_user_can_unstake_but_cannot_withdraw_immediately() {
 
     let balance = staker_delegation
         .view_balance(ctx.staking_pool.clone())
-        .unwrap()
         .fetch_from(&ctx.network)
         .await
         .unwrap();
@@ -230,7 +216,6 @@ async fn test_user_can_unstake_but_cannot_withdraw_immediately() {
     // Can't withdraw immediately after unstaking due to minimum withdrawal period
     assert!(staker_delegation
         .withdraw_all(ctx.staking_pool.clone())
-        .unwrap()
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.network)
         .await

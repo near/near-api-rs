@@ -252,23 +252,25 @@ pub trait SignerTrait {
     /// The delegate action is signed with a maximum block height to ensure the delegation expiration after some point in time.
     ///
     /// The default implementation should work for most cases.
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
+    #[instrument(skip(self, transaction), fields(signer_id = %transaction.signer_id, receiver_id = %transaction.receiver_id))]
     async fn sign_meta(
         &self,
-        tr: PrepopulateTransaction,
+        transaction: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
-        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key).await?;
+        let signer_secret_key = self
+            .get_secret_key(&transaction.signer_id, &public_key)
+            .await?;
         let unsigned_transaction = Transaction::V0(TransactionV0 {
-            signer_id: tr.signer_id.clone(),
+            signer_id: transaction.signer_id.clone(),
             public_key,
             nonce,
-            receiver_id: tr.receiver_id,
+            receiver_id: transaction.receiver_id,
             block_hash,
-            actions: tr.actions,
+            actions: transaction.actions,
         });
 
         get_signed_delegate_action(unsigned_transaction, signer_secret_key, max_block_height)
@@ -280,22 +282,24 @@ pub trait SignerTrait {
     /// that can be sent to the `NEAR` network.
     ///
     /// The default implementation should work for most cases.
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
+    #[instrument(skip(self, transaction), fields(signer_id = %transaction.signer_id, receiver_id = %transaction.receiver_id))]
     async fn sign(
         &self,
-        tr: PrepopulateTransaction,
+        transaction: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
-        let signer_secret_key = self.get_secret_key(&tr.signer_id, &public_key).await?;
+        let signer_secret_key = self
+            .get_secret_key(&transaction.signer_id, &public_key)
+            .await?;
         let unsigned_transaction = Transaction::V0(TransactionV0 {
-            signer_id: tr.signer_id.clone(),
+            signer_id: transaction.signer_id.clone(),
             public_key,
             nonce,
-            receiver_id: tr.receiver_id,
+            receiver_id: transaction.receiver_id,
             block_hash,
-            actions: tr.actions,
+            actions: transaction.actions,
         });
 
         let signature = signer_secret_key.sign(unsigned_transaction.get_hash().0.as_ref());
@@ -508,10 +512,10 @@ impl Signer {
         Ok(public_key)
     }
 
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
+    #[instrument(skip(self, transaction), fields(signer_id = %transaction.signer_id, receiver_id = %transaction.receiver_id))]
     pub async fn sign_meta(
         &self,
-        tr: PrepopulateTransaction,
+        transaction: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
@@ -522,14 +526,14 @@ impl Signer {
         signer
             .get(&public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?
-            .sign_meta(tr, public_key, nonce, block_hash, max_block_height)
+            .sign_meta(transaction, public_key, nonce, block_hash, max_block_height)
             .await
     }
 
-    #[instrument(skip(self, tr), fields(signer_id = %tr.signer_id, receiver_id = %tr.receiver_id))]
+    #[instrument(skip(self, transaction), fields(signer_id = %transaction.signer_id, receiver_id = %transaction.receiver_id))]
     pub async fn sign(
         &self,
-        tr: PrepopulateTransaction,
+        transaction: PrepopulateTransaction,
         public_key: PublicKey,
         nonce: Nonce,
         block_hash: CryptoHash,
@@ -538,7 +542,7 @@ impl Signer {
 
         pool.get(&public_key)
             .ok_or(SignerError::PublicKeyIsNotAvailable)?
-            .sign(tr, public_key, nonce, block_hash)
+            .sign(transaction, public_key, nonce, block_hash)
             .await
     }
 }

@@ -21,8 +21,8 @@ use crate::{
     common::utils::{is_critical_transaction_error, to_retry_error},
     config::{retry, NetworkConfig, RetryResponse},
     errors::{
-        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SendRequestError,
-        SignerError, ValidationError,
+        ArgumentValidationError, ExecuteMetaTransactionsError, ExecuteTransactionError,
+        MetaSignError, SendRequestError, ValidationError,
     },
     signer::Signer,
 };
@@ -34,7 +34,8 @@ const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
 
 #[async_trait::async_trait]
 pub trait Transactionable: Send + Sync {
-    fn prepopulated(&self) -> PrepopulateTransaction;
+    fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError>;
+
     /// Validate the transaction before sending it to the network
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError>;
 
@@ -66,8 +67,8 @@ impl<Signed> TransactionableOrSigned<Signed> {
 impl<S> TransactionableOrSigned<S> {
     pub fn transactionable(self) -> Box<dyn Transactionable> {
         match self {
-            Self::Transactionable(tr) => tr,
-            Self::Signed((_, tr)) => tr,
+            Self::Transactionable(transaction) => transaction,
+            Self::Signed((_, transaction)) => transaction,
         }
     }
 }
@@ -77,7 +78,7 @@ impl<S> TransactionableOrSigned<S> {
 /// This is the main entry point for the transaction sending functionality.
 pub struct ExecuteSignedTransaction {
     /// The transaction that is either not signed yet or already signed.
-    pub tr: TransactionableOrSigned<SignedTransaction>,
+    pub transaction: TransactionableOrSigned<SignedTransaction>,
     /// The signer that will be used to sign the transaction.
     pub signer: Arc<Signer>,
 
@@ -85,9 +86,9 @@ pub struct ExecuteSignedTransaction {
 }
 
 impl ExecuteSignedTransaction {
-    pub fn new<T: Transactionable + 'static>(tr: T, signer: Arc<Signer>) -> Self {
+    pub fn new<T: Transactionable + 'static>(transaction: T, signer: Arc<Signer>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
+            transaction: TransactionableOrSigned::Transactionable(Box::new(transaction)),
             signer,
             wait_until: TxExecutionStatus::Final,
         }
@@ -99,7 +100,7 @@ impl ExecuteSignedTransaction {
     /// Please note, that if you already presigned the transaction, it would require you to sign it again as a meta transaction
     /// is a different type of transaction.
     pub fn meta(self) -> ExecuteMetaTransaction {
-        ExecuteMetaTransaction::from_box(self.tr.transactionable(), self.signer)
+        ExecuteMetaTransaction::from_box(self.transaction.transactionable(), self.signer)
     }
 
     pub const fn wait_until(mut self, wait_until: TxExecutionStatus) -> Self {
@@ -109,7 +110,7 @@ impl ExecuteSignedTransaction {
 
     /// Signs the transaction offline without fetching the nonce or block hash from the network.
     ///
-    /// The transaction won't be broadcasted to the network and just stored signed in the [Self::tr] struct variable.
+    /// The transaction won't be broadcasted to the network and just stored signed in the [Self::transaction] struct variable.
     ///
     /// This is useful if you already have the nonce and block hash, or if you want to sign the transaction
     /// offline. Please note that incorrect nonce will lead to transaction failure.
@@ -118,24 +119,27 @@ impl ExecuteSignedTransaction {
         public_key: PublicKey,
         block_hash: CryptoHash,
         nonce: Nonce,
-    ) -> Result<Self, SignerError> {
-        let tr = match &self.tr {
-            TransactionableOrSigned::Transactionable(tr) => tr,
+    ) -> Result<Self, ExecuteTransactionError> {
+        let transaction = match &self.transaction {
+            TransactionableOrSigned::Transactionable(transaction) => transaction,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
+        let transaction = transaction.prepopulated()?;
+
         let signed_tr = self
             .signer
-            .sign(tr.prepopulated(), public_key.clone(), nonce, block_hash)
+            .sign(transaction, public_key.clone(), nonce, block_hash)
             .await?;
 
-        self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
+        self.transaction =
+            TransactionableOrSigned::Signed((signed_tr, self.transaction.transactionable()));
         Ok(self)
     }
 
     /// Signs the transaction with the custom network configuration but doesn't broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// This is useful if you want to sign with non-default network configuration (e.g, custom RPC URL, sandbox).
     /// The provided call will fetch the nonce and block hash from the given network.
@@ -143,24 +147,25 @@ impl ExecuteSignedTransaction {
         self,
         network: &NetworkConfig,
     ) -> Result<Self, ExecuteTransactionError> {
-        let tr = match &self.tr {
-            TransactionableOrSigned::Transactionable(tr) => tr,
+        let transaction = match &self.transaction {
+            TransactionableOrSigned::Transactionable(transaction) => transaction,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
+        let transaction = transaction.prepopulated()?;
+
         let signer_key = self.signer.get_public_key().await?;
-        let tr = tr.prepopulated();
         let (nonce, hash, _) = self
             .signer
-            .fetch_tx_nonce(tr.signer_id.clone(), signer_key.clone(), network)
+            .fetch_tx_nonce(transaction.signer_id.clone(), signer_key.clone(), network)
             .await
             .map_err(MetaSignError::from)?;
-        Ok(self.presign_offline(signer_key, hash, nonce).await?)
+        self.presign_offline(signer_key, hash, nonce).await
     }
 
     /// Signs the transaction with the default mainnet configuration. Does not broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash from the network.
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteTransactionError> {
@@ -170,7 +175,7 @@ impl ExecuteSignedTransaction {
 
     /// Signs the transaction with the default testnet configuration. Does not broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash from the network.
     pub async fn presign_with_testnet(self) -> Result<Self, ExecuteTransactionError> {
@@ -186,14 +191,14 @@ impl ExecuteSignedTransaction {
         mut self,
         network: &NetworkConfig,
     ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
-        let (signed, transactionable) = match &mut self.tr {
-            TransactionableOrSigned::Transactionable(tr) => {
+        let (signed, transactionable) = match &mut self.transaction {
+            TransactionableOrSigned::Transactionable(transaction) => {
                 debug!(target: TX_EXECUTOR_TARGET, "Preparing unsigned transaction");
-                (None, tr)
+                (None, transaction)
             }
-            TransactionableOrSigned::Signed((s, tr)) => {
+            TransactionableOrSigned::Signed((s, transaction)) => {
                 debug!(target: TX_EXECUTOR_TARGET, "Using pre-signed transaction");
-                (Some(s.clone()), tr)
+                (Some(s.clone()), transaction)
             }
         };
 
@@ -213,7 +218,7 @@ impl ExecuteSignedTransaction {
                 debug!(target: TX_EXECUTOR_TARGET, "Signing transaction");
                 self.presign_with(network)
                     .await?
-                    .tr
+                    .transaction
                     .signed()
                     .expect("Expect to have it signed")
             }
@@ -340,23 +345,23 @@ impl ExecuteSignedTransaction {
 }
 
 pub struct ExecuteMetaTransaction {
-    pub tr: TransactionableOrSigned<SignedDelegateAction>,
+    pub transaction: TransactionableOrSigned<SignedDelegateAction>,
     pub signer: Arc<Signer>,
     pub tx_live_for: Option<BlockHeight>,
 }
 
 impl ExecuteMetaTransaction {
-    pub fn new<T: Transactionable + 'static>(tr: T, signer: Arc<Signer>) -> Self {
+    pub fn new<T: Transactionable + 'static>(transaction: T, signer: Arc<Signer>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(Box::new(tr)),
+            transaction: TransactionableOrSigned::Transactionable(Box::new(transaction)),
             signer,
             tx_live_for: None,
         }
     }
 
-    pub fn from_box(tr: Box<dyn Transactionable + 'static>, signer: Arc<Signer>) -> Self {
+    pub fn from_box(transaction: Box<dyn Transactionable + 'static>, signer: Arc<Signer>) -> Self {
         Self {
-            tr: TransactionableOrSigned::Transactionable(tr),
+            transaction: TransactionableOrSigned::Transactionable(transaction),
             signer,
             tx_live_for: None,
         }
@@ -373,7 +378,7 @@ impl ExecuteMetaTransaction {
 
     /// Signs the transaction offline without fetching the nonce or block hash from the network. Does not broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// This is useful if you already have the nonce and block hash, or if you want to sign the transaction
     /// offline. Please note that incorrect nonce will lead to transaction failure and incorrect block height
@@ -385,11 +390,12 @@ impl ExecuteMetaTransaction {
         nonce: Nonce,
         block_height: BlockHeight,
     ) -> Result<Self, ExecuteMetaTransactionsError> {
-        let tr = match &self.tr {
-            TransactionableOrSigned::Transactionable(tr) => tr,
+        let transaction = match &self.transaction {
+            TransactionableOrSigned::Transactionable(transaction) => transaction,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
+        let transaction = transaction.prepopulated()?;
         let max_block_height = block_height
             + self
                 .tx_live_for
@@ -397,33 +403,29 @@ impl ExecuteMetaTransaction {
 
         let signed_tr = self
             .signer
-            .sign_meta(
-                tr.prepopulated(),
-                signer_key,
-                nonce,
-                block_hash,
-                max_block_height,
-            )
+            .sign_meta(transaction, signer_key, nonce, block_hash, max_block_height)
             .await?;
 
-        self.tr = TransactionableOrSigned::Signed((signed_tr, self.tr.transactionable()));
+        self.transaction =
+            TransactionableOrSigned::Signed((signed_tr, self.transaction.transactionable()));
         Ok(self)
     }
 
     /// Signs the transaction with the custom network configuration but doesn't broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// This is useful if you want to sign with non-default network configuration (e.g, custom RPC URL, sandbox).
     pub async fn presign_with(
         self,
         network: &NetworkConfig,
     ) -> Result<Self, ExecuteMetaTransactionsError> {
-        let tr = match &self.tr {
-            TransactionableOrSigned::Transactionable(tr) => tr,
+        let transaction = match &self.transaction {
+            TransactionableOrSigned::Transactionable(transaction) => transaction,
             TransactionableOrSigned::Signed(_) => return Ok(self),
         };
 
+        let transaction = transaction.prepopulated()?;
         let signer_key = self
             .signer
             .get_public_key()
@@ -431,11 +433,7 @@ impl ExecuteMetaTransaction {
             .map_err(MetaSignError::from)?;
         let (nonce, block_hash, block_height) = self
             .signer
-            .fetch_tx_nonce(
-                tr.prepopulated().signer_id.clone(),
-                signer_key.clone(),
-                network,
-            )
+            .fetch_tx_nonce(transaction.signer_id.clone(), signer_key.clone(), network)
             .await
             .map_err(MetaSignError::from)?;
         self.presign_offline(signer_key, block_hash, nonce, block_height)
@@ -444,7 +442,7 @@ impl ExecuteMetaTransaction {
 
     /// Signs the transaction with the default mainnet configuration but doesn't broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash, block height from the network.
     pub async fn presign_with_mainnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
@@ -454,7 +452,7 @@ impl ExecuteMetaTransaction {
 
     /// Signs the transaction with the default testnet configuration but doesn't broadcast it.
     ///
-    /// Signed transaction is stored in the [Self::tr] struct variable.
+    /// Signed transaction is stored in the [Self::transaction] struct variable.
     ///
     /// The provided call will fetch the nonce and block hash, block height from the network.
     pub async fn presign_with_testnet(self) -> Result<Self, ExecuteMetaTransactionsError> {
@@ -470,14 +468,14 @@ impl ExecuteMetaTransaction {
         mut self,
         network: &NetworkConfig,
     ) -> Result<Response, ExecuteMetaTransactionsError> {
-        let (signed, transactionable) = match &mut self.tr {
-            TransactionableOrSigned::Transactionable(tr) => {
+        let (signed, transactionable) = match &mut self.transaction {
+            TransactionableOrSigned::Transactionable(transaction) => {
                 debug!(target: META_EXECUTOR_TARGET, "Preparing unsigned meta transaction");
-                (None, tr)
+                (None, transaction)
             }
-            TransactionableOrSigned::Signed((s, tr)) => {
+            TransactionableOrSigned::Signed((s, transaction)) => {
                 debug!(target: META_EXECUTOR_TARGET, "Using pre-signed meta transaction");
-                (Some(s.clone()), tr)
+                (Some(s.clone()), transaction)
             }
         };
 
@@ -495,7 +493,7 @@ impl ExecuteMetaTransaction {
                 debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
                 self.presign_with(network)
                     .await?
-                    .tr
+                    .transaction
                     .signed()
                     .expect("Expect to have it signed")
             }
@@ -531,12 +529,12 @@ impl ExecuteMetaTransaction {
 
     async fn send_impl(
         network: &NetworkConfig,
-        tr: SignedDelegateAction,
+        transaction: SignedDelegateAction,
     ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let client = reqwest::Client::new();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
-                tr.clone()
+                transaction.clone()
             ).to_string(),
         });
         debug!(
@@ -559,8 +557,8 @@ impl ExecuteMetaTransaction {
             target: META_EXECUTOR_TARGET,
             "Meta transaction sent to relayer. Status: {}, Signer: {:?}, Receiver: {:?}",
             resp.status(),
-            tr.delegate_action.sender_id,
-            tr.delegate_action.receiver_id
+            transaction.delegate_action.sender_id,
+            transaction.delegate_action.receiver_id
         );
         Ok(resp)
     }
