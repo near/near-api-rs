@@ -192,6 +192,11 @@ impl CreateAccountByFaucet {
     }
 }
 
+/// The [CreateAccountFundMyselfTx] is used to validate the transaction before sending it to the network.
+///
+/// It validates that:
+/// - The account is created as a sub-account of the signer
+/// - The account is created as a sub-account of the linkdrop account defined in the network config
 #[derive(Clone, Debug)]
 pub struct CreateAccountFundMyselfTx {
     prepopulated: PrepopulateTransaction,
