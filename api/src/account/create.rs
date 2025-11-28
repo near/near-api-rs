@@ -50,6 +50,7 @@ impl CreateAccountBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FundMyselfBuilder {
     new_account_id: AccountId,
     signer_account_id: AccountId,
@@ -57,6 +58,9 @@ pub struct FundMyselfBuilder {
 }
 
 impl FundMyselfBuilder {
+    /// Provide a public key that will be used as full access key.
+    ///
+    /// Please ensure that you have a private key.
     pub fn public_key(
         self,
         pk: impl Into<PublicKey>,
@@ -114,11 +118,15 @@ impl FundMyselfBuilder {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct SponsorByFaucetServiceBuilder {
     new_account_id: AccountId,
 }
 
 impl SponsorByFaucetServiceBuilder {
+    /// Provide a public key that will be used as full access key.
+    ///
+    /// Please ensure that you have a private key.
     pub fn public_key(self, pk: impl Into<PublicKey>) -> Result<CreateAccountByFaucet, Infallible> {
         Ok(CreateAccountByFaucet {
             new_account_id: self.new_account_id,
