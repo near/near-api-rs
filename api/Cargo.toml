@@ -1,7 +1,6 @@
 [package]
 name = "near-api"
 rust-version = "1.85"
-resolver = "2"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

@@ -30,41 +30,42 @@ impl SecretKey {
         }
     }
 
-    pub fn sign(&self, data: &[u8]) -> Signature {
+    pub fn sign(&self, data: &[u8]) -> Result<Signature, SecretKeyError> {
         match &self {
             Self::ED25519(secret_key) => {
-                let mut keypair =
-                    ed25519_dalek::SigningKey::from_keypair_bytes(&secret_key.0).unwrap();
-                Signature::ED25519(keypair.sign(data))
+                let mut keypair = ed25519_dalek::SigningKey::from_keypair_bytes(&secret_key.0)?;
+                Ok(Signature::ED25519(keypair.sign(data)))
             }
 
             Self::SECP256K1(secret_key) => {
-                let signature = SECP256K1.sign_ecdsa_recoverable(
-                    &secp256k1::Message::from_slice(data).expect("32 bytes"),
-                    secret_key,
-                );
+                let signature = SECP256K1
+                    .sign_ecdsa_recoverable(&secp256k1::Message::from_slice(data)?, secret_key);
                 let (rec_id, data) = signature.serialize_compact();
                 let mut buf = [0; 65];
                 buf[0..64].copy_from_slice(&data[0..64]);
                 buf[64] = rec_id.to_i32() as u8;
-                Signature::SECP256K1(Secp256K1Signature(buf))
+                Ok(Signature::SECP256K1(Secp256K1Signature(buf)))
             }
         }
     }
 
-    pub fn public_key(&self) -> PublicKey {
+    pub fn public_key(&self) -> Result<PublicKey, SecretKeyError> {
         match &self {
-            Self::ED25519(secret_key) => PublicKey::ED25519(ED25519PublicKey(
+            Self::ED25519(secret_key) => Ok(PublicKey::ED25519(ED25519PublicKey(
                 secret_key.0[ed25519_dalek::SECRET_KEY_LENGTH..]
                     .try_into()
-                    .unwrap(),
-            )),
+                    .map_err(|_| {
+                        SecretKeyError::InvalidConversion(DataConversionError::IncorrectLength(
+                            secret_key.0.len(),
+                        ))
+                    })?,
+            ))),
             Self::SECP256K1(secret_key) => {
                 let pk = secp256k1::PublicKey::from_secret_key(&SECP256K1, secret_key);
                 let serialized = pk.serialize_uncompressed();
                 let mut public_key = Secp256K1PublicKey([0; 64]);
                 public_key.0.copy_from_slice(&serialized[1..65]);
-                PublicKey::SECP256K1(public_key)
+                Ok(PublicKey::SECP256K1(public_key))
             }
         }
     }

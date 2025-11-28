@@ -257,8 +257,11 @@ impl ExecuteSignedTransaction {
         signed_tr: SignedTransaction,
         wait_until: TxExecutionStatus,
     ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
-        let hash = signed_tr.get_hash();
-        let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
+        let hash = signed_tr
+            .get_hash()
+            .map_err(ExecuteTransactionError::from)?;
+        let signed_tx_base64: near_openapi_client::types::SignedTransaction =
+            signed_tr.try_into()?;
         let result = retry(network.clone(), |client| {
             let signed_tx_base64 = signed_tx_base64.clone();
             async move {

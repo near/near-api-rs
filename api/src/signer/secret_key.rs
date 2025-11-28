@@ -1,6 +1,6 @@
 use tracing::{instrument, trace};
 
-use near_api_types::{AccountId, PublicKey, SecretKey};
+use near_api_types::{errors::SecretKeyError, AccountId, PublicKey, SecretKey};
 
 use crate::errors::SignerError;
 
@@ -33,11 +33,11 @@ impl SignerTrait for SecretKeySigner {
 }
 
 impl SecretKeySigner {
-    pub fn new(secret_key: SecretKey) -> Self {
-        let public_key = secret_key.public_key();
-        Self {
+    pub fn new(secret_key: SecretKey) -> Result<Self, SecretKeyError> {
+        let public_key = secret_key.public_key()?;
+        Ok(Self {
             secret_key,
             public_key,
-        }
+        })
     }
 }

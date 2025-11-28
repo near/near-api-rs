@@ -40,7 +40,10 @@ pub struct Execution<T> {
 
 impl<T> Execution<T> {
     pub fn assert_success(self) -> T {
-        self.into_result().unwrap()
+        match self.into_result() {
+            Ok(result) => result,
+            Err(error) => panic!("Execution failed: {:?}", error),
+        }
     }
 
     #[allow(clippy::result_large_err)]
@@ -251,11 +254,17 @@ impl ExecutionFinalResult {
     /// Because this function may panic, its use is generally discouraged. Instead, prefer
     /// to call into [`into_result`](ExecutionFinalResult::into_result) then pattern matching and handle the Err case explicitly.
     pub fn assert_success(self) -> ExecutionSuccess {
-        self.into_result().unwrap()
+        match self.into_result() {
+            Ok(result) => result,
+            Err(error) => panic!("Execution failed: {:?}", error),
+        }
     }
 
     pub fn assert_failure(self) -> ExecutionResult<TxExecutionError> {
-        self.into_result().unwrap_err()
+        match self.into_result() {
+            Err(error) => error,
+            Ok(_) => panic!("Execution succeeded"),
+        }
     }
 
     /// Deserialize an instance of type `T` from bytes of JSON text sourced from the

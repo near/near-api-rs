@@ -156,6 +156,7 @@ impl std::str::FromStr for SignedDelegateActionAsBase64 {
 impl std::fmt::Display for SignedDelegateActionAsBase64 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let base64_signed_delegate_action = BASE64_STANDARD.encode(
+            #[allow(clippy::expect_used)]
             borsh::to_vec(&self.inner)
                 .expect("Signed Delegate Action serialization to borsh is not expected to fail"),
         );

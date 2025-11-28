@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use near_api_types::errors::DataConversionError;
+use near_api_types::errors::{DataConversionError, SecretKeyError};
 use near_openapi_client::types::{
     FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
     RpcTransactionError,
@@ -59,6 +59,10 @@ pub enum SignerError {
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0:?}")]
     FetchNonceError(Box<QueryError<RpcQueryError>>),
+    #[error("Data conversion error: {0}")]
+    DataConversionError(#[from] DataConversionError),
+    #[error("Secret key error: {0}")]
+    SecretKeyError(#[from] SecretKeyError),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
 
@@ -73,6 +77,8 @@ pub enum SecretError {
     BIP39Error(#[from] bip39::Error),
     #[error("Failed to derive key from seed phrase: Invalid Index")]
     DeriveKeyInvalidIndex,
+    #[error("Secret key error: {0}")]
+    SecretKeyError(#[from] SecretKeyError),
 }
 
 #[derive(thiserror::Error, Debug)]
