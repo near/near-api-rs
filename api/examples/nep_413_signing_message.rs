@@ -3,15 +3,14 @@ use near_api::{Signer, SignerTrait};
 use openssl::rand::rand_bytes;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> testresult::TestResult {
     let signer = Signer::from_seed_phrase(
         "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
         None,
-    )
-    .unwrap();
+    )?;
 
     let mut nonce = [0u8; 32];
-    rand_bytes(&mut nonce).unwrap();
+    rand_bytes(&mut nonce)?;
 
     let payload = near_api::signer::NEP413Payload {
         message: "Hello NEAR!".to_string(),
@@ -22,12 +21,13 @@ async fn main() {
 
     let signature = signer
         .sign_message_nep413(
-            "round-toad.testnet".parse().unwrap(),
-            signer.get_public_key().unwrap(),
+            "round-toad.testnet".parse()?,
+            signer.get_public_key()?,
             payload,
         )
-        .await
-        .unwrap();
+        .await?;
 
     println!("Signature: {signature}");
+
+    Ok(())
 }

@@ -1,9 +1,9 @@
 #[tokio::test]
 /// Regression test for https://github.com/near/near-api-rs/issues/85
-async fn regression_85() {
-    let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
+async fn regression_85() -> testresult::TestResult {
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let network_config =
-        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
     let contract = near_api::Contract(near_sandbox::config::DEFAULT_GENESIS_ACCOUNT.into())
         .call_function("increment", ())
@@ -27,4 +27,6 @@ async fn regression_85() {
         retry_error,
         near_api::errors::SendRequestError::WasmExecutionError(_)
     ));
+
+    Ok(())
 }

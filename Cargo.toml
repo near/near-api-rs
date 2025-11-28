@@ -64,3 +64,4 @@ near-crypto = { version = "0.33" }
 near-sandbox = { version = "0.2.0", features = [
     "generate",
 ], default-features = false }
+testresult = "0.4"

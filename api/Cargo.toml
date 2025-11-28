@@ -57,3 +57,4 @@ keystore = ["dep:keyring"]
 [dev-dependencies]
 tokio = { workspace = true, default-features = false, features = ["full"] }
 near-sandbox = { workspace = true, features = ["generate"] }
+testresult.workspace = true
