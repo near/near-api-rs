@@ -239,10 +239,7 @@ where
             ));
         }
 
-        let requests = requests.into_iter().collect::<Vec<_>>();
-
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing queries");
-
         info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", requests.len());
         let requests = requests.into_iter().map(|request| {
             let reference = &self.reference;
