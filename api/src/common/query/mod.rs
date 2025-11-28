@@ -223,25 +223,32 @@ where
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
-        let errors = self
-            .requests
-            .iter()
-            .filter_map(|request| request.as_ref().err())
-            .collect::<Vec<_>>();
+        let (requests, errors) =
+            self.requests
+                .into_iter()
+                .fold((vec![], vec![]), |(mut v, mut e), r| {
+                    match r {
+                        Ok(val) => v.push(val),
+                        Err(err) => e.push(err),
+                    }
+                    (v, e)
+                });
         if !errors.is_empty() {
             return Err(QueryError::ArgumentValidationError(
-                ArgumentValidationError::multiple(errors.into_iter().cloned().collect()),
+                ArgumentValidationError::multiple(errors),
             ));
         }
 
+        let requests = requests.into_iter().collect::<Vec<_>>();
+
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing queries");
 
-        info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", self.requests.len());
-        let requests = self.requests.into_iter().map(|request| {
+        info!(target: QUERY_EXECUTOR_TARGET, "Sending {} queries", requests.len());
+        let requests = requests.into_iter().map(|request| {
             let reference = &self.reference;
             async move {
                 retry(network.clone(), |client| {
-                    let request = request.as_ref().expect("Checked above");
+                    let request = &request;
 
                     async move {
                         let result = request.send_query(&client, network, reference).await;
@@ -411,21 +418,15 @@ where
         self,
         network: &NetworkConfig,
     ) -> ResultWithMethod<Handler::Response, Query::Error> {
-        if let Err(err) = self.request {
-            return Err(QueryError::ArgumentValidationError(err));
-        }
+        let request = self.request?;
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
 
         let query_response = retry(network.clone(), |client| {
-            let request = &self.request;
+            let request = &request;
             let reference = &self.reference;
             async move {
-                let result = request
-                    .as_ref()
-                    .expect("Checked above")
-                    .send_query(&client, network, reference)
-                    .await;
+                let result = request.send_query(&client, network, reference).await;
                 tracing::debug!(
                     target: QUERY_EXECUTOR_TARGET,
                     "Querying RPC with {:?} resulted in {:?}",
