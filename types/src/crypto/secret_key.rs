@@ -153,3 +153,63 @@ impl std::fmt::Debug for ED25519SecretKey {
         Display::fmt(&bs58::encode(&self.0.as_bytes()).into_string(), f)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub const DEFAULT_ED25519_PRIVATE_KEY: &str = "ed25519:3tgdk2wPraJzT4nsTuf86UX41xgPNk3MHnq8epARMdBNs29AFEztAuaQ7iHddDfXG9F2RzV1XNQYgJyAyoW51UBB";
+    pub const DEFAULT_ED25519_PUBLIC_KEY: &str =
+        "ed25519:5BGSaf6YjVm7565VzWQHNxoyEjwr3jUpRJSGjREvU9dB";
+
+    const DEFAULT_SECP256K1_PRIVATE_KEY: &str =
+        "secp256k1:4rjSSUGmoSDEB4GQ7FybPdH9CSEuFNDfF85iK8CEF2fP";
+    const DEFAULT_SECP256K1_PUBLIC_KEY: &str = "secp256k1:4JYvXJnrB3XUSNxJ3qY1ray24r9xz6mBF8Tuw3DxgXbwMKfmCJaRHiUzpqQZC6YkEbKnUZbMcBbwJwvfh7hYfyka";
+    #[test]
+    fn test_secret_key_display() {
+        let secret_key = SecretKey::from_str(DEFAULT_ED25519_PRIVATE_KEY).unwrap();
+        assert_eq!(secret_key.to_string(), DEFAULT_ED25519_PRIVATE_KEY);
+    }
+
+    #[test]
+    fn test_secret_key_from_str() {
+        let public_key = PublicKey::from_str(DEFAULT_ED25519_PUBLIC_KEY).unwrap();
+        let secret_key = SecretKey::from_str(DEFAULT_ED25519_PRIVATE_KEY).unwrap();
+        assert_eq!(public_key, secret_key.public_key());
+    }
+
+    #[test]
+    fn test_secret_key_sign() {
+        let secret_key = SecretKey::from_str(DEFAULT_ED25519_PRIVATE_KEY).unwrap();
+        let data = CryptoHash::hash(b"hello");
+        let signature = secret_key.sign(data);
+        let public_key = secret_key.public_key();
+
+        let verified = signature.verify(data, &public_key);
+        assert!(verified);
+    }
+
+    #[test]
+    fn test_secp256k1_secret_key_display() {
+        let secret_key = SecretKey::from_str(DEFAULT_SECP256K1_PRIVATE_KEY).unwrap();
+        assert_eq!(secret_key.to_string(), DEFAULT_SECP256K1_PRIVATE_KEY);
+    }
+
+    #[test]
+    fn test_secp256k1_secret_key_from_str() {
+        let public_key = PublicKey::from_str(DEFAULT_SECP256K1_PUBLIC_KEY).unwrap();
+        let secret_key = SecretKey::from_str(DEFAULT_SECP256K1_PRIVATE_KEY).unwrap();
+        assert_eq!(public_key, secret_key.public_key());
+    }
+
+    #[test]
+    fn test_secp256k1_secret_key_sign() {
+        let secret_key = SecretKey::from_str(DEFAULT_SECP256K1_PRIVATE_KEY).unwrap();
+        let data = CryptoHash::hash(b"hello");
+        let signature = secret_key.sign(data);
+        let public_key = secret_key.public_key();
+
+        let verified = signature.verify(data, &public_key);
+        assert!(verified);
+    }
+}
