@@ -60,7 +60,8 @@
         "secp",
         "Secp",
         "SECP",
-        "chrono"
+        "chrono",
+        "testresult"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key

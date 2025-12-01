@@ -68,12 +68,14 @@ fn split_key_type_data(value: &str) -> Result<(KeyType, &str), DataConversionErr
 
 #[cfg(test)]
 mod tests {
+    use crate::CryptoHash;
+
     use super::{public_key::PublicKey, secret_key::SecretKey, signature::Signature, KeyType};
 
     #[test]
     fn signature_verify_fuzzer() {
         bolero::check!().with_type().for_each(
-            |(key_type, sign, data, public_key): &(KeyType, [u8; 65], Vec<u8>, PublicKey)| {
+            |(key_type, sign, data, public_key): &(KeyType, [u8; 65], [u8; 32], PublicKey)| {
                 let signature = match key_type {
                     KeyType::ED25519 => {
                         Signature::from_parts(KeyType::ED25519, &sign[..64]).unwrap()
@@ -82,7 +84,7 @@ mod tests {
                         Signature::from_parts(KeyType::SECP256K1, &sign[..65]).unwrap()
                     }
                 };
-                let _ = signature.verify(data, public_key);
+                let _ = signature.verify(CryptoHash(*data), public_key);
             },
         );
     }
@@ -90,7 +92,7 @@ mod tests {
     #[test]
     fn regression_signature_verification_originally_failed() {
         let signature = Signature::from_parts(KeyType::SECP256K1, &[4; 65]).unwrap();
-        let _ = signature.verify(&[], &PublicKey::empty(KeyType::SECP256K1));
+        let _ = signature.verify(CryptoHash([0; 32]), &PublicKey::empty(KeyType::SECP256K1));
     }
 
     #[test]
