@@ -9,27 +9,22 @@ use near_sandbox::{
 use serde_json::json;
 
 #[tokio::main]
-async fn main() {
-    let nft = GenesisAccount::generate_with_name("nft".parse().unwrap());
+async fn main() -> testresult::TestResult {
+    let nft = GenesisAccount::generate_with_name("nft".parse()?);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let account2 = GenesisAccount::generate_with_name("account2".parse().unwrap());
+    let account2 = GenesisAccount::generate_with_name("account2".parse()?);
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![nft.clone(), account2.clone()],
         ..Default::default()
     })
-    .await
-    .unwrap();
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    .await?;
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    let nft_signer = Signer::new(Signer::from_secret_key(
-        nft.private_key.clone().parse().unwrap(),
-    ))
-    .unwrap();
+    let nft_signer = Signer::new(Signer::from_secret_key(nft.private_key.clone().parse()?))?;
     let account_signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
     // Deploying token contract
     Contract::deploy(nft.account_id.clone())
@@ -39,12 +34,10 @@ async fn main() {
             json!({
                 "owner_id": nft.account_id.to_string(),
             }),
-        )
-        .unwrap()
+        )?
         .with_signer(nft_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     let contract = Contract(nft.account_id.clone());
@@ -67,44 +60,47 @@ async fn main() {
         .deposit(NearToken::from_millinear(100))
         .with_signer(nft.account_id.clone(), nft_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     // Verifying that account has our nft token
     let tokens = Tokens::account(account.clone())
         .nft_assets(nft.account_id.clone())
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     assert_eq!(tokens.data.len(), 1);
-    println!("Account has {}", tokens.data.first().unwrap().token_id);
+    println!(
+        "Account has {}",
+        tokens.data.first().ok_or("No token found")?.token_id
+    );
 
     Tokens::account(account.clone())
         .send_to(account2.account_id.clone())
         .nft(nft.account_id.clone(), "1".to_string())
         .with_signer(account_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     // Verifying that account doesn't have nft anymore
     let tokens = Tokens::account(account.clone())
         .nft_assets(nft.account_id.clone())
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     assert!(tokens.data.is_empty());
 
     let tokens = Tokens::account(account2.account_id.clone())
         .nft_assets(nft.account_id.clone())
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     assert_eq!(tokens.data.len(), 1);
-    println!("account 2 has {}", tokens.data.first().unwrap().token_id);
+    println!(
+        "account 2 has {}",
+        tokens.data.first().ok_or("No token found")?.token_id
+    );
+
+    Ok(())
 }

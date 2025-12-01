@@ -16,7 +16,7 @@ use crate::{
         SECP256K1_SIGNATURE_LENGTH,
     },
     errors::{DataConversionError, SignatureErrors},
-    PublicKey,
+    CryptoHash, PublicKey,
 };
 
 /// Signature container supporting different curves.
@@ -55,11 +55,11 @@ impl Signature {
 
     /// Verifies that this signature is indeed signs the data with given public key.
     /// Also if public key doesn't match on the curve returns `false`.
-    pub fn verify(&self, data: &[u8], public_key: &PublicKey) -> bool {
+    pub fn verify(&self, data: CryptoHash, public_key: &PublicKey) -> bool {
         match (&self, public_key) {
             (Self::ED25519(signature), PublicKey::ED25519(public_key)) => {
                 ed25519_dalek::VerifyingKey::from_bytes(&public_key.0)
-                    .is_ok_and(|public_key| public_key.verify(data, signature).is_ok())
+                    .is_ok_and(|public_key| public_key.verify(data.0.as_ref(), signature).is_ok())
             }
             (Self::SECP256K1(signature), PublicKey::SECP256K1(public_key)) => {
                 // cspell:ignore rsig pdata
@@ -82,10 +82,7 @@ impl Signature {
                     temp[1..65].copy_from_slice(&public_key.0);
                     temp
                 };
-                let message = match secp256k1::Message::from_slice(data) {
-                    Ok(m) => m,
-                    Err(_) => return false,
-                };
+                let message = secp256k1::Message::from(data);
                 let pub_key = match secp256k1::PublicKey::from_slice(&pdata) {
                     Ok(p) => p,
                     Err(_) => return false,
@@ -250,20 +247,20 @@ impl Secp256K1Signature {
         r < SECP256K1_N && s < s_check
     }
 
-    pub fn recover(&self, msg: [u8; 32]) -> Result<Secp256K1PublicKey, SignatureErrors> {
-        let recoverable_sig = secp256k1::ecdsa::RecoverableSignature::from_compact(
-            &self.0[0..64],
-            secp256k1::ecdsa::RecoveryId::from_i32(i32::from(self.0[64])).unwrap(),
-        )?;
-        let msg = Message::from_slice(&msg).unwrap();
+    pub fn recover(&self, msg: CryptoHash) -> Result<Secp256K1PublicKey, SignatureErrors> {
+        let recovery_id = secp256k1::ecdsa::RecoveryId::from_i32(i32::from(self.0[64]))?;
+
+        let recoverable_sig =
+            secp256k1::ecdsa::RecoverableSignature::from_compact(&self.0[0..64], recovery_id)?;
+        let msg = Message::from_slice(&msg.0)?;
 
         let res = SECP256K1
             .recover_ecdsa(&msg, &recoverable_sig)?
             .serialize_uncompressed();
+        let mut pk = [0u8; 64];
+        pk.copy_from_slice(&res[1..65]);
 
-        let pk = Secp256K1PublicKey::try_from(&res[1..65]).expect("cannot fail");
-
-        Ok(pk)
+        Ok(Secp256K1PublicKey(pk))
     }
 }
 

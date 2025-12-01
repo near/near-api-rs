@@ -8,31 +8,26 @@ use near_sandbox::config::{
     DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY,
 };
 use signer::generate_secret_key;
+use testresult::TestResult;
 
 #[tokio::test]
-async fn multiple_tx_at_same_time_from_same_key() {
-    let receiver: AccountId = "tmp_account".parse().unwrap();
+async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
+    let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
-    let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
 
-    sandbox
-        .create_account(receiver.clone())
-        .send()
-        .await
-        .unwrap();
+    sandbox.create_account(receiver.clone()).send().await?;
 
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
     let start_nonce = Account(account.clone())
-        .access_key(signer.get_public_key().await.unwrap())
+        .access_key(signer.get_public_key().await?)
         .fetch_from(&network)
-        .await
-        .unwrap()
+        .await?
         .data
         .nonce;
 
@@ -52,64 +47,55 @@ async fn multiple_tx_at_same_time_from_same_key() {
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
         .await
         .into_iter()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
+        .collect::<Result<Vec<_>, _>>()?;
 
     assert_eq!(txs.len(), 20);
 
     let end_nonce = Account(account.clone())
-        .access_key(signer.get_public_key().await.unwrap())
+        .access_key(signer.get_public_key().await?)
         .fetch_from(&network)
-        .await
-        .unwrap()
+        .await?
         .data
         .nonce;
     assert_eq!(end_nonce.0, start_nonce.0 + 20);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn multiple_tx_at_same_time_from_different_keys() {
-    let receiver: AccountId = "tmp_account".parse().unwrap();
+async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
+    let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let sandbox = near_sandbox::Sandbox::start_sandbox().await.unwrap();
-    sandbox
-        .create_account(receiver.clone())
-        .send()
-        .await
-        .unwrap();
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    sandbox.create_account(receiver.clone()).send().await?;
 
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-    ))
-    .unwrap();
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
-    let secret = generate_secret_key().unwrap();
+    let secret = generate_secret_key()?;
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret.clone()))
-        .await
-        .unwrap();
+        .await?;
 
-    let secret2 = generate_secret_key().unwrap();
+    let secret2 = generate_secret_key()?;
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, secret2.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
     signer
         .add_signer_to_pool(Signer::from_secret_key(secret2.clone()))
-        .await
-        .unwrap();
+        .await?;
 
     let tx = (0..12).map(|i| {
         Tokens::account(account.clone())
@@ -119,8 +105,8 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     let txs = join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
         .await
         .into_iter()
-        .map(|t| t.unwrap().assert_success())
-        .collect::<Vec<_>>();
+        .map(|t| t.map(|t| t.assert_success()))
+        .collect::<Result<Vec<_>, _>>()?;
 
     assert_eq!(txs.len(), 12);
     let mut hash_map = HashMap::new();
@@ -134,4 +120,6 @@ async fn multiple_tx_at_same_time_from_different_keys() {
     assert_eq!(hash_map[DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY], 4);
     assert_eq!(hash_map[&secret2.public_key().to_string()], 4);
     assert_eq!(hash_map[&secret.public_key().to_string()], 4);
+
+    Ok(())
 }

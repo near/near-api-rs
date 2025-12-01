@@ -5,23 +5,20 @@ use near_api::{
 use near_sandbox::{config::DEFAULT_GENESIS_ACCOUNT, GenesisAccount, SandboxConfig};
 
 use serde_json::json;
+use testresult::TestResult;
 
 #[tokio::main]
-async fn main() {
-    let token = GenesisAccount::generate_with_name("token".parse().unwrap());
+async fn main() -> TestResult {
+    let token = GenesisAccount::generate_with_name("token".parse()?);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let token_signer = Signer::new(Signer::from_secret_key(
-        token.private_key.clone().parse().unwrap(),
-    ))
-    .unwrap();
+    let token_signer = Signer::new(Signer::from_secret_key(token.private_key.clone().parse()?))?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![token.clone()],
         ..Default::default()
     })
-    .await
-    .unwrap();
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    .await?;
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
     // Deploying token contract
     Contract::deploy(token.account_id.clone())
@@ -32,20 +29,17 @@ async fn main() {
                     "owner_id": token.account_id.clone(),
                 "total_supply": "1000000000000000000000000000"
             }),
-        )
-        .unwrap()
+        )?
         .with_signer(token_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     // Verifying that user has 1000 tokens
     let tokens = Tokens::account(token.account_id.clone())
         .ft_balance(token.account_id.clone())
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     println!("Owner has {tokens}");
 
@@ -60,23 +54,20 @@ async fn main() {
         )
         .with_signer(token_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     let tokens = Tokens::account(account.clone())
         .ft_balance(token.account_id.clone())
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     println!("Account has {tokens}");
 
     let tokens = Tokens::account(token.account_id.clone())
         .ft_balance(token.account_id.clone())
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     println!("Owner has {tokens}");
 
@@ -94,6 +85,8 @@ async fn main() {
     assert!(token.is_err());
     println!(
         "Expected decimal validation error: {}",
-        token.err().unwrap()
+        token.err().ok_or("Error is none")?
     );
+
+    Ok(())
 }

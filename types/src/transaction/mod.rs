@@ -91,7 +91,8 @@ impl Transaction {
     }
 
     pub fn get_hash(&self) -> CryptoHash {
-        let bytes = borsh::to_vec(&self).expect("Failed to deserialize");
+        #[allow(clippy::expect_used)]
+        let bytes = borsh::to_vec(&self).expect("Failed to serialize");
         CryptoHash::hash(&bytes)
     }
 }
@@ -166,6 +167,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
 
 impl From<SignedTransaction> for near_openapi_types::SignedTransaction {
     fn from(transaction: SignedTransaction) -> Self {
+        #[allow(clippy::expect_used)]
         let bytes = borsh::to_vec(&transaction).expect("Failed to serialize");
         Self(BASE64_STANDARD.encode(bytes))
     }

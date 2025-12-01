@@ -11,26 +11,22 @@ use near_sandbox::config::{
 };
 
 #[tokio::main]
-async fn main() {
-    let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
+async fn main() -> testresult::TestResult {
+    let network = near_sandbox::Sandbox::start_sandbox().await?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
+    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse()?);
 
     // Current secret key from workspace
-    let (new_seed_phrase, public_key) = generate_seed_phrase_with_passphrase("smile").unwrap();
+    let (new_seed_phrase, public_key) = generate_seed_phrase_with_passphrase("smile")?;
 
     // Let's add new key and get the seed phrase
     Account(account.clone())
         .add_key(AccessKeyPermission::FullAccess, public_key)
-        .with_signer(
-            Signer::new(Signer::from_secret_key(
-                DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap(),
-            ))
-            .unwrap(),
-        )
+        .with_signer(Signer::new(Signer::from_secret_key(
+            DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+        ))?)
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     if std::env::var("CI").is_ok() {
@@ -38,37 +34,36 @@ async fn main() {
     } else {
         // Let's add ledger to the account with the new seed phrase
         let ledger = Signer::from_ledger();
-        let ledger_pubkey = ledger.get_public_key().unwrap();
+        let ledger_pubkey = ledger.get_public_key()?;
         Account(account.clone())
             .add_key(AccessKeyPermission::FullAccess, ledger_pubkey)
-            .with_signer(
-                Signer::new(Signer::from_seed_phrase(&new_seed_phrase, Some("smile")).unwrap())
-                    .unwrap(),
-            )
+            .with_signer(Signer::new(Signer::from_seed_phrase(
+                &new_seed_phrase,
+                Some("smile"),
+            )?)?)
             .send_to(&network)
-            .await
-            .unwrap()
+            .await?
             .assert_success();
 
         println!("Signing with ledger");
 
         // Let's sign some tx with the ledger key
         Account(account.clone())
-            .delete_key(PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY).unwrap())
-            .with_signer(Signer::new(ledger).unwrap())
+            .delete_key(PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?)
+            .with_signer(Signer::new(ledger)?)
             .send_to(&network)
-            .await
-            .unwrap()
+            .await?
             .assert_success();
     }
 
     let keys = Account(account.clone())
         .list_keys()
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     // Should contain 2 keys: new key from seed phrase, and ledger key
     println!("{keys:#?}");
     assert_eq!(keys.data.len(), 2);
+
+    Ok(())
 }

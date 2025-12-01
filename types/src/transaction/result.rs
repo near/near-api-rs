@@ -40,6 +40,7 @@ pub struct Execution<T> {
 
 impl<T> Execution<T> {
     pub fn assert_success(self) -> T {
+        #[allow(clippy::unwrap_used)]
         self.into_result().unwrap()
     }
 
@@ -251,10 +252,12 @@ impl ExecutionFinalResult {
     /// Because this function may panic, its use is generally discouraged. Instead, prefer
     /// to call into [`into_result`](ExecutionFinalResult::into_result) then pattern matching and handle the Err case explicitly.
     pub fn assert_success(self) -> ExecutionSuccess {
+        #[allow(clippy::unwrap_used)]
         self.into_result().unwrap()
     }
 
     pub fn assert_failure(self) -> ExecutionResult<TxExecutionError> {
+        #[allow(clippy::unwrap_used)]
         self.into_result().unwrap_err()
     }
 

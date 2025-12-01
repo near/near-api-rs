@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use near_api::{types::AccountId, Contract};
+use testresult::TestResult;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> TestResult {
     for (account_name, expected_json_metadata) in [
         ("desolate-toad.testnet", FIRST_METADATA),
         ("fat-fabulous-toad.testnet", SECOND_METADATA),
@@ -11,14 +12,15 @@ async fn main() {
         let source_metadata = Contract(AccountId::from_str(account_name).expect("no err"))
             .contract_source_metadata()
             .fetch_from_testnet()
-            .await
-            .expect("no network or rpc err");
+            .await?;
 
         assert_eq!(
             expected_json_metadata,
             serde_json::to_string_pretty(&source_metadata.data).expect("no ser err")
         );
     }
+
+    Ok(())
 }
 
 const FIRST_METADATA: &str = r#"{

@@ -1,6 +1,5 @@
 [package]
 name = "near-api-types"
-resolver = "2"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -32,3 +31,7 @@ secp256k1.workspace = true
 bolero.workspace = true
 near-primitives.workspace = true
 near-crypto.workspace = true
+testresult.workspace = true
+
+[lints]
+workspace = true

@@ -1,7 +1,6 @@
 [package]
 name = "near-api"
 rust-version = "1.85"
-resolver = "2"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -57,3 +56,4 @@ keystore = ["dep:keyring"]
 [dev-dependencies]
 tokio = { workspace = true, default-features = false, features = ["full"] }
 near-sandbox = { workspace = true, features = ["generate"] }
+testresult.workspace = true

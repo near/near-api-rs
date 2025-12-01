@@ -5,7 +5,6 @@ rust-version = "1.85"
 
 [workspace.package]
 edition = "2021"
-resolver = "2"
 version = "0.7.8"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
@@ -64,3 +63,8 @@ near-crypto = { version = "0.33" }
 near-sandbox = { version = "0.2.0", features = [
     "generate",
 ], default-features = false }
+testresult = "0.4"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

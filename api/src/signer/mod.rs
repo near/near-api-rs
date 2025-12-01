@@ -302,7 +302,7 @@ pub trait SignerTrait {
             actions: transaction.actions,
         });
 
-        let signature = signer_secret_key.sign(unsigned_transaction.get_hash().0.as_ref());
+        let signature = signer_secret_key.sign(unsigned_transaction.get_hash());
 
         Ok(SignedTransaction::new(signature, unsigned_transaction))
     }
@@ -323,7 +323,7 @@ pub trait SignerTrait {
         borsh::to_writer(&mut bytes, &payload)?;
         let hash = CryptoHash::hash(&bytes);
         let secret = self.get_secret_key(&signer_id, &public_key).await?;
-        let signature = secret.sign(hash.0.as_ref());
+        let signature = secret.sign(hash);
         Ok(signature)
     }
 
@@ -575,7 +575,7 @@ fn get_signed_delegate_action(
     let signable = SignableMessage::new(&delegate_action, SignableMessageType::DelegateAction);
     let bytes = borsh::to_vec(&signable).expect("Failed to serialize");
     let hash = CryptoHash::hash(&bytes);
-    let signature = private_key.sign(hash.0.as_ref());
+    let signature = private_key.sign(hash);
 
     Ok(SignedDelegateAction {
         delegate_action,
