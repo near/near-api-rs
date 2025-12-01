@@ -25,7 +25,7 @@ async fn create_and_delete_account() -> TestResult {
 
     Account::create_account(new_account.clone())
         .fund_myself(account_id.clone(), NearToken::from_near(1))
-        .public_key(public_key)?
+        .with_public_key(public_key)
         .with_signer(signer.clone())
         .send_to(&network)
         .await?

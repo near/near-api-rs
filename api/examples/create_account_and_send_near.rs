@@ -27,7 +27,7 @@ async fn main() -> TestResult {
 
     Account::create_account(new_account.clone())
         .fund_myself(account.clone(), NearToken::from_near(1))
-        .public_key(generate_secret_key()?.public_key())?
+        .with_public_key(generate_secret_key()?.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
         .await?

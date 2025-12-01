@@ -61,17 +61,17 @@ impl FundMyselfBuilder {
     /// Provide a public key that will be used as full access key.
     ///
     /// Please ensure that you have a private key.
-    pub fn public_key(
+    pub fn with_public_key(
         self,
         pk: impl Into<PublicKey>,
-    ) -> Result<TransactionWithSign<CreateAccountFundMyselfTx>, AccountCreationError> {
+    ) -> TransactionWithSign<CreateAccountFundMyselfTx> {
         let public_key = pk.into();
-        let (actions, receiver_id) = if self
+        let transaction = if self
             .new_account_id
             .is_sub_account_of(&self.signer_account_id)
         {
-            (
-                vec![
+            ConstructTransaction::new(self.signer_account_id.clone(), self.new_account_id.clone())
+                .add_actions(vec![
                     Action::CreateAccount(CreateAccountAction {}),
                     Action::Transfer(TransferAction {
                         deposit: self.initial_balance,
@@ -83,38 +83,31 @@ impl FundMyselfBuilder {
                             permission: AccessKeyPermission::FullAccess,
                         },
                     })),
-                ],
-                self.new_account_id.clone(),
-            )
+                ])
+                .transaction
         } else if let Some(linkdrop_account_id) = self.new_account_id.get_parent_account_id() {
-            (
-                Contract(linkdrop_account_id.to_owned())
-                    .call_function(
-                        "create_account",
-                        json!({
-                            "new_account_id": self.new_account_id.to_string(),
-                            "new_public_key": public_key,
-                        }),
-                    )
-                    .transaction()
-                    .gas(NearGas::from_tgas(30))
-                    .deposit(self.initial_balance)
-                    .with_signer_account(self.signer_account_id.clone())
-                    .transaction?
-                    .actions,
-                linkdrop_account_id.to_owned(),
-            )
+            Contract(linkdrop_account_id.to_owned())
+                .call_function(
+                    "create_account",
+                    json!({
+                        "new_account_id": self.new_account_id.to_string(),
+                        "new_public_key": public_key,
+                    }),
+                )
+                .transaction()
+                .gas(NearGas::from_tgas(30))
+                .deposit(self.initial_balance)
+                .with_signer_account(self.signer_account_id.clone())
+                .transaction
         } else {
-            return Err(AccountCreationError::TopLevelAccountIsNotAllowed);
+            Err(AccountCreationError::TopLevelAccountIsNotAllowed.into())
         };
 
-        let prepopulated = ConstructTransaction::new(self.signer_account_id, receiver_id)
-            .add_actions(actions)
-            .transaction?;
-
-        Ok(TransactionWithSign {
-            tx: CreateAccountFundMyselfTx { prepopulated },
-        })
+        TransactionWithSign {
+            tx: CreateAccountFundMyselfTx {
+                prepopulated: transaction,
+            },
+        }
     }
 }
 
@@ -127,7 +120,10 @@ impl SponsorByFaucetServiceBuilder {
     /// Provide a public key that will be used as full access key.
     ///
     /// Please ensure that you have a private key.
-    pub fn public_key(self, pk: impl Into<PublicKey>) -> Result<CreateAccountByFaucet, Infallible> {
+    pub fn with_public_key(
+        self,
+        pk: impl Into<PublicKey>,
+    ) -> Result<CreateAccountByFaucet, Infallible> {
         Ok(CreateAccountByFaucet {
             new_account_id: self.new_account_id,
             public_key: pk.into(),
@@ -199,27 +195,28 @@ impl CreateAccountByFaucet {
 /// - The account is created as a sub-account of the linkdrop account defined in the network config
 #[derive(Clone, Debug)]
 pub struct CreateAccountFundMyselfTx {
-    prepopulated: PrepopulateTransaction,
+    prepopulated: Result<PrepopulateTransaction, ArgumentValidationError>,
 }
 
 #[async_trait::async_trait]
 impl Transactionable for CreateAccountFundMyselfTx {
     fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
-        Ok(self.prepopulated.clone())
+        self.prepopulated.clone()
     }
 
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError> {
-        if self
-            .prepopulated
+        let prepopulated = self.prepopulated()?;
+
+        if prepopulated
             .receiver_id
-            .is_sub_account_of(&self.prepopulated.signer_id)
+            .is_sub_account_of(&prepopulated.signer_id)
         {
             return Ok(());
         }
 
         match &network.linkdrop_account_id {
             Some(linkdrop) => {
-                if &self.prepopulated.receiver_id != linkdrop {
+                if &prepopulated.receiver_id != linkdrop {
                     Err(AccountCreationError::AccountShouldBeSubAccountOfSignerOrLinkdrop)?;
                 }
             }

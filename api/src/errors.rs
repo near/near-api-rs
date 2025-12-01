@@ -146,6 +146,8 @@ pub enum ArgumentValidationError {
     JsonSerializationError(Arc<serde_json::Error>),
     #[error("Failed to serialize arguments as Borsh: {0}")]
     BorshSerializationError(Arc<std::io::Error>),
+    #[error("Account creation error: {0}")]
+    AccountCreationError(#[from] AccountCreationError),
     #[error("Multiple errors: {0:?}")]
     MultipleErrors(Vec<ArgumentValidationError>),
 }
@@ -168,11 +170,8 @@ impl From<std::io::Error> for ArgumentValidationError {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum AccountCreationError {
-    #[error(transparent)]
-    ArgumentValidationError(#[from] ArgumentValidationError),
-
     #[error("Top-level account is not allowed")]
     TopLevelAccountIsNotAllowed,
 
