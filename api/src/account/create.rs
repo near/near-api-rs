@@ -31,69 +31,103 @@ impl CreateAccountBuilder {
         self,
         signer_account_id: AccountId,
         initial_balance: NearToken,
-    ) -> PublicKeyProvider<TransactionWithSign<CreateAccountFundMyselfTx>, AccountCreationError>
-    {
-        PublicKeyProvider::new(Box::new(move |public_key| {
-            let (actions, receiver_id) = if self.account_id.is_sub_account_of(&signer_account_id) {
-                (
-                    vec![
-                        Action::CreateAccount(CreateAccountAction {}),
-                        Action::Transfer(TransferAction {
-                            deposit: initial_balance,
-                        }),
-                        Action::AddKey(Box::new(AddKeyAction {
-                            public_key,
-                            access_key: AccessKey {
-                                nonce: 0.into(),
-                                permission: AccessKeyPermission::FullAccess,
-                            },
-                        })),
-                    ],
-                    self.account_id.clone(),
-                )
-            } else if let Some(linkdrop_account_id) = self.account_id.get_parent_account_id() {
-                (
-                    Contract(linkdrop_account_id.to_owned())
-                        .call_function(
-                            "create_account",
-                            json!({
-                                "new_account_id": self.account_id.to_string(),
-                                "new_public_key": public_key,
-                            }),
-                        )
-                        .transaction()
-                        .gas(NearGas::from_tgas(30))
-                        .deposit(initial_balance)
-                        .with_signer_account(signer_account_id.clone())
-                        .transaction?
-                        .actions,
-                    linkdrop_account_id.to_owned(),
-                )
-            } else {
-                return Err(AccountCreationError::TopLevelAccountIsNotAllowed);
-            };
-
-            let prepopulated = ConstructTransaction::new(signer_account_id, receiver_id)
-                .add_actions(actions)
-                .transaction?;
-
-            Ok(TransactionWithSign {
-                tx: CreateAccountFundMyselfTx { prepopulated },
-            })
-        }))
+    ) -> FundMyselfBuilder {
+        FundMyselfBuilder {
+            new_account_id: self.account_id,
+            signer_account_id,
+            initial_balance,
+        }
     }
 
     /// Create an account sponsored by faucet service
     ///
     /// This is a way to create an account without having to fund it. It works only on testnet.
     /// You can only create an sub-account of the [testnet](https://testnet.nearblocks.io/address/testnet) account
-    pub fn sponsor_by_faucet_service(self) -> PublicKeyProvider<CreateAccountByFaucet, Infallible> {
-        PublicKeyProvider::new(Box::new(move |public_key| {
-            Ok(CreateAccountByFaucet {
-                new_account_id: self.account_id,
-                public_key,
-            })
-        }))
+    pub fn sponsor_by_faucet_service(self) -> SponsorByFaucetServiceBuilder {
+        SponsorByFaucetServiceBuilder {
+            new_account_id: self.account_id,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FundMyselfBuilder {
+    new_account_id: AccountId,
+    signer_account_id: AccountId,
+    initial_balance: NearToken,
+}
+
+impl FundMyselfBuilder {
+    /// Provide a public key that will be used as full access key.
+    ///
+    /// Please ensure that you have a private key.
+    pub fn with_public_key(
+        self,
+        pk: impl Into<PublicKey>,
+    ) -> TransactionWithSign<CreateAccountFundMyselfTx> {
+        let public_key = pk.into();
+        let transaction = if self
+            .new_account_id
+            .is_sub_account_of(&self.signer_account_id)
+        {
+            ConstructTransaction::new(self.signer_account_id.clone(), self.new_account_id.clone())
+                .add_actions(vec![
+                    Action::CreateAccount(CreateAccountAction {}),
+                    Action::Transfer(TransferAction {
+                        deposit: self.initial_balance,
+                    }),
+                    Action::AddKey(Box::new(AddKeyAction {
+                        public_key,
+                        access_key: AccessKey {
+                            nonce: 0.into(),
+                            permission: AccessKeyPermission::FullAccess,
+                        },
+                    })),
+                ])
+                .transaction
+        } else if let Some(linkdrop_account_id) = self.new_account_id.get_parent_account_id() {
+            Contract(linkdrop_account_id.to_owned())
+                .call_function(
+                    "create_account",
+                    json!({
+                        "new_account_id": self.new_account_id.to_string(),
+                        "new_public_key": public_key,
+                    }),
+                )
+                .transaction()
+                .gas(NearGas::from_tgas(30))
+                .deposit(self.initial_balance)
+                .with_signer_account(self.signer_account_id.clone())
+                .transaction
+        } else {
+            Err(AccountCreationError::TopLevelAccountIsNotAllowed.into())
+        };
+
+        TransactionWithSign {
+            tx: CreateAccountFundMyselfTx {
+                prepopulated: transaction,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SponsorByFaucetServiceBuilder {
+    new_account_id: AccountId,
+}
+
+impl SponsorByFaucetServiceBuilder {
+    /// Provide a public key that will be used as full access key.
+    ///
+    /// Please ensure that you have a private key.
+    pub fn with_public_key(
+        self,
+        pk: impl Into<PublicKey>,
+    ) -> Result<CreateAccountByFaucet, Infallible> {
+        Ok(CreateAccountByFaucet {
+            new_account_id: self.new_account_id,
+            public_key: pk.into(),
+        })
     }
 }
 
@@ -154,29 +188,35 @@ impl CreateAccountByFaucet {
     }
 }
 
+/// The [CreateAccountFundMyselfTx] is used to validate the transaction before sending it to the network.
+///
+/// It validates that:
+/// - The account is created as a sub-account of the signer
+/// - The account is created as a sub-account of the linkdrop account defined in the network config
 #[derive(Clone, Debug)]
 pub struct CreateAccountFundMyselfTx {
-    prepopulated: PrepopulateTransaction,
+    prepopulated: Result<PrepopulateTransaction, ArgumentValidationError>,
 }
 
 #[async_trait::async_trait]
 impl Transactionable for CreateAccountFundMyselfTx {
     fn prepopulated(&self) -> Result<PrepopulateTransaction, ArgumentValidationError> {
-        Ok(self.prepopulated.clone())
+        self.prepopulated.clone()
     }
 
     async fn validate_with_network(&self, network: &NetworkConfig) -> Result<(), ValidationError> {
-        if self
-            .prepopulated
+        let prepopulated = self.prepopulated()?;
+
+        if prepopulated
             .receiver_id
-            .is_sub_account_of(&self.prepopulated.signer_id)
+            .is_sub_account_of(&prepopulated.signer_id)
         {
             return Ok(());
         }
 
         match &network.linkdrop_account_id {
             Some(linkdrop) => {
-                if &self.prepopulated.receiver_id != linkdrop {
+                if &prepopulated.receiver_id != linkdrop {
                     Err(AccountCreationError::AccountShouldBeSubAccountOfSignerOrLinkdrop)?;
                 }
             }
@@ -184,21 +224,5 @@ impl Transactionable for CreateAccountFundMyselfTx {
         }
 
         Ok(())
-    }
-}
-
-pub type PublicKeyCallback<T, E> = dyn FnOnce(PublicKey) -> Result<T, E>;
-
-pub struct PublicKeyProvider<T, E> {
-    next_step: Box<PublicKeyCallback<T, E>>,
-}
-
-impl<T, E> PublicKeyProvider<T, E> {
-    pub const fn new(next_step: Box<PublicKeyCallback<T, E>>) -> Self {
-        Self { next_step }
-    }
-
-    pub fn public_key(self, pk: impl Into<PublicKey>) -> Result<T, E> {
-        (self.next_step)(pk.into())
     }
 }

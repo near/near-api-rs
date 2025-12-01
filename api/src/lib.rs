@@ -34,7 +34,7 @@
 //! let alice_secret_key = generate_secret_key()?;
 //! Account::create_account(AccountId::from_str("alice.testnet")?)
 //!     .fund_myself(bob.clone(), NearToken::from_near(1))
-//!     .public_key(alice_secret_key.public_key())?
+//!     .with_public_key(alice_secret_key.public_key())
 //!     .with_signer(signer)
 //!     .send_to_testnet()
 //!     .await?;

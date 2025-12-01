@@ -307,7 +307,7 @@ impl Account {
     /// let secret = near_api::signer::generate_secret_key()?;
     /// let result: reqwest::Response = Account::create_account("alice.testnet".parse()?)
     ///     .sponsor_by_faucet_service()
-    ///     .public_key(secret.public_key())?
+    ///     .with_public_key(secret.public_key())?
     ///     .send_to_testnet_faucet()
     ///     .await?;
     /// // You have to save the secret key somewhere safe
@@ -330,7 +330,7 @@ impl Account {
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
     /// let result = Account::create_account("alice.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
-    ///     .public_key(secret.public_key())?
+    ///     .with_public_key(secret.public_key())
     ///     .with_signer(bob_signer)
     ///     .send_to_testnet()
     ///     .await?;
@@ -352,7 +352,7 @@ impl Account {
     /// let bob_signer = Signer::new(Signer::from_seed_phrase("lucky barrel fall come bottom can rib join rough around subway cloth ", None)?)?;
     /// let result = Account::create_account("sub.bob.testnet".parse()?)
     ///     .fund_myself("bob.testnet".parse()?, NearToken::from_near(1))
-    ///     .public_key(secret.public_key())?
+    ///     .with_public_key(secret.public_key())
     ///     .with_signer(bob_signer)
     ///     .send_to_testnet()
     ///     .await?;
