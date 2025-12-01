@@ -9,7 +9,7 @@ use crate::{
         split_key_type_data, KeyType,
     },
     errors::{DataConversionError, SecretKeyError},
-    PublicKey, Signature,
+    CryptoHash, PublicKey, Signature,
 };
 
 pub static SECP256K1: LazyLock<secp256k1::Secp256k1<secp256k1::All>> =
@@ -30,21 +30,15 @@ impl SecretKey {
         }
     }
 
-    pub fn sign(&self, data: &[u8]) -> Signature {
+    pub fn sign(&self, data: CryptoHash) -> Signature {
         match &self {
             Self::ED25519(secret_key) => {
-                #[allow(clippy::expect_used)]
-                let mut keypair = ed25519_dalek::SigningKey::from_keypair_bytes(&secret_key.0)
-                    .expect("Invalid secret key");
-                Signature::ED25519(keypair.sign(data))
+                let mut keypair = secret_key.0.clone();
+                Signature::ED25519(keypair.sign(data.0.as_ref()))
             }
 
             Self::SECP256K1(secret_key) => {
-                #[allow(clippy::expect_used)]
-                let signature = SECP256K1.sign_ecdsa_recoverable(
-                    &secp256k1::Message::from_slice(data).expect("32 bytes"),
-                    secret_key,
-                );
+                let signature = SECP256K1.sign_ecdsa_recoverable(&data.into(), secret_key);
                 let (rec_id, data) = signature.serialize_compact();
                 let mut buf = [0; 65];
                 buf[0..64].copy_from_slice(&data[0..64]);
@@ -57,11 +51,7 @@ impl SecretKey {
     pub fn public_key(&self) -> PublicKey {
         match &self {
             Self::ED25519(secret_key) => {
-                #[allow(clippy::expect_used)]
-                let public_key = secret_key.0[ed25519_dalek::SECRET_KEY_LENGTH..]
-                    .try_into()
-                    .expect("Invalid secret keypair");
-                PublicKey::ED25519(ED25519PublicKey(public_key))
+                PublicKey::ED25519(ED25519PublicKey(secret_key.0.verifying_key().to_bytes()))
             }
             Self::SECP256K1(secret_key) => {
                 let pk = secp256k1::PublicKey::from_secret_key(&SECP256K1, secret_key);
@@ -84,7 +74,7 @@ impl SecretKey {
 impl std::fmt::Display for SecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let (key_type, key_data) = match self {
-            Self::ED25519(secret_key) => (KeyType::ED25519, &secret_key.0[..]),
+            Self::ED25519(secret_key) => (KeyType::ED25519, &secret_key.0.to_keypair_bytes()[..]),
             Self::SECP256K1(secret_key) => (KeyType::SECP256K1, &secret_key[..]),
         };
         write!(f, "{}:{}", key_type, bs58::encode(key_data).into_string())
@@ -97,12 +87,16 @@ impl FromStr for SecretKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (key_type, key_data) = split_key_type_data(s)?;
         Ok(match key_type {
-            KeyType::ED25519 => Self::ED25519(ED25519SecretKey(
-                bs58::decode(key_data)
+            KeyType::ED25519 => {
+                let data = bs58::decode(key_data)
                     .into_vec()
                     .map_err(DataConversionError::from)?
-                    .try_into()?,
-            )),
+                    .try_into()
+                    .map_err(DataConversionError::from)?;
+
+                let sk = ed25519_dalek::SigningKey::from_keypair_bytes(&data)?;
+                Self::ED25519(ED25519SecretKey(sk))
+            }
             KeyType::SECP256K1 => {
                 let data = bs58::decode(key_data)
                     .into_vec()
@@ -140,25 +134,22 @@ impl<'de> serde::Deserialize<'de> for SecretKey {
 // This is actually a keypair, because ed25519_dalek api only has keypair.sign
 // From ed25519_dalek doc: The first SECRET_KEY_LENGTH of bytes is the SecretKey
 // The last PUBLIC_KEY_LENGTH of bytes is the public key, in total it's KEYPAIR_LENGTH
-pub struct ED25519SecretKey(pub [u8; ed25519_dalek::KEYPAIR_LENGTH]);
+pub struct ED25519SecretKey(ed25519_dalek::SigningKey);
 
 impl ED25519SecretKey {
     pub fn from_secret_key(secret_key: [u8; ed25519_dalek::SECRET_KEY_LENGTH]) -> Self {
-        Self(ed25519_dalek::SigningKey::from_bytes(&secret_key).to_keypair_bytes())
+        Self(ed25519_dalek::SigningKey::from_bytes(&secret_key))
     }
 }
 
 impl PartialEq for ED25519SecretKey {
     fn eq(&self, other: &Self) -> bool {
-        self.0[..ed25519_dalek::SECRET_KEY_LENGTH] == other.0[..ed25519_dalek::SECRET_KEY_LENGTH]
+        self.0.as_bytes() == other.0.as_bytes()
     }
 }
 
 impl std::fmt::Debug for ED25519SecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Display::fmt(
-            &bs58::encode(&self.0[..ed25519_dalek::SECRET_KEY_LENGTH]).into_string(),
-            f,
-        )
+        Display::fmt(&bs58::encode(&self.0.as_bytes()).into_string(), f)
     }
 }

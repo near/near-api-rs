@@ -92,8 +92,16 @@ impl From<TxExecutionError> for ExecutionError {
 pub enum SecretKeyError {
     #[error("Invalid secret key: {0}")]
     InvalidSecp256k1SecretKey(secp256k1::Error),
+    #[error("Invalid ed25519 secret key: {0}")]
+    InvalidEd25519SecretKey(ed25519_dalek::SignatureError),
     #[error("Invalid conversion: {0}")]
     InvalidConversion(#[from] DataConversionError),
+}
+
+impl From<ed25519_dalek::SignatureError> for SecretKeyError {
+    fn from(value: ed25519_dalek::SignatureError) -> Self {
+        Self::InvalidEd25519SecretKey(value)
+    }
 }
 
 impl From<secp256k1::Error> for SecretKeyError {

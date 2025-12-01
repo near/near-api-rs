@@ -1,3 +1,4 @@
+use secp256k1::ThirtyTwoByteHash;
 use sha2::Digest;
 use std::fmt;
 
@@ -85,6 +86,12 @@ impl<T> Data<T> {
     borsh::BorshSerialize,
 )]
 pub struct CryptoHash(pub [u8; 32]);
+
+impl ThirtyTwoByteHash for CryptoHash {
+    fn into_32(self) -> [u8; 32] {
+        self.0
+    }
+}
 
 impl serde::Serialize for CryptoHash {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
