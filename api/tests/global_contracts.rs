@@ -6,23 +6,21 @@ use near_sandbox::{
     config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
     GenesisAccount, SandboxConfig,
 };
+use testresult::TestResult;
 
 #[tokio::test]
-async fn deploy_global_contract_as_account_id_and_use_it() {
-    let global_contract = GenesisAccount::generate_with_name("global_contract".parse().unwrap());
-    let account_signer =
-        Signer::from_secret_key(global_contract.private_key.parse().unwrap()).unwrap();
+async fn deploy_global_contract_as_account_id_and_use_it() -> TestResult {
+    let global_contract = GenesisAccount::generate_with_name("global_contract".parse()?);
+    let account_signer = Signer::from_secret_key(global_contract.private_key.parse()?)?;
 
-    let global_signer =
-        Signer::from_secret_key(global_contract.private_key.parse().unwrap()).unwrap();
+    let global_signer = Signer::from_secret_key(global_contract.private_key.parse()?)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![global_contract.clone()],
         ..Default::default()
     })
-    .await
-    .unwrap();
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    .await?;
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let code_bytes = include_bytes!("../resources/counter.wasm");
     let base64_code_bytes = BASE64_STANDARD.encode(code_bytes);
 
@@ -30,8 +28,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .as_account_id(global_contract.account_id.clone())
         .with_signer(global_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     Contract::deploy(global_contract.account_id.clone())
@@ -39,16 +36,14 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .without_init_call()
         .with_signer(account_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     assert_eq!(
         Contract::global_wasm()
             .by_account_id(global_contract.account_id.clone())
             .fetch_from(&network)
-            .await
-            .unwrap()
+            .await?
             .data
             .code_base64,
         base64_code_bytes
@@ -57,21 +52,14 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
     let contract = Contract(global_contract.account_id.clone());
 
     assert_eq!(
-        contract
-            .wasm()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .code_base64,
+        contract.wasm().fetch_from(&network).await?.data.code_base64,
         base64_code_bytes
     );
 
     assert!(contract
         .contract_source_metadata()
         .fetch_from(&network)
-        .await
-        .unwrap()
+        .await?
         .data
         .version
         .is_some());
@@ -80,8 +68,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .call_function("get_num", ())
         .read_only()
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
     assert_eq!(current_value.data, 0);
 
     contract
@@ -89,36 +76,33 @@ async fn deploy_global_contract_as_account_id_and_use_it() {
         .transaction()
         .with_signer(global_contract.account_id.clone(), account_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
         .read_only()
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     assert_eq!(current_value.data, 1);
+
+    Ok(())
 }
 
 #[tokio::test]
-async fn deploy_global_contract_as_hash_and_use_it() {
-    let global_contract = GenesisAccount::generate_with_name("global_contract".parse().unwrap());
-    let account_signer =
-        Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse().unwrap()).unwrap();
-    let global_signer =
-        Signer::from_secret_key(global_contract.private_key.parse().unwrap()).unwrap();
+async fn deploy_global_contract_as_hash_and_use_it() -> TestResult {
+    let global_contract = GenesisAccount::generate_with_name("global_contract".parse()?);
+    let account_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let global_signer = Signer::from_secret_key(global_contract.private_key.parse()?)?;
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![global_contract.clone()],
         ..Default::default()
     })
-    .await
-    .unwrap();
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse().unwrap());
+    .await?;
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
     let code = include_bytes!("../resources/counter.wasm").to_vec();
     let hash = CryptoHash::hash(&code);
@@ -128,16 +112,14 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .as_hash()
         .with_signer(global_contract.account_id.clone(), global_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     assert_eq!(
         Contract::global_wasm()
             .by_hash(hash)
             .fetch_from(&network)
-            .await
-            .unwrap()
+            .await?
             .data
             .code_base64,
         base64_code
@@ -148,28 +130,20 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .without_init_call()
         .with_signer(account_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     let contract = Contract(account_id.clone());
 
     assert_eq!(
-        contract
-            .wasm()
-            .fetch_from(&network)
-            .await
-            .unwrap()
-            .data
-            .code_base64,
+        contract.wasm().fetch_from(&network).await?.data.code_base64,
         base64_code
     );
 
     assert!(contract
         .contract_source_metadata()
         .fetch_from(&network)
-        .await
-        .unwrap()
+        .await?
         .data
         .version
         .is_some());
@@ -178,8 +152,7 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .call_function("get_num", ())
         .read_only()
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
     assert_eq!(current_value.data, 0);
 
     contract
@@ -187,16 +160,16 @@ async fn deploy_global_contract_as_hash_and_use_it() {
         .transaction()
         .with_signer(account_id.clone(), account_signer.clone())
         .send_to(&network)
-        .await
-        .unwrap()
+        .await?
         .assert_success();
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
         .read_only()
         .fetch_from(&network)
-        .await
-        .unwrap();
+        .await?;
 
     assert_eq!(current_value.data, 1);
+
+    Ok(())
 }

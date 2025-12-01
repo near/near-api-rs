@@ -3,9 +3,10 @@ use near_api::{
     Contract, NetworkConfig, Signer,
 };
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
+use testresult::TestResult;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> TestResult {
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
@@ -56,4 +57,6 @@ async fn main() {
         .unwrap();
 
     println!("Current value: {}", current_value.data);
+
+    Ok(())
 }
