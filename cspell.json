@@ -61,7 +61,8 @@
         "Secp",
         "SECP",
         "chrono",
-        "testresult"
+        "testresult",
+        "btreemap"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key
