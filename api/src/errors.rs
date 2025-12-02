@@ -52,9 +52,18 @@ pub enum MetaSignError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SignerError {
+pub enum PublicKeyError {
     #[error("Public key is not available")]
     PublicKeyIsNotAvailable,
+    #[cfg(feature = "ledger")]
+    #[error("Failed to cache public key: {0}")]
+    SetPublicKeyError(#[from] tokio::sync::SetError<crate::PublicKey>),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SignerError {
+    #[error(transparent)]
+    PublicKeyError(#[from] PublicKeyError),
     #[error("Secret key is not available")]
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0:?}")]
@@ -73,6 +82,8 @@ pub enum SecretError {
     BIP39Error(#[from] bip39::Error),
     #[error("Failed to derive key from seed phrase: Invalid Index")]
     DeriveKeyInvalidIndex,
+    #[error(transparent)]
+    PublicKeyError(#[from] PublicKeyError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -86,7 +97,7 @@ pub enum AccessKeyFileError {
     #[error("Public key is not linked to the private key")]
     PrivatePublicKeyMismatch,
     #[error(transparent)]
-    SignerError(#[from] SignerError),
+    PublicKeyError(#[from] PublicKeyError),
 }
 
 #[cfg(feature = "keystore")]
@@ -122,8 +133,6 @@ The status is tracked in `About` section."
     TaskExecutionError(#[from] tokio::task::JoinError),
     #[error("Signature is not expected to fail on deserialization: {0}")]
     SignatureDeserializationError(String),
-    #[error("Failed to cache public key: {0}")]
-    SetPublicKeyError(#[from] tokio::sync::SetError<crate::PublicKey>),
 }
 
 #[cfg(feature = "ledger")]

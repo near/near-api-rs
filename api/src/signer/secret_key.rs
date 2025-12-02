@@ -2,7 +2,7 @@ use tracing::{instrument, trace};
 
 use near_api_types::{AccountId, PublicKey, SecretKey};
 
-use crate::errors::SignerError;
+use crate::errors::{PublicKeyError, SignerError};
 
 use super::SignerTrait;
 
@@ -27,7 +27,7 @@ impl SignerTrait for SecretKeySigner {
     }
 
     #[instrument(skip(self))]
-    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+    fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         Ok(self.public_key.clone())
     }
 }

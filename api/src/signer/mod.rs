@@ -109,7 +109,6 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::{
         atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
@@ -131,7 +130,7 @@ use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
-    errors::{AccessKeyFileError, MetaSignError, SecretError, SignerError},
+    errors::{AccessKeyFileError, MetaSignError, PublicKeyError, SecretError, SignerError},
 };
 
 use secret_key::SecretKeySigner;
@@ -145,6 +144,8 @@ pub mod secret_key;
 const SIGNER_TARGET: &str = "near_api::signer";
 /// Default HD path for seed phrases and secret keys generation
 pub const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
+/// Default HD path for ledger signing
+pub const DEFAULT_LEDGER_HD_PATH: &str = "44'/397'/0'/0'/1'";
 /// Default word count for seed phrases generation
 pub const DEFAULT_WORD_COUNT: usize = 12;
 
@@ -341,7 +342,7 @@ pub trait SignerTrait {
     /// Returns the public key associated with this signer.
     ///
     /// This method is used by the [`Signer`] to manage the pool of signing keys.
-    fn get_public_key(&self) -> Result<PublicKey, SignerError>;
+    fn get_public_key(&self) -> Result<PublicKey, PublicKeyError>;
 }
 
 /// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
@@ -359,7 +360,7 @@ impl Signer {
     #[instrument(skip(signer))]
     pub fn new<T: SignerTrait + Send + Sync + 'static>(
         signer: T,
-    ) -> Result<Arc<Self>, SignerError> {
+    ) -> Result<Arc<Self>, PublicKeyError> {
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
             pool: tokio::sync::RwLock::new(HashMap::from([(
@@ -377,7 +378,7 @@ impl Signer {
     pub async fn add_signer_to_pool<T: SignerTrait + Send + Sync + 'static>(
         &self,
         signer: T,
-    ) -> Result<(), SignerError> {
+    ) -> Result<(), PublicKeyError> {
         let public_key = signer.get_public_key()?;
         debug!(target: SIGNER_TARGET, "Adding signer to pool");
         self.pool.write().await.insert(public_key, Box::new(signer));
@@ -389,7 +390,10 @@ impl Signer {
     /// This is a convenience method for adding additional keys to the pool to enable
     /// concurrent transaction signing and nonce management across multiple keys.
     #[instrument(skip(self, secret_key))]
-    pub async fn add_secret_key_to_pool(&self, secret_key: SecretKey) -> Result<(), SignerError> {
+    pub async fn add_secret_key_to_pool(
+        &self,
+        secret_key: SecretKey,
+    ) -> Result<(), PublicKeyError> {
         let signer = SecretKeySigner::new(secret_key);
         self.add_signer_to_pool(signer).await
     }
@@ -405,13 +409,13 @@ impl Signer {
         password: Option<&str>,
     ) -> Result<(), SignerError> {
         let secret_key = get_secret_key_from_seed(
-            BIP32Path::from_str(DEFAULT_HD_PATH).expect("Valid HD path"),
+            DEFAULT_HD_PATH.parse().expect("Valid HD path"),
             seed_phrase,
             password,
         )
         .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
         let signer = SecretKeySigner::new(secret_key);
-        self.add_signer_to_pool(signer).await
+        Ok(self.add_signer_to_pool(signer).await?)
     }
 
     /// Adds a seed phrase-derived key to the signing pool with a custom HD path.
@@ -428,7 +432,7 @@ impl Signer {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)
             .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
         let signer = SecretKeySigner::new(secret_key);
-        self.add_signer_to_pool(signer).await
+        Ok(self.add_signer_to_pool(signer).await?)
     }
 
     /// Adds a key from an access key file to the signing pool.
@@ -436,16 +440,18 @@ impl Signer {
     /// This is a convenience method for adding additional keys to the pool to enable
     /// concurrent transaction signing and nonce management across multiple keys.
     #[instrument(skip(self))]
-    pub async fn add_access_keyfile_to_pool(&self, path: PathBuf) -> Result<(), SignerError> {
-        let keypair = AccountKeyPair::load_access_key_file(&path)
-            .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
+    pub async fn add_access_keyfile_to_pool(
+        &self,
+        path: PathBuf,
+    ) -> Result<(), AccessKeyFileError> {
+        let keypair = AccountKeyPair::load_access_key_file(&path)?;
 
         if keypair.public_key != keypair.private_key.public_key() {
-            return Err(SignerError::SecretKeyIsNotAvailable);
+            return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
         }
 
         let signer = SecretKeySigner::new(keypair.private_key);
-        self.add_signer_to_pool(signer).await
+        Ok(self.add_signer_to_pool(signer).await?)
     }
 
     /// Adds a Ledger hardware wallet signer to the pool with default HD path.
@@ -454,10 +460,9 @@ impl Signer {
     /// concurrent transaction signing and nonce management across multiple keys.
     #[cfg(feature = "ledger")]
     #[instrument(skip(self))]
-    pub async fn add_ledger_to_pool(&self) -> Result<(), SignerError> {
-        let signer = ledger::LedgerSigner::new(
-            BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"),
-        );
+    pub async fn add_ledger_to_pool(&self) -> Result<(), PublicKeyError> {
+        let signer =
+            ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
         self.add_signer_to_pool(signer).await
     }
 
@@ -470,7 +475,7 @@ impl Signer {
     pub async fn add_ledger_to_pool_with_hd_path(
         &self,
         hd_path: BIP32Path,
-    ) -> Result<(), SignerError> {
+    ) -> Result<(), PublicKeyError> {
         let signer = ledger::LedgerSigner::new(hd_path);
         self.add_signer_to_pool(signer).await
     }
@@ -481,7 +486,7 @@ impl Signer {
     /// concurrent transaction signing and nonce management across multiple keys.
     #[cfg(feature = "keystore")]
     #[instrument(skip(self))]
-    pub async fn add_keystore_to_pool(&self, pub_key: PublicKey) -> Result<(), SignerError> {
+    pub async fn add_keystore_to_pool(&self, pub_key: PublicKey) -> Result<(), PublicKeyError> {
         let signer = keystore::KeystoreSigner::new_with_pubkey(pub_key);
         self.add_signer_to_pool(signer).await
     }
@@ -537,14 +542,14 @@ impl Signer {
     ) -> Result<Arc<Self>, SecretError> {
         let signer = Self::from_seed_phrase_with_hd_path(
             seed_phrase,
-            BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
+            DEFAULT_HD_PATH.parse().expect("Valid HD path"),
             password,
         )?;
         Ok(signer)
     }
 
     /// Creates a [Signer](`Signer`) using a secret key.
-    pub fn from_secret_key(secret_key: SecretKey) -> Result<Arc<Self>, SignerError> {
+    pub fn from_secret_key(secret_key: SecretKey) -> Result<Arc<Self>, PublicKeyError> {
         let inner = SecretKeySigner::new(secret_key);
         Self::new(inner)
     }
@@ -570,28 +575,27 @@ impl Signer {
         }
 
         let inner = SecretKeySigner::new(keypair.private_key);
-        Self::new(inner).map_err(AccessKeyFileError::SignerError)
+        Ok(Self::new(inner)?)
     }
 
     /// Creates a [Signer](`Signer`) using Ledger hardware wallet with default HD path.
     #[cfg(feature = "ledger")]
-    pub fn from_ledger() -> Result<Arc<Self>, SignerError> {
-        let inner = ledger::LedgerSigner::new(
-            BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"),
-        );
+    pub fn from_ledger() -> Result<Arc<Self>, PublicKeyError> {
+        let inner =
+            ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
         Self::new(inner)
     }
 
     /// Creates a [Signer](`Signer`) using Ledger hardware wallet with a custom HD path.
     #[cfg(feature = "ledger")]
-    pub fn from_ledger_with_hd_path(hd_path: BIP32Path) -> Result<Arc<Self>, SignerError> {
+    pub fn from_ledger_with_hd_path(hd_path: BIP32Path) -> Result<Arc<Self>, PublicKeyError> {
         let inner = ledger::LedgerSigner::new(hd_path);
         Self::new(inner)
     }
 
     /// Creates a [Signer](`Signer`) with keystore using a predefined public key.
     #[cfg(feature = "keystore")]
-    pub fn from_keystore(pub_key: PublicKey) -> Result<Arc<Self>, SignerError> {
+    pub fn from_keystore(pub_key: PublicKey) -> Result<Arc<Self>, PublicKeyError> {
         let inner = keystore::KeystoreSigner::new_with_pubkey(pub_key);
         Self::new(inner)
     }
@@ -604,7 +608,7 @@ impl Signer {
         network: &NetworkConfig,
     ) -> Result<Arc<Self>, crate::errors::KeyStoreError> {
         let inner = keystore::KeystoreSigner::search_for_keys(account_id, network).await?;
-        Self::new(inner).map_err(|_e: SignerError| {
+        Self::new(inner).map_err(|_| {
             // Convert SignerError into SecretError as a workaround since KeyStoreError doesn't have SignerError variant
             crate::errors::KeyStoreError::SecretError(
                 crate::errors::SecretError::DeriveKeyInvalidIndex,
@@ -615,13 +619,13 @@ impl Signer {
     /// Retrieves the public key from the pool of signers.
     /// The public key is rotated on each call.
     #[instrument(skip(self))]
-    pub async fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+    pub async fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
         let public_key = {
             let pool = self.pool.read().await;
             pool.keys()
                 .nth(index % pool.len())
-                .ok_or(SignerError::PublicKeyIsNotAvailable)?
+                .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
                 .clone()
         };
         debug!(target: SIGNER_TARGET, "Public key retrieved");
@@ -641,7 +645,8 @@ impl Signer {
 
         signer
             .get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)
+            .map_err(SignerError::from)?
             .sign_meta(transaction, public_key, nonce, block_hash, max_block_height)
             .await
     }
@@ -657,7 +662,7 @@ impl Signer {
         let pool = self.pool.read().await;
 
         pool.get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
             .sign(transaction, public_key, nonce, block_hash)
             .await
     }
@@ -675,7 +680,7 @@ impl Signer {
         let pool = self.pool.read().await;
 
         pool.get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
             .sign_message_nep413(signer_id, public_key, payload)
             .await
     }

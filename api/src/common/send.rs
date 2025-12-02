@@ -22,7 +22,7 @@ use crate::{
     config::{retry, NetworkConfig, RetryResponse},
     errors::{
         ArgumentValidationError, ExecuteMetaTransactionsError, ExecuteTransactionError,
-        MetaSignError, SendRequestError, ValidationError,
+        MetaSignError, SendRequestError, SignerError, ValidationError,
     },
     signer::Signer,
 };
@@ -154,7 +154,11 @@ impl ExecuteSignedTransaction {
 
         let transaction = transaction.prepopulated()?;
 
-        let signer_key = self.signer.get_public_key().await?;
+        let signer_key = self
+            .signer
+            .get_public_key()
+            .await
+            .map_err(SignerError::from)?;
         let (nonce, hash, _) = self
             .signer
             .fetch_tx_nonce(transaction.signer_id.clone(), signer_key.clone(), network)
@@ -430,6 +434,7 @@ impl ExecuteMetaTransaction {
             .signer
             .get_public_key()
             .await
+            .map_err(SignerError::from)
             .map_err(MetaSignError::from)?;
         let (nonce, block_hash, block_height) = self
             .signer
