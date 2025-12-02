@@ -49,11 +49,11 @@ impl SignerTrait for KeystoreSigner {
     #[instrument(skip(self))]
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Retrieving first public key");
-        Ok(self
+        self
             .potential_pubkeys
             .first()
             .cloned()
-            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?)
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)
     }
 }
 
