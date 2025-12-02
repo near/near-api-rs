@@ -198,7 +198,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{*, signer::*, types::transaction::{PrepopulateTransaction, Transaction}, errors::SignerError};
+/// use near_api::{*, signer::*, types::transaction::{PrepopulateTransaction, Transaction}, errors::{PublicKeyError, SignerError}};
 ///
 /// struct CustomSigner {
 ///     secret_key: SecretKey,
@@ -214,7 +214,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///         Ok(self.secret_key.clone())
 ///     }
 ///
-///     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+///     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
 ///         Ok(self.secret_key.public_key().into())
 ///     }
 /// }
@@ -222,7 +222,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{AccountId, signer::*, types::{transaction::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::SignerError};
+/// # use near_api::{AccountId, signer::*, types::{transaction::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::{PublicKeyError, SignerError}};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
 /// #     fn new(_: SecretKey) -> Self { Self }
@@ -230,7 +230,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
 /// #     async fn get_secret_key(&self, _: &AccountId, _: &PublicKey) -> Result<SecretKey, near_api::errors::SignerError> { unimplemented!() }
-/// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
+/// #     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let secret_key = "ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?;
