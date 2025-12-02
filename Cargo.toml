@@ -61,7 +61,7 @@ near-openapi-types = "0.6"
 # Dev-dependencies
 near-primitives = { version = "0.34" }
 near-crypto = { version = "0.34" }
-near-sandbox = { version = "0.2.0", features = [
+near-sandbox = { version = "0.3.0", features = [
     "generate",
 ], default-features = false }
 testresult = "0.4"
@@ -69,6 +69,3 @@ testresult = "0.4"
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
-
-[patch.crates-io]
-near-sandbox = { git = "https://github.com/near/near-sandbox-rs.git", branch = "near-account-id-2" }
