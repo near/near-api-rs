@@ -41,6 +41,7 @@ keyring = { version = "3.2", default-features = false }
 bs58 = "0.5"
 sha2 = "0.10"
 bolero = "0.13"
+serde_with = { version = "3.16.1", features = ["base64", "macros"] }
 
 primitive-types = { version = "0.10.0", default-features = false }
 ed25519-dalek = { version = "2.1.0", default-features = false, features = [] }
@@ -49,17 +50,17 @@ secp256k1 = { version = "0.27.0", default-features = false, features = [
     "alloc",
 ] }
 
-near-account-id = { version = "1.1.0", features = ["serde", "borsh"] }
+near-account-id = { version = "2.0.0", features = ["serde", "borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
 near-ledger = "0.9.1"
-near-openapi-client = "0.5.2"
-near-openapi-types = "0.5.2"
+near-openapi-client = "0.6"
+near-openapi-types = "0.6"
 
 # Dev-dependencies
-near-primitives = { version = "0.33" }
-near-crypto = { version = "0.33" }
+near-primitives = { version = "0.34" }
+near-crypto = { version = "0.34" }
 near-sandbox = { version = "0.2.0", features = [
     "generate",
 ], default-features = false }
@@ -68,3 +69,6 @@ testresult = "0.4"
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
+
+[patch.crates-io]
+near-sandbox = { git = "https://github.com/near/near-sandbox-rs.git", branch = "near-account-id-2" }

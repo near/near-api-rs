@@ -6,11 +6,12 @@ use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 
 use crate::errors::DataConversionError;
 use crate::json::U64;
 use crate::transaction::delegate_action::SignedDelegateAction;
-use crate::utils::{base64_bytes, near_gas_as_u64};
+use crate::utils::near_gas_as_u64;
 use crate::{CryptoHash, NearGas, NearToken, PublicKey, Signature};
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
@@ -61,9 +62,23 @@ pub enum Action {
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeterministicStateInitAction {
-    pub code: GlobalContractIdentifier,
-    pub data: BTreeMap<Vec<u8>, Vec<u8>>,
+    pub state_init: DeterministicAccountStateInit,
     pub deposit: NearToken,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[borsh(use_discriminant = true)]
+#[repr(u8)]
+pub enum DeterministicAccountStateInit {
+    V1(DeterministicAccountStateInitV1),
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+pub struct DeterministicAccountStateInitV1 {
+    pub code: GlobalContractIdentifier,
+    #[serde_as(as = "BTreeMap<Base64, Base64>")]
+    pub data: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 
 impl TryFrom<near_openapi_types::DeterministicStateInitAction> for DeterministicStateInitAction {
@@ -78,26 +93,29 @@ impl TryFrom<near_openapi_types::DeterministicStateInitAction> for Deterministic
 
         match state_init {
             near_openapi_types::DeterministicAccountStateInit::V1(v1) => Ok(Self {
-                code: v1.code.try_into()?,
-                data: v1
-                    .data
-                    .into_iter()
-                    .map(|(k, v)| {
-                        Ok::<(Vec<u8>, Vec<u8>), DataConversionError>((
-                            BASE64_STANDARD.decode(k)?,
-                            BASE64_STANDARD.decode(v)?,
-                        ))
-                    })
-                    .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
+                state_init: DeterministicAccountStateInit::V1(DeterministicAccountStateInitV1 {
+                    code: v1.code.try_into()?,
+                    data: v1
+                        .data
+                        .into_iter()
+                        .map(|(k, v)| {
+                            Ok::<(Vec<u8>, Vec<u8>), DataConversionError>((
+                                BASE64_STANDARD.decode(k)?,
+                                BASE64_STANDARD.decode(v)?,
+                            ))
+                        })
+                        .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
+                }),
                 deposit,
             }),
         }
     }
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeployGlobalContractAction {
-    #[serde(with = "base64_bytes")]
+    #[serde_as(as = "Base64")]
     pub code: Vec<u8>,
     pub deploy_mode: GlobalContractDeployMode,
 }
@@ -138,9 +156,10 @@ impl From<near_openapi_types::CreateAccountAction> for CreateAccountAction {
     }
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeployContractAction {
-    #[serde(with = "base64_bytes")]
+    #[serde_as(as = "Base64")]
     pub code: Vec<u8>,
 }
 
@@ -154,10 +173,11 @@ impl TryFrom<near_openapi_types::DeployContractAction> for DeployContractAction 
     }
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct FunctionCallAction {
     pub method_name: String,
-    #[serde(with = "base64_bytes")]
+    #[serde_as(as = "Base64")]
     pub args: Vec<u8>,
     #[serde(serialize_with = "near_gas_as_u64::serialize")]
     pub gas: NearGas,
@@ -494,16 +514,20 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
                 deposit,
             } => Ok(Self::DeterministicStateInit(Box::new(
                 DeterministicStateInitAction {
-                    code: code.try_into()?,
-                    data: data
-                        .into_iter()
-                        .map(|(k, v)| {
-                            Ok::<(Vec<u8>, Vec<u8>), DataConversionError>((
-                                BASE64_STANDARD.decode(k)?,
-                                BASE64_STANDARD.decode(v)?,
-                            ))
-                        })
-                        .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
+                    state_init: DeterministicAccountStateInit::V1(
+                        DeterministicAccountStateInitV1 {
+                            code: code.try_into()?,
+                            data: data
+                                .into_iter()
+                                .map(|(k, v)| {
+                                    Ok::<(Vec<u8>, Vec<u8>), DataConversionError>((
+                                        BASE64_STANDARD.decode(k)?,
+                                        BASE64_STANDARD.decode(v)?,
+                                    ))
+                                })
+                                .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
+                        },
+                    ),
                     deposit,
                 },
             ))),
@@ -606,15 +630,24 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::sync::Arc;
 
     use super::*;
     use crate::crypto::{public_key::ED25519PublicKey, ED25519_PUBLIC_KEY_LENGTH};
     use crate::transaction::delegate_action::{DelegateAction, NonDelegateAction};
     use near_primitives::action as npa;
+    use near_primitives::deterministic_account_id::{
+        DeterministicAccountStateInit as npaDeterministicAccountStateInit,
+        DeterministicAccountStateInitV1 as npaDeterministicAccountStateInitV1,
+    };
+    use near_primitives::gas::Gas;
+    use near_primitives::global_contract::GlobalContractIdentifier as npaGlobalContractIdentifier;
     use serde_json;
 
     fn get_actions() -> (Vec<Action>, Vec<npa::Action>) {
+        let btreemap = BTreeMap::from([(b"key".to_vec(), b"value".to_vec())]);
+
         let local_actions = vec![
             Action::CreateAccount(CreateAccountAction {}),
             Action::DeployContract(DeployContractAction {
@@ -674,12 +707,13 @@ mod tests {
                 signature: Signature::from_parts(crate::crypto::KeyType::ED25519, &[0u8; 64])
                     .unwrap(),
             })),
-            // NPA is future release of near-primitives, so we don't have a test for it yet
-            // Action::DeterministicStateInit(Box::new(DeterministicStateInitAction {
-            //     code: GlobalContractIdentifier::AccountId("init.near".parse().unwrap()),
-            //     data: BTreeMap::new(),
-            //     deposit: NearToken::from_yoctonear(5000000000),
-            // })),
+            Action::DeterministicStateInit(Box::new(DeterministicStateInitAction {
+                state_init: DeterministicAccountStateInit::V1(DeterministicAccountStateInitV1 {
+                    code: GlobalContractIdentifier::AccountId("init.near".parse().unwrap()),
+                    data: btreemap.clone(),
+                }),
+                deposit: NearToken::from_yoctonear(5000000000),
+            })),
         ];
 
         let near_primitives_actions = vec![
@@ -690,14 +724,14 @@ mod tests {
             npa::Action::FunctionCall(Box::new(npa::FunctionCallAction {
                 method_name: "test".to_string(),
                 args: vec![4, 5, 6],
-                gas: 1000000,
-                deposit: 0,
+                gas: Gas::from_gas(1000000),
+                deposit: NearToken::ZERO,
             })),
             npa::Action::Transfer(npa::TransferAction {
-                deposit: 1000000000,
+                deposit: NearToken::from_yoctonear(1000000000),
             }),
             npa::Action::Stake(Box::new(npa::StakeAction {
-                stake: 100000000,
+                stake: NearToken::from_yoctonear(100000000),
                 public_key: near_crypto::PublicKey::empty(near_crypto::KeyType::ED25519),
             })),
             npa::Action::AddKey(Box::new(npa::AddKeyAction {
@@ -727,7 +761,9 @@ mod tests {
                     sender_id: "sender.near".parse().unwrap(),
                     receiver_id: "receiver.near".parse().unwrap(),
                     actions: vec![npa::delegate::NonDelegateAction::try_from(
-                        npa::Action::Transfer(npa::TransferAction { deposit: 1000 }),
+                        npa::Action::Transfer(npa::TransferAction {
+                            deposit: NearToken::from_yoctonear(1000),
+                        }),
                     )
                     .unwrap()],
                     nonce: 1,
@@ -740,11 +776,15 @@ mod tests {
                 )
                 .unwrap(),
             })),
-            // npa::Action::DeterministicStateInit(Box::new(npa::DeterministicStateInitAction {
-            //     code: npa::GlobalContractIdentifier::AccountId("init.near".parse().unwrap()),
-            //     data: BTreeMap::new(),
-            //     deposit: 5000000000,
-            // })),
+            npa::Action::DeterministicStateInit(Box::new(npa::DeterministicStateInitAction {
+                state_init: npaDeterministicAccountStateInit::V1(
+                    npaDeterministicAccountStateInitV1 {
+                        code: npaGlobalContractIdentifier::AccountId("init.near".parse().unwrap()),
+                        data: btreemap,
+                    },
+                ),
+                deposit: NearToken::from_yoctonear(5000000000),
+            })),
         ];
 
         (local_actions, near_primitives_actions)
