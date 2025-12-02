@@ -10,7 +10,7 @@ use slipped10::BIP32Path;
 use tokio::sync::OnceCell;
 use tracing::{debug, info, instrument, warn};
 
-use crate::errors::{LedgerError, MetaSignError, SignerError};
+use crate::errors::{LedgerError, MetaSignError, PublicKeyError, SignerError};
 
 use super::{NEP413Payload, SignerTrait};
 
@@ -171,18 +171,16 @@ impl SignerTrait for LedgerSigner {
     }
 
     #[instrument(skip(self))]
-    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+    fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         if let Some(public_key) = self.public_key.get() {
             Ok(public_key.clone())
         } else {
             let public_key = near_ledger::get_wallet_id(self.hd_path.clone())
-                .map_err(|_| SignerError::PublicKeyIsNotAvailable)?;
+                .map_err(|_| PublicKeyError::PublicKeyIsNotAvailable)?;
             let public_key = PublicKey::ED25519(
                 near_api_types::crypto::public_key::ED25519PublicKey(*public_key.as_bytes()),
             );
-            self.public_key
-                .set(public_key.clone())
-                .map_err(LedgerError::from)?;
+            self.public_key.set(public_key.clone())?;
             Ok(public_key)
         }
     }

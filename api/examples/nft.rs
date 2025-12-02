@@ -21,10 +21,8 @@ async fn main() -> testresult::TestResult {
     .await?;
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    let nft_signer = Signer::new(Signer::from_secret_key(nft.private_key.clone().parse()?))?;
-    let account_signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let nft_signer = Signer::from_secret_key(nft.private_key.clone().parse()?)?;
+    let account_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     // Deploying token contract
     Contract::deploy(nft.account_id.clone())

@@ -11,7 +11,7 @@ use testresult::TestResult;
 async fn main() -> TestResult {
     let token = GenesisAccount::generate_with_name("token".parse()?);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let token_signer = Signer::new(Signer::from_secret_key(token.private_key.clone().parse()?))?;
+    let token_signer = Signer::from_secret_key(token.private_key.clone().parse()?)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![token.clone()],

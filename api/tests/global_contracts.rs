@@ -11,13 +11,9 @@ use testresult::TestResult;
 #[tokio::test]
 async fn deploy_global_contract_as_account_id_and_use_it() -> TestResult {
     let global_contract = GenesisAccount::generate_with_name("global_contract".parse()?);
-    let account_signer = Signer::new(Signer::from_secret_key(
-        global_contract.private_key.parse()?,
-    ))?;
+    let account_signer = Signer::from_secret_key(global_contract.private_key.parse()?)?;
 
-    let global_signer = Signer::new(Signer::from_secret_key(
-        global_contract.private_key.parse()?,
-    ))?;
+    let global_signer = Signer::from_secret_key(global_contract.private_key.parse()?)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
         additional_accounts: vec![global_contract.clone()],
@@ -97,12 +93,8 @@ async fn deploy_global_contract_as_account_id_and_use_it() -> TestResult {
 #[tokio::test]
 async fn deploy_global_contract_as_hash_and_use_it() -> TestResult {
     let global_contract = GenesisAccount::generate_with_name("global_contract".parse()?);
-    let account_signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
-    let global_signer = Signer::new(Signer::from_secret_key(
-        global_contract.private_key.parse()?,
-    ))?;
+    let account_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let global_signer = Signer::from_secret_key(global_contract.private_key.parse()?)?;
     let account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {

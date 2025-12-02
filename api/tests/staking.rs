@@ -18,9 +18,7 @@ async fn init() -> Result<TestContext, testresult::TestError> {
     let network = near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     sandbox.create_account(staker.clone()).send().await?;
 
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     // Set-up staking pool.
     let staking_pool: AccountId = "qbit.poolv1.near".parse()?;

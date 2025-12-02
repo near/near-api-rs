@@ -4,7 +4,7 @@ use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
-    errors::{KeyStoreError, SignerError},
+    errors::{KeyStoreError, PublicKeyError, SignerError},
 };
 
 use super::{AccountKeyPair, SignerTrait};
@@ -28,7 +28,7 @@ impl SignerTrait for KeystoreSigner {
         self.potential_pubkeys
             .iter()
             .find(|key| *key == public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?;
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?;
 
         info!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key");
         // TODO: fix this. Well the search is a bit suboptimal, but it's not a big deal for now
@@ -47,12 +47,12 @@ impl SignerTrait for KeystoreSigner {
     }
 
     #[instrument(skip(self))]
-    fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+    fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Retrieving first public key");
         self.potential_pubkeys
             .first()
             .cloned()
-            .ok_or(SignerError::PublicKeyIsNotAvailable)
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)
     }
 }
 

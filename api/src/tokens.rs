@@ -55,7 +55,7 @@ use crate::{
 ///         "usdt.tether-token.near".parse()?,
 ///         USDT_BALANCE.with_whole_amount(100)
 ///     )
-///     .with_signer(Signer::new(Signer::from_ledger())?)
+///     .with_signer(Signer::from_ledger()?)
 ///     .send_to_mainnet()
 ///     .await?;
 /// # Ok(())
@@ -76,7 +76,7 @@ use crate::{
 /// // Transfer NFT
 /// alice_tokens.send_to("bob.testnet".parse()?)
 ///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())
-///     .with_signer(Signer::new(Signer::from_ledger())?)
+///     .with_signer(Signer::from_ledger()?)
 ///     .send_to_testnet()
 ///     .await?;
 /// # Ok(())
@@ -97,7 +97,7 @@ use crate::{
 /// // Send NEAR
 /// alice_account.send_to("bob.testnet".parse()?)
 ///     .near(NearToken::from_near(1))
-///     .with_signer(Signer::new(Signer::from_ledger())?)
+///     .with_signer(Signer::from_ledger()?)
 ///     .send_to_testnet()
 ///     .await?;
 /// # Ok(())
@@ -337,7 +337,7 @@ impl Tokens {
     ///
     /// let result = alice_tokens.send_to("bob.near".parse()?)
     ///     .near(NearToken::from_near(1))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_mainnet()
     ///     .await?;
     /// # Ok(())
@@ -353,7 +353,7 @@ impl Tokens {
     ///
     /// let result = alice_tokens.send_to("bob.near".parse()?)
     ///     .ft("usdt.tether-token.near".parse()?, USDT_BALANCE.with_whole_amount(100))
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_mainnet()
     ///     .await?;
     /// # Ok(())
@@ -369,7 +369,7 @@ impl Tokens {
     ///
     /// let result = alice_tokens.send_to("bob.near".parse()?)
     ///     .nft("nft-contract.testnet".parse()?, "token-id".to_string())
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -472,7 +472,7 @@ impl SendToBuilder {
     ///         USDT_BALANCE.with_whole_amount(100),
     ///         "deposit".to_string(),
     ///     )
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_mainnet()
     ///     .await?;
     /// # Ok(())
@@ -526,7 +526,7 @@ impl SendToBuilder {
     ///         "token-123".to_string(),
     ///         "list_for_sale".to_string(),
     ///     )
-    ///     .with_signer(Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())

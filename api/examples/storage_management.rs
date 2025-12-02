@@ -12,9 +12,7 @@ async fn main() -> testresult::TestResult {
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
     sandbox.create_account(account.clone()).send().await?;
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     // Import wNEAR contract from mainnet
     sandbox

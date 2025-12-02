@@ -16,13 +16,10 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
-
     sandbox.create_account(receiver.clone()).send().await?;
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await?)
@@ -70,9 +67,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     sandbox.create_account(receiver.clone()).send().await?;
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let secret = generate_secret_key()?;
     Account(account.clone())
@@ -82,9 +77,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
         .await?
         .assert_success();
 
-    signer
-        .add_signer_to_pool(Signer::from_secret_key(secret.clone()))
-        .await?;
+    signer.add_secret_key_to_pool(secret.clone()).await?;
 
     let secret2 = generate_secret_key()?;
     Account(account.clone())
@@ -93,9 +86,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
         .send_to(&network)
         .await?
         .assert_success();
-    signer
-        .add_signer_to_pool(Signer::from_secret_key(secret2.clone()))
-        .await?;
+    signer.add_secret_key_to_pool(secret2.clone()).await?;
 
     let tx = (0..12).map(|i| {
         Tokens::account(account.clone())

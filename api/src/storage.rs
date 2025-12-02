@@ -29,7 +29,7 @@ use crate::{
 ///
 /// // Bob pays for Alice's storage on the contract contract.testnet
 /// let deposit_tx = storage.deposit("alice.testnet".parse()?, NearToken::from_near(1))
-///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+///     .with_signer("bob.testnet".parse()?, Signer::from_ledger()?)
 ///     .send_to_testnet()
 ///     .await
 ///     .unwrap();
@@ -140,7 +140,7 @@ impl StorageDeposit {
     /// // Basic deposit for another account
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .with_signer("bob.testnet".parse()?, Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     ///
@@ -148,7 +148,7 @@ impl StorageDeposit {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .deposit("alice.testnet".parse()?, NearToken::from_near(1))
     ///     .registration_only()
-    ///     .with_signer("bob.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .with_signer("bob.testnet".parse()?, Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -176,7 +176,7 @@ impl StorageDeposit {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .withdraw("alice.testnet".parse()?, NearToken::from_near(1))
-    ///     .with_signer( Signer::new(Signer::from_ledger())?)
+    ///     .with_signer(Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())
@@ -209,7 +209,7 @@ impl StorageDeposit {
     /// // Normal unregister (fails if account has data like token balance)
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .unregister()
-    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .with_signer("alice.testnet".parse()?, Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     ///
@@ -217,7 +217,7 @@ impl StorageDeposit {
     /// let tx = StorageDeposit::on_contract("contract.testnet".parse()?)
     ///     .unregister()
     ///     .force()
-    ///     .with_signer("alice.testnet".parse()?, Signer::new(Signer::from_ledger())?)
+    ///     .with_signer("alice.testnet".parse()?, Signer::from_ledger()?)
     ///     .send_to_testnet()
     ///     .await?;
     /// # Ok(())

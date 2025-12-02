@@ -15,7 +15,7 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let secret_key: SecretKey = "ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?;
-//! let signer = Signer::new(Signer::from_secret_key(secret_key))?;
+//! let signer = Signer::from_secret_key(secret_key)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -26,7 +26,7 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let seed_phrase = "witch collapse practice feed shame open despair creek road again ice least";
-//! let signer = Signer::new(Signer::from_seed_phrase(seed_phrase, None)?)?;
+//! let signer = Signer::from_seed_phrase(seed_phrase, None)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -37,7 +37,7 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use near_api::*;
 //!
-//! let signer = Signer::new(Signer::from_ledger())?;
+//! let signer = Signer::from_ledger()?;
 //! # Ok(())
 //! # }
 //! ```
@@ -48,8 +48,7 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use near_api::*;
 //!
-//! let preloaded_keychain = Signer::from_keystore_with_search_for_keys("account_id.testnet".parse()?, &NetworkConfig::testnet()).await?;
-//! let signer = Signer::new(preloaded_keychain)?;
+//! let signer = Signer::from_keystore_with_search_for_keys("account_id.testnet".parse()?, &NetworkConfig::testnet()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -59,7 +58,7 @@
 //! ```rust,no_run
 //! # use near_api::*;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let signer = Signer::new(Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?))?;
+//! # let signer = Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?)?;
 //! let transaction_result = Tokens::account("alice.testnet".parse()?)
 //!     .send_to("bob.testnet".parse()?)
 //!     .near(NearToken::from_near(1))
@@ -83,11 +82,11 @@
 //! use near_api::{*, types::SecretKey};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let signer = Signer::new(Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?))?;
+//! let signer = Signer::from_secret_key("ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?)?;
 //!
-//! // Add additional keys to the pool
-//! signer.add_signer_to_pool(Signer::from_seed_phrase("witch collapse practice feed shame open despair creek road again ice least", None)?).await?;
-//! signer.add_signer_to_pool(Signer::from_seed_phrase("return cactus real attack meat pitch trash found autumn upgrade mystery pupil", None)?).await?;
+//! // Add additional keys to the pool using convenient methods
+//! signer.add_seed_phrase_to_pool("witch collapse practice feed shame open despair creek road again ice least", None).await?;
+//! signer.add_seed_phrase_to_pool("return cactus real attack meat pitch trash found autumn upgrade mystery pupil", None).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -110,7 +109,6 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::{
         atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc,
@@ -132,7 +130,7 @@ use tracing::{debug, info, instrument, trace, warn};
 
 use crate::{
     config::NetworkConfig,
-    errors::{AccessKeyFileError, MetaSignError, SecretError, SignerError},
+    errors::{AccessKeyFileError, MetaSignError, PublicKeyError, SecretError, SignerError},
 };
 
 use secret_key::SecretKeySigner;
@@ -146,6 +144,8 @@ pub mod secret_key;
 const SIGNER_TARGET: &str = "near_api::signer";
 /// Default HD path for seed phrases and secret keys generation
 pub const DEFAULT_HD_PATH: &str = "m/44'/397'/0'";
+/// Default HD path for ledger signing
+pub const DEFAULT_LEDGER_HD_PATH: &str = "44'/397'/0'/0'/1'";
 /// Default word count for seed phrases generation
 pub const DEFAULT_WORD_COUNT: usize = 12;
 
@@ -198,7 +198,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Implementing a custom signer
 /// ```rust,no_run
-/// use near_api::{*, signer::*, types::transaction::{PrepopulateTransaction, Transaction}, errors::SignerError};
+/// use near_api::{*, signer::*, types::transaction::{PrepopulateTransaction, Transaction}, errors::{PublicKeyError, SignerError}};
 ///
 /// struct CustomSigner {
 ///     secret_key: SecretKey,
@@ -214,7 +214,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///         Ok(self.secret_key.clone())
 ///     }
 ///
-///     fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+///     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
 ///         Ok(self.secret_key.public_key().into())
 ///     }
 /// }
@@ -222,7 +222,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///
 /// ## Using a custom signer
 /// ```rust,no_run
-/// # use near_api::{AccountId, signer::*, types::{transaction::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::SignerError};
+/// # use near_api::{AccountId, signer::*, types::{transaction::{Transaction, PrepopulateTransaction}, PublicKey, SecretKey}, errors::{PublicKeyError, SignerError}};
 /// # struct CustomSigner;
 /// # impl CustomSigner {
 /// #     fn new(_: SecretKey) -> Self { Self }
@@ -230,7 +230,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
 /// #     async fn get_secret_key(&self, _: &AccountId, _: &PublicKey) -> Result<SecretKey, near_api::errors::SignerError> { unimplemented!() }
-/// #     fn get_public_key(&self) -> Result<PublicKey, SignerError> { unimplemented!() }
+/// #     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let secret_key = "ed25519:2vVTQWpoZvYZBS4HYFZtzU2rxpoQSrhyFWdaHLqSdyaEfgjefbSKiFpuVatuRqax3HFvVq2tkkqWH2h7tso2nK8q".parse()?;
@@ -342,7 +342,7 @@ pub trait SignerTrait {
     /// Returns the public key associated with this signer.
     ///
     /// This method is used by the [`Signer`] to manage the pool of signing keys.
-    fn get_public_key(&self) -> Result<PublicKey, SignerError>;
+    fn get_public_key(&self) -> Result<PublicKey, PublicKeyError>;
 }
 
 /// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
@@ -360,7 +360,7 @@ impl Signer {
     #[instrument(skip(signer))]
     pub fn new<T: SignerTrait + Send + Sync + 'static>(
         signer: T,
-    ) -> Result<Arc<Self>, SignerError> {
+    ) -> Result<Arc<Self>, PublicKeyError> {
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
             pool: tokio::sync::RwLock::new(HashMap::from([(
@@ -378,11 +378,117 @@ impl Signer {
     pub async fn add_signer_to_pool<T: SignerTrait + Send + Sync + 'static>(
         &self,
         signer: T,
-    ) -> Result<(), SignerError> {
+    ) -> Result<(), PublicKeyError> {
         let public_key = signer.get_public_key()?;
         debug!(target: SIGNER_TARGET, "Adding signer to pool");
         self.pool.write().await.insert(public_key, Box::new(signer));
         Ok(())
+    }
+
+    /// Adds a secret key to the signing pool.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[instrument(skip(self, secret_key))]
+    pub async fn add_secret_key_to_pool(
+        &self,
+        secret_key: SecretKey,
+    ) -> Result<(), PublicKeyError> {
+        let signer = SecretKeySigner::new(secret_key);
+        self.add_signer_to_pool(signer).await
+    }
+
+    /// Adds a seed phrase-derived key to the signing pool with default HD path.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[instrument(skip(self, seed_phrase, password))]
+    pub async fn add_seed_phrase_to_pool(
+        &self,
+        seed_phrase: &str,
+        password: Option<&str>,
+    ) -> Result<(), SignerError> {
+        let secret_key = get_secret_key_from_seed(
+            DEFAULT_HD_PATH.parse().expect("Valid HD path"),
+            seed_phrase,
+            password,
+        )
+        .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
+        let signer = SecretKeySigner::new(secret_key);
+        Ok(self.add_signer_to_pool(signer).await?)
+    }
+
+    /// Adds a seed phrase-derived key to the signing pool with a custom HD path.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[instrument(skip(self, seed_phrase, password))]
+    pub async fn add_seed_phrase_to_pool_with_hd_path(
+        &self,
+        seed_phrase: &str,
+        hd_path: BIP32Path,
+        password: Option<&str>,
+    ) -> Result<(), SignerError> {
+        let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)
+            .map_err(|_| SignerError::SecretKeyIsNotAvailable)?;
+        let signer = SecretKeySigner::new(secret_key);
+        Ok(self.add_signer_to_pool(signer).await?)
+    }
+
+    /// Adds a key from an access key file to the signing pool.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[instrument(skip(self))]
+    pub async fn add_access_keyfile_to_pool(
+        &self,
+        path: PathBuf,
+    ) -> Result<(), AccessKeyFileError> {
+        let keypair = AccountKeyPair::load_access_key_file(&path)?;
+
+        if keypair.public_key != keypair.private_key.public_key() {
+            return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
+        }
+
+        let signer = SecretKeySigner::new(keypair.private_key);
+        Ok(self.add_signer_to_pool(signer).await?)
+    }
+
+    /// Adds a Ledger hardware wallet signer to the pool with default HD path.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[cfg(feature = "ledger")]
+    #[instrument(skip(self))]
+    pub async fn add_ledger_to_pool(&self) -> Result<(), PublicKeyError> {
+        let signer =
+            ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
+        self.add_signer_to_pool(signer).await
+    }
+
+    /// Adds a Ledger hardware wallet signer to the pool with a custom HD path.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[cfg(feature = "ledger")]
+    #[instrument(skip(self))]
+    pub async fn add_ledger_to_pool_with_hd_path(
+        &self,
+        hd_path: BIP32Path,
+    ) -> Result<(), PublicKeyError> {
+        let signer = ledger::LedgerSigner::new(hd_path);
+        self.add_signer_to_pool(signer).await
+    }
+
+    /// Adds a keystore signer to the pool with a predefined public key.
+    ///
+    /// This is a convenience method for adding additional keys to the pool to enable
+    /// concurrent transaction signing and nonce management across multiple keys.
+    #[cfg(feature = "keystore")]
+    #[instrument(skip(self))]
+    pub async fn add_keystore_to_pool(&self, pub_key: PublicKey) -> Result<(), PublicKeyError> {
+        let signer = keystore::KeystoreSigner::new_with_pubkey(pub_key);
+        self.add_signer_to_pool(signer).await
     }
 
     /// Fetches the transaction nonce and block hash associated to the access key. Internally
@@ -429,35 +535,38 @@ impl Signer {
         Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
-    /// Creates a [SecretKeySigner](`SecretKeySigner`) using seed phrase with default HD path.
+    /// Creates a [Signer](`Signer`) using seed phrase with default HD path.
     pub fn from_seed_phrase(
         seed_phrase: &str,
         password: Option<&str>,
-    ) -> Result<SecretKeySigner, SecretError> {
-        Self::from_seed_phrase_with_hd_path(
+    ) -> Result<Arc<Self>, SecretError> {
+        let signer = Self::from_seed_phrase_with_hd_path(
             seed_phrase,
-            BIP32Path::from_str("m/44'/397'/0'").expect("Valid HD path"),
+            DEFAULT_HD_PATH.parse().expect("Valid HD path"),
             password,
-        )
+        )?;
+        Ok(signer)
     }
 
-    /// Creates a [SecretKeySigner](`SecretKeySigner`) using a secret key.
-    pub fn from_secret_key(secret_key: SecretKey) -> SecretKeySigner {
-        SecretKeySigner::new(secret_key)
+    /// Creates a [Signer](`Signer`) using a secret key.
+    pub fn from_secret_key(secret_key: SecretKey) -> Result<Arc<Self>, PublicKeyError> {
+        let inner = SecretKeySigner::new(secret_key);
+        Self::new(inner)
     }
 
-    /// Creates a [SecretKeySigner](`SecretKeySigner`) using seed phrase with a custom HD path.
+    /// Creates a [Signer](`Signer`) using seed phrase with a custom HD path.
     pub fn from_seed_phrase_with_hd_path(
         seed_phrase: &str,
         hd_path: BIP32Path,
         password: Option<&str>,
-    ) -> Result<SecretKeySigner, SecretError> {
+    ) -> Result<Arc<Self>, SecretError> {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
-        Ok(SecretKeySigner::new(secret_key))
+        let inner = SecretKeySigner::new(secret_key);
+        Self::new(inner).map_err(|_| SecretError::DeriveKeyInvalidIndex)
     }
 
-    /// Creates a [SecretKeySigner](`secret_key::SecretKeySigner`) using a path to the access key file.
-    pub fn from_access_keyfile(path: PathBuf) -> Result<SecretKeySigner, AccessKeyFileError> {
+    /// Creates a [Signer](`Signer`) using a path to the access key file.
+    pub fn from_access_keyfile(path: PathBuf) -> Result<Arc<Self>, AccessKeyFileError> {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
         debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
 
@@ -465,47 +574,58 @@ impl Signer {
             return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
         }
 
-        Ok(SecretKeySigner::new(keypair.private_key))
+        let inner = SecretKeySigner::new(keypair.private_key);
+        Ok(Self::new(inner)?)
     }
 
-    /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using default HD path.
+    /// Creates a [Signer](`Signer`) using Ledger hardware wallet with default HD path.
     #[cfg(feature = "ledger")]
-    pub fn from_ledger() -> ledger::LedgerSigner {
-        ledger::LedgerSigner::new(BIP32Path::from_str("44'/397'/0'/0'/1'").expect("Valid HD path"))
+    pub fn from_ledger() -> Result<Arc<Self>, PublicKeyError> {
+        let inner =
+            ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
+        Self::new(inner)
     }
 
-    /// Creates a [LedgerSigner](`ledger::LedgerSigner`) using a custom HD path.
+    /// Creates a [Signer](`Signer`) using Ledger hardware wallet with a custom HD path.
     #[cfg(feature = "ledger")]
-    pub const fn from_ledger_with_hd_path(hd_path: BIP32Path) -> ledger::LedgerSigner {
-        ledger::LedgerSigner::new(hd_path)
+    pub fn from_ledger_with_hd_path(hd_path: BIP32Path) -> Result<Arc<Self>, PublicKeyError> {
+        let inner = ledger::LedgerSigner::new(hd_path);
+        Self::new(inner)
     }
 
-    /// Creates a [KeystoreSigner](`keystore::KeystoreSigner`) with predefined public key.
+    /// Creates a [Signer](`Signer`) with keystore using a predefined public key.
     #[cfg(feature = "keystore")]
-    pub fn from_keystore(pub_key: PublicKey) -> keystore::KeystoreSigner {
-        keystore::KeystoreSigner::new_with_pubkey(pub_key)
+    pub fn from_keystore(pub_key: PublicKey) -> Result<Arc<Self>, PublicKeyError> {
+        let inner = keystore::KeystoreSigner::new_with_pubkey(pub_key);
+        Self::new(inner)
     }
 
-    /// Creates a [KeystoreSigner](`keystore::KeystoreSigner`). The provided function will query provided account for public keys and search
+    /// Creates a [Signer](`Signer`) with keystore. The provided function will query provided account for public keys and search
     /// in the system keychain for the corresponding secret keys.
     #[cfg(feature = "keystore")]
     pub async fn from_keystore_with_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
-    ) -> Result<keystore::KeystoreSigner, crate::errors::KeyStoreError> {
-        keystore::KeystoreSigner::search_for_keys(account_id, network).await
+    ) -> Result<Arc<Self>, crate::errors::KeyStoreError> {
+        let inner = keystore::KeystoreSigner::search_for_keys(account_id, network).await?;
+        Self::new(inner).map_err(|_| {
+            // Convert SignerError into SecretError as a workaround since KeyStoreError doesn't have SignerError variant
+            crate::errors::KeyStoreError::SecretError(
+                crate::errors::SecretError::DeriveKeyInvalidIndex,
+            )
+        })
     }
 
     /// Retrieves the public key from the pool of signers.
     /// The public key is rotated on each call.
     #[instrument(skip(self))]
-    pub async fn get_public_key(&self) -> Result<PublicKey, SignerError> {
+    pub async fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
         let public_key = {
             let pool = self.pool.read().await;
             pool.keys()
                 .nth(index % pool.len())
-                .ok_or(SignerError::PublicKeyIsNotAvailable)?
+                .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
                 .clone()
         };
         debug!(target: SIGNER_TARGET, "Public key retrieved");
@@ -525,7 +645,8 @@ impl Signer {
 
         signer
             .get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)
+            .map_err(SignerError::from)?
             .sign_meta(transaction, public_key, nonce, block_hash, max_block_height)
             .await
     }
@@ -541,8 +662,26 @@ impl Signer {
         let pool = self.pool.read().await;
 
         pool.get(&public_key)
-            .ok_or(SignerError::PublicKeyIsNotAvailable)?
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
             .sign(transaction, public_key, nonce, block_hash)
+            .await
+    }
+
+    /// Signs a [NEP413](https://github.com/near/NEPs/blob/master/neps/nep-0413.md) message.
+    ///
+    /// This is used for authentication and off-chain proof of account ownership.
+    #[instrument(skip(self), fields(signer_id = %signer_id, receiver_id = %payload.recipient, message = %payload.message))]
+    pub async fn sign_message_nep413(
+        &self,
+        signer_id: AccountId,
+        public_key: PublicKey,
+        payload: NEP413Payload,
+    ) -> Result<Signature, SignerError> {
+        let pool = self.pool.read().await;
+
+        pool.get(&public_key)
+            .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
+            .sign_message_nep413(signer_id, public_key, payload)
             .await
     }
 }
@@ -682,8 +821,6 @@ mod nep_413_tests {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use near_api_types::{crypto::KeyType, Signature};
 
-    use crate::SignerTrait;
-
     use super::{NEP413Payload, Signer};
 
     fn from_base64(base64: &str) -> Vec<u8> {
@@ -709,12 +846,9 @@ mod nep_413_tests {
             None,
         )
         .unwrap();
+        let public_key = signer.get_public_key().await.unwrap();
         let signature = signer
-            .sign_message_nep413(
-                "round-toad.testnet".parse().unwrap(),
-                signer.get_public_key().unwrap(),
-                payload,
-            )
+            .sign_message_nep413("round-toad.testnet".parse().unwrap(), public_key, payload)
             .await
             .unwrap();
 
@@ -745,12 +879,9 @@ mod nep_413_tests {
             None,
         )
         .unwrap();
+        let public_key = signer.get_public_key().await.unwrap();
         let signature = signer
-            .sign_message_nep413(
-                "round-toad.testnet".parse().unwrap(),
-                signer.get_public_key().unwrap(),
-                payload,
-            )
+            .sign_message_nep413("round-toad.testnet".parse().unwrap(), public_key, payload)
             .await
             .unwrap();
 

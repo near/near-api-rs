@@ -27,9 +27,7 @@ async fn main() -> TestResult {
     })
     .await?;
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     println!("Initial public key: {}", signer.get_public_key().await?);
 
@@ -43,9 +41,7 @@ async fn main() -> TestResult {
         .await?
         .assert_success();
 
-    signer
-        .add_signer_to_pool(Signer::from_secret_key(secret_key))
-        .await?;
+    signer.add_secret_key_to_pool(secret_key).await?;
 
     let txs = (0..2).map(|_| {
         Tokens::account(account.clone())
