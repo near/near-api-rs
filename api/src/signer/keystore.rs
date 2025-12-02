@@ -49,8 +49,7 @@ impl SignerTrait for KeystoreSigner {
     #[instrument(skip(self))]
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Retrieving first public key");
-        self
-            .potential_pubkeys
+        self.potential_pubkeys
             .first()
             .cloned()
             .ok_or(PublicKeyError::PublicKeyIsNotAvailable)
