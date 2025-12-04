@@ -185,7 +185,7 @@ mod tests {
         let signature = secret_key.sign(data);
         let public_key = secret_key.public_key();
 
-        let verified = signature.verify(data, &public_key);
+        let verified = signature.verify(data, public_key);
         assert!(verified);
     }
 
@@ -209,7 +209,7 @@ mod tests {
         let signature = secret_key.sign(data);
         let public_key = secret_key.public_key();
 
-        let verified = signature.verify(data, &public_key);
+        let verified = signature.verify(data, public_key);
         assert!(verified);
     }
 }

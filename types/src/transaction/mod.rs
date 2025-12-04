@@ -61,10 +61,10 @@ impl Transaction {
         }
     }
 
-    pub const fn public_key(&self) -> &PublicKey {
+    pub const fn public_key(&self) -> PublicKey {
         match self {
-            Self::V0(tx) => &tx.public_key,
-            Self::V1(tx) => &tx.public_key,
+            Self::V0(tx) => tx.public_key,
+            Self::V1(tx) => tx.public_key,
         }
     }
 

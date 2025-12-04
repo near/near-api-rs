@@ -20,7 +20,7 @@ impl SignerTrait for SecretKeySigner {
     async fn get_secret_key(
         &self,
         signer_id: &AccountId,
-        public_key: &PublicKey,
+        _public_key: PublicKey,
     ) -> Result<SecretKey, SignerError> {
         trace!(target: SECRET_KEY_SIGNER_TARGET, "returning with secret key");
         Ok(self.secret_key.clone())
@@ -28,7 +28,7 @@ impl SignerTrait for SecretKeySigner {
 
     #[instrument(skip(self))]
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
-        Ok(self.public_key.clone())
+        Ok(self.public_key)
     }
 }
 

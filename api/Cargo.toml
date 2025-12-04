@@ -50,7 +50,7 @@ keyring = { workspace = true, features = [
 
 [features]
 default = []
-ledger = ["near-ledger"]
+ledger = ["near-ledger", "near-api-types/ledger"]
 keystore = ["dep:keyring"]
 
 [dev-dependencies]

@@ -28,11 +28,16 @@ primitive-types.workspace = true
 ed25519-dalek.workspace = true
 secp256k1.workspace = true
 
+near-ledger = { workspace = true, optional = true }
+
 [dev-dependencies]
 bolero.workspace = true
 near-primitives.workspace = true
 near-crypto.workspace = true
 testresult.workspace = true
+
+[features]
+ledger = ["near-ledger"]
 
 [lints]
 workspace = true

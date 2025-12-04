@@ -177,19 +177,21 @@ pub struct NEP413Payload {
     pub callback_url: Option<String>,
 }
 
-const NEP413_SIGN_MESSAGE_PREFIX: u32 = (1u32 << 31) + 413;
-
 impl NEP413Payload {
+    const MESSAGE_PREFIX: u32 = (1u32 << 31) + 413;
+
     /// Compute the NEP-413 hash for this payload.
-    pub fn compute_hash(&self) -> Result<CryptoHash, SignerError> {
-        let mut bytes = NEP413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
+    pub fn compute_hash(&self) -> Result<CryptoHash, std::io::Error> {
+        let mut bytes = Self::MESSAGE_PREFIX.to_le_bytes().to_vec();
         borsh::to_writer(&mut bytes, self)?;
         Ok(CryptoHash::hash(&bytes))
     }
 
     /// Extract timestamp from nonce (first 8 bytes as big-endian u64 milliseconds).
     pub fn extract_timestamp_from_nonce(&self) -> u64 {
-        u64::from_be_bytes(self.nonce[..8].try_into().unwrap_or_default())
+        let mut timestamp: [u8; 8] = [0; 8];
+        timestamp.copy_from_slice(&self.nonce[..8]);
+        u64::from_be_bytes(timestamp)
     }
 
     /// Verify signature and that the public key belongs to the account as a full access key.
@@ -199,7 +201,7 @@ impl NEP413Payload {
     pub async fn verify(
         &self,
         account_id: &AccountId,
-        public_key: &PublicKey,
+        public_key: PublicKey,
         signature: &Signature,
         network: &NetworkConfig,
     ) -> Result<bool, SignerError> {
@@ -211,7 +213,7 @@ impl NEP413Payload {
         }
 
         let access_key = crate::Account(account_id.clone())
-            .access_key(public_key.clone())
+            .access_key(public_key)
             .fetch_from(network)
             .await;
 
@@ -254,7 +256,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 ///     async fn get_secret_key(
 ///         &self,
 ///         _signer_id: &AccountId,
-///         _public_key: &PublicKey
+///         _public_key: PublicKey
 ///     ) -> Result<SecretKey, SignerError> {
 ///         Ok(self.secret_key.clone())
 ///     }
@@ -274,7 +276,7 @@ impl From<NEP413Payload> for near_ledger::NEP413Payload {
 /// # }
 /// # #[async_trait::async_trait]
 /// # impl SignerTrait for CustomSigner {
-/// #     async fn get_secret_key(&self, _: &AccountId, _: &PublicKey) -> Result<SecretKey, near_api::errors::SignerError> { unimplemented!() }
+/// #     async fn get_secret_key(&self, _: &AccountId, _: PublicKey) -> Result<SecretKey, near_api::errors::SignerError> { unimplemented!() }
 /// #     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> { unimplemented!() }
 /// # }
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -307,7 +309,7 @@ pub trait SignerTrait {
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
         let signer_secret_key = self
-            .get_secret_key(&transaction.signer_id, &public_key)
+            .get_secret_key(&transaction.signer_id, public_key)
             .await?;
         let unsigned_transaction = Transaction::V0(TransactionV0 {
             signer_id: transaction.signer_id.clone(),
@@ -336,7 +338,7 @@ pub trait SignerTrait {
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
         let signer_secret_key = self
-            .get_secret_key(&transaction.signer_id, &public_key)
+            .get_secret_key(&transaction.signer_id, public_key)
             .await?;
         let unsigned_transaction = Transaction::V0(TransactionV0 {
             signer_id: transaction.signer_id.clone(),
@@ -361,10 +363,10 @@ pub trait SignerTrait {
         &self,
         signer_id: AccountId,
         public_key: PublicKey,
-        payload: NEP413Payload,
+        payload: &NEP413Payload,
     ) -> Result<Signature, SignerError> {
         let hash = payload.compute_hash()?;
-        let secret = self.get_secret_key(&signer_id, &public_key).await?;
+        let secret = self.get_secret_key(&signer_id, public_key).await?;
         Ok(secret.sign(hash))
     }
 
@@ -377,7 +379,7 @@ pub trait SignerTrait {
     async fn get_secret_key(
         &self,
         signer_id: &AccountId,
-        public_key: &PublicKey,
+        public_key: PublicKey,
     ) -> Result<SecretKey, SignerError>;
 
     /// Returns the public key associated with this signer.
@@ -544,13 +546,13 @@ impl Signer {
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
         let nonce_data = crate::account::Account(account_id.clone())
-            .access_key(public_key.clone())
+            .access_key(public_key)
             .fetch_from(network)
             .await
             .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
         let nonce_cache = self.nonce_cache.read().await;
 
-        if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key.clone())) {
+        if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key)) {
             let nonce = nonce.fetch_add(1, Ordering::SeqCst);
             drop(nonce_cache);
             trace!(target: SIGNER_TARGET, "Nonce fetched from cache");
@@ -664,10 +666,10 @@ impl Signer {
         let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
         let public_key = {
             let pool = self.pool.read().await;
-            pool.keys()
+            *pool
+                .keys()
                 .nth(index % pool.len())
                 .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
-                .clone()
         };
         debug!(target: SIGNER_TARGET, "Public key retrieved");
         Ok(public_key)
@@ -716,7 +718,7 @@ impl Signer {
         &self,
         signer_id: AccountId,
         public_key: PublicKey,
-        payload: NEP413Payload,
+        payload: &NEP413Payload,
     ) -> Result<Signature, SignerError> {
         let pool = self.pool.read().await;
 
@@ -748,7 +750,7 @@ fn get_signed_delegate_action(
         actions,
         nonce: unsigned_transaction.nonce(),
         max_block_height,
-        public_key: unsigned_transaction.public_key().clone(),
+        public_key: unsigned_transaction.public_key(),
     };
 
     // create a new signature here signing the delegate action + discriminant
@@ -860,7 +862,14 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 #[cfg(test)]
 mod nep_413_tests {
     use base64::{prelude::BASE64_STANDARD, Engine};
-    use near_api_types::{crypto::KeyType, Signature};
+    use near_api_types::{
+        crypto::KeyType, transaction::actions::FunctionCallPermission, AccessKeyPermission,
+        NearToken, Signature,
+    };
+    use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
+    use testresult::TestResult;
+
+    use crate::{signer::generate_secret_key, Account, NetworkConfig};
 
     use super::{NEP413Payload, Signer};
 
@@ -889,7 +898,7 @@ mod nep_413_tests {
         .unwrap();
         let public_key = signer.get_public_key().await.unwrap();
         let signature = signer
-            .sign_message_nep413("round-toad.testnet".parse().unwrap(), public_key, payload)
+            .sign_message_nep413("round-toad.testnet".parse().unwrap(), public_key, &payload)
             .await
             .unwrap();
 
@@ -922,7 +931,7 @@ mod nep_413_tests {
         .unwrap();
         let public_key = signer.get_public_key().await.unwrap();
         let signature = signer
-            .sign_message_nep413("round-toad.testnet".parse().unwrap(), public_key, payload)
+            .sign_message_nep413("round-toad.testnet".parse().unwrap(), public_key, &payload)
             .await
             .unwrap();
 
@@ -933,5 +942,124 @@ mod nep_413_tests {
             signature,
             Signature::from_parts(KeyType::ED25519, expected_signature.as_slice()).unwrap()
         );
+    }
+
+    #[tokio::test]
+    pub async fn test_verify_nep413_payload() -> TestResult {
+        let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+        let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+
+        let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+        let public_key = signer.get_public_key().await?;
+
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .try_into()
+                .unwrap(),
+            recipient: DEFAULT_GENESIS_ACCOUNT.to_string(),
+            callback_url: None,
+        };
+
+        let signature = signer
+            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+            .await?;
+
+        let result = payload
+            .verify(
+                &DEFAULT_GENESIS_ACCOUNT.into(),
+                public_key,
+                &signature,
+                &network,
+            )
+            .await?;
+
+        assert!(result);
+        Ok(())
+    }
+
+    #[tokio::test]
+    pub async fn verification_fails_without_public_key() -> TestResult {
+        let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+        let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+        let secret_key = generate_secret_key()?;
+
+        let signer = Signer::from_secret_key(secret_key)?;
+        let public_key = signer.get_public_key().await?;
+
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .try_into()
+                .unwrap(),
+            recipient: DEFAULT_GENESIS_ACCOUNT.to_string(),
+            callback_url: None,
+        };
+
+        let signature = signer
+            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+            .await?;
+
+        let result = payload
+            .verify(
+                &DEFAULT_GENESIS_ACCOUNT.into(),
+                public_key,
+                &signature,
+                &network,
+            )
+            .await?;
+        assert!(!result);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    pub async fn verification_fails_with_function_call_access_key() -> TestResult {
+        let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+        let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+        let secret_key = generate_secret_key()?;
+
+        let msg_signer = Signer::from_secret_key(secret_key)?;
+        let tx_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+        let public_key = msg_signer.get_public_key().await?;
+
+        Account(DEFAULT_GENESIS_ACCOUNT.into())
+            .add_key(
+                AccessKeyPermission::FunctionCall(FunctionCallPermission {
+                    allowance: Some(NearToken::from_near(1)),
+                    receiver_id: "test".to_string(),
+                    method_names: vec!["test".to_string()],
+                }),
+                public_key,
+            )
+            .with_signer(tx_signer.clone())
+            .send_to(&network)
+            .await?
+            .assert_success();
+
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .try_into()
+                .unwrap(),
+            recipient: DEFAULT_GENESIS_ACCOUNT.to_string(),
+            callback_url: None,
+        };
+
+        let signature = msg_signer
+            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+            .await?;
+
+        let result = payload
+            .verify(
+                &DEFAULT_GENESIS_ACCOUNT.into(),
+                public_key,
+                &signature,
+                &network,
+            )
+            .await?;
+        assert!(!result);
+
+        Ok(())
     }
 }
