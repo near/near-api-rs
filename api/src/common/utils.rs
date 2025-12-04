@@ -23,12 +23,6 @@ pub const fn near_data_to_near_token(data: near_api_types::Data<u128>) -> NearTo
     NearToken::from_yoctonear(data.data)
 }
 
-// TODO: this is a temporary solution to check if an error is critical
-// we had previously a full scale support for that
-// but auto generated code doesn't support errors yet, so we would need to leave it as is for now
-// We default to false as we can't know if an error is critical or not without the types
-// so to keep it safe it's better to retry
-
 pub fn to_retry_error<T, E: std::fmt::Debug + Send + Sync>(
     err: SendRequestError<E>,
     is_critical_t: impl Fn(&SendRequestError<E>) -> bool,
