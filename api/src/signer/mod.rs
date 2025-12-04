@@ -192,7 +192,10 @@ impl NEP413Payload {
         u64::from_be_bytes(self.nonce[..8].try_into().unwrap_or_default())
     }
 
-    /// Verify signature and that the public key belongs to the account.
+    /// Verify signature and that the public key belongs to the account as a full access key.
+    ///
+    /// According to NEP-413, the signature must be made with a full access key,
+    /// not a function call access key.
     pub async fn verify(
         &self,
         account_id: &AccountId,
@@ -200,16 +203,22 @@ impl NEP413Payload {
         signature: &Signature,
         network: &NetworkConfig,
     ) -> Result<bool, SignerError> {
+        use near_api_types::AccessKeyPermission;
+
         let hash = self.compute_hash()?;
         if !signature.verify(hash, public_key) {
             return Ok(false);
         }
 
-        Ok(crate::Account(account_id.clone())
+        let access_key = crate::Account(account_id.clone())
             .access_key(public_key.clone())
             .fetch_from(network)
-            .await
-            .is_ok())
+            .await;
+
+        match access_key {
+            Ok(data) => Ok(data.data.permission == AccessKeyPermission::FullAccess),
+            Err(_) => Ok(false),
+        }
     }
 }
 
