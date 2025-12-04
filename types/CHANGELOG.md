@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/near/near-api-rs/compare/near-api-types-v0.7.8...near-api-types-v0.8.0) - 2025-12-04
+
+### Added
+
+- Add NEP-413 message verification ([#98](https://github.com/near/near-api-rs/pull/98))
+- updated acount id to v2, updated openapi-types, fixed DeterministicStateInit action serialization ([#97](https://github.com/near/near-api-rs/pull/97))
+
+### Other
+
+- restricted usage of unwrap and expects, removed some unwraps in signing ([#96](https://github.com/near/near-api-rs/pull/96))
+- [**breaking**] defer errors for contract interaction ([#93](https://github.com/near/near-api-rs/pull/93))
+
 ## [0.7.8](https://github.com/near/near-api-rs/compare/near-api-types-v0.7.7...near-api-types-v0.7.8) - 2025-11-26
 
 Synchronize version with near-api

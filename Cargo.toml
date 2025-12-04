@@ -5,7 +5,7 @@ rust-version = "1.85"
 
 [workspace.package]
 edition = "2021"
-version = "0.7.8"
+version = "0.8.0"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
     "frol <frolvlad@gmail.com>",
@@ -16,7 +16,7 @@ repository = "https://github.com/near/near-api-rs"
 
 
 [workspace.dependencies]
-near-api-types = { path = "types", version = "~0.7.8" }
+near-api-types = { path = "types", version = "~0.8.0" }
 
 borsh = "1.5"
 async-trait = "0.1"
