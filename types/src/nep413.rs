@@ -11,6 +11,7 @@
 //! ```rust
 //! use near_api_types::nep413::{Payload, SignedMessage};
 //! use near_api_types::{PublicKey, SecretKey};
+//! use base64::Engine;
 //! use std::str::FromStr;
 //!
 //! // Create a payload to sign
