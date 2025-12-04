@@ -119,25 +119,32 @@ pub async fn verify_signed_message(
 /// # Returns
 ///
 /// Returns `Ok(true)` if the public key is associated with the account,
-/// `Ok(false)` if not, or an error if the query fails.
+/// `Ok(false)` if not found, or an error if the query fails for other reasons.
 pub async fn verify_public_key_belongs_to_account(
     account_id: &near_api_types::AccountId,
     public_key: &near_api_types::PublicKey,
     network: &NetworkConfig,
 ) -> Result<bool, Nep413VerificationError> {
-    // Query the account's access keys
-    let keys_result = Account(account_id.clone())
-        .list_keys()
+    // Query the specific access key directly (more efficient than listing all keys)
+    let key_result = Account(account_id.clone())
+        .access_key(public_key.clone())
         .fetch_from(network)
         .await;
 
-    match keys_result {
-        Ok(data) => {
-            // Check if the public key is in the list of access keys
-            let key_found = data.data.iter().any(|(pk, _)| pk == public_key);
-            Ok(key_found)
+    match key_result {
+        Ok(_) => Ok(true), // Key exists
+        Err(e) => {
+            // Check if the error indicates the key wasn't found vs a real error
+            let error_str = format!("{:?}", e);
+            if error_str.contains("UnknownAccessKey")
+                || error_str.contains("does not exist")
+                || error_str.contains("AccessKeyDoesNotExist")
+            {
+                Ok(false) // Key not found
+            } else {
+                Err(Nep413VerificationError::RpcError(Box::new(e)))
+            }
         }
-        Err(e) => Err(Nep413VerificationError::RpcError(Box::new(e))),
     }
 }
 

@@ -26,7 +26,7 @@
 //!     "ed25519:3tgdk2wPraJzT4nsTuf86UX41xgPNk3MHnq8epARMdBNs29AFEztAuaQ7iHddDfXG9F2RzV1XNQYgJyAyoW51UBB"
 //! ).unwrap();
 //! let public_key = secret_key.public_key();
-//! let hash = payload.compute_hash();
+//! let hash = payload.compute_hash().unwrap();
 //! let signature = secret_key.sign(hash);
 //!
 //! // Create SignedMessage (as returned by wallet)
@@ -87,14 +87,16 @@ impl Payload {
     /// 2. Prepend the 4-byte Borsh representation of 2^31 + 413 (the NEP-413 tag)
     /// 3. Compute SHA-256 hash of the combined bytes
     /// 4. Sign the hash
-    pub fn compute_hash(&self) -> CryptoHash {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the payload cannot be serialized (should never happen
+    /// for valid payloads with String and Option<String> fields).
+    pub fn compute_hash(&self) -> Result<CryptoHash, Nep413Error> {
         let mut bytes = NEP413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
         // Use standard Borsh serialization (same as existing signer)
-        if let Err(e) = borsh::to_writer(&mut bytes, self) {
-            // This should never fail for our simple struct, but handle it gracefully
-            panic!("Failed to serialize NEP-413 payload: {}", e);
-        }
-        CryptoHash::hash(&bytes)
+        borsh::to_writer(&mut bytes, self)?;
+        Ok(CryptoHash::hash(&bytes))
     }
 
     /// Verify a signature against this payload.
@@ -118,7 +120,7 @@ impl Payload {
         public_key: &PublicKey,
     ) -> Result<bool, Nep413Error> {
         let signature = parse_signature(signature_str, public_key.key_type())?;
-        let hash = self.compute_hash();
+        let hash = self.compute_hash()?;
         Ok(signature.verify(hash, public_key))
     }
 
@@ -136,7 +138,9 @@ impl Payload {
     /// The timestamp in milliseconds since epoch, interpreted from the first 8 bytes
     /// of the nonce as a big-endian uint64.
     pub fn extract_timestamp_from_nonce(&self) -> u64 {
-        let bytes: [u8; 8] = self.nonce[..8].try_into().unwrap_or([0u8; 8]);
+        // Slicing a [u8; 32] with [..8] always produces exactly 8 bytes,
+        // so this conversion is infallible.
+        let bytes: [u8; 8] = self.nonce[..8].try_into().unwrap_or_default();
         u64::from_be_bytes(bytes)
     }
 }
@@ -392,7 +396,7 @@ mod tests {
     }
 
     fn sign_payload(payload: &Payload, secret_key: &SecretKey) -> String {
-        let hash = payload.compute_hash();
+        let hash = payload.compute_hash().expect("test payload serialization");
         let signature = secret_key.sign(hash);
         // Return base64 encoded signature (as per NEP-413 spec)
         match signature {
@@ -404,9 +408,9 @@ mod tests {
     #[test]
     fn test_payload_hash_computation() {
         let payload = create_test_payload();
-        let hash = payload.compute_hash();
+        let hash = payload.compute_hash().expect("test payload serialization");
         // Hash should be deterministic
-        let hash2 = payload.compute_hash();
+        let hash2 = payload.compute_hash().expect("test payload serialization");
         assert_eq!(hash, hash2);
     }
 
@@ -446,7 +450,7 @@ mod tests {
         let (secret_key, public_key) = generate_test_keypair();
 
         let payload = create_test_payload();
-        let hash = payload.compute_hash();
+        let hash = payload.compute_hash().expect("test payload serialization");
         let signature = secret_key.sign(hash);
         let signature_base58 = signature.to_string(); // This gives "ed25519:..."
 
@@ -746,7 +750,7 @@ mod tests {
         };
 
         // Sign (simulating wallet behavior)
-        let hash = payload.compute_hash();
+        let hash = payload.compute_hash().expect("test payload serialization");
         let signature = secret_key.sign(hash);
         let signature_base64 = match &signature {
             Signature::ED25519(sig) => BASE64_STANDARD.encode(sig.to_bytes()),

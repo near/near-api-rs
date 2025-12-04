@@ -149,4 +149,7 @@ pub enum Nep413Error {
     /// Public key not found for the account
     #[error("Public key not associated with account")]
     PublicKeyNotAssociated,
+    /// Error serializing the payload
+    #[error("Payload serialization error: {0}")]
+    SerializationError(#[from] std::io::Error),
 }
