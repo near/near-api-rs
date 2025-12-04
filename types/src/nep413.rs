@@ -92,7 +92,7 @@ impl Payload {
     /// # Errors
     ///
     /// Returns an error if the payload cannot be serialized (should never happen
-    /// for valid payloads with String and Option<String> fields).
+    /// for valid payloads with String and `Option<String>` fields).
     pub fn compute_hash(&self) -> Result<CryptoHash, Nep413Error> {
         let mut bytes = NEP413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
         // Use standard Borsh serialization (same as existing signer)
@@ -290,7 +290,7 @@ pub struct SignedMessage {
     #[serde(rename = "accountId")]
     pub account_id: near_account_id::AccountId,
     /// The public counterpart of the key used to sign, expressed as a string
-    /// with format "<key-type>:<base58-key-bytes>" (e.g. "ed25519:6E8sCci...")
+    /// with format `<key-type>:<base58-key-bytes>` (e.g. "ed25519:6E8sCci...")
     #[serde(rename = "publicKey")]
     pub public_key: PublicKey,
     /// The base64 representation of the signature.
