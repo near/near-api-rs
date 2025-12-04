@@ -70,8 +70,6 @@ pub enum SignerError {
     FetchNonceError(Box<QueryError<RpcQueryError>>),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
-    #[error("Failed to query access key: {0:?}")]
-    AccessKeyQueryError(Box<QueryError<RpcQueryError>>),
 
     #[cfg(feature = "ledger")]
     #[error(transparent)]

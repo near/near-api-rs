@@ -205,38 +205,11 @@ impl NEP413Payload {
             return Ok(false);
         }
 
-        crate::Account(account_id.clone())
+        Ok(crate::Account(account_id.clone())
             .access_key(public_key.clone())
             .fetch_from(network)
             .await
-            .map(|_| true)
-            .or_else(|e| {
-                if is_missing_access_key(&e) {
-                    Ok(false)
-                } else {
-                    Err(SignerError::AccessKeyQueryError(Box::new(e)))
-                }
-            })
-    }
-}
-
-fn is_missing_access_key(
-    err: &crate::errors::QueryError<near_openapi_client::types::RpcQueryError>,
-) -> bool {
-    use crate::errors::{RetryError, SendRequestError};
-    use near_openapi_client::types::RpcQueryError;
-
-    if let crate::errors::QueryError::QueryError(retry_error) = err {
-        matches!(
-            retry_error.as_ref(),
-            RetryError::RetriesExhausted(SendRequestError::ServerError(
-                RpcQueryError::UnknownAccessKey { .. } | RpcQueryError::UnknownAccount { .. }
-            )) | RetryError::Critical(SendRequestError::ServerError(
-                RpcQueryError::UnknownAccessKey { .. } | RpcQueryError::UnknownAccount { .. }
-            ))
-        )
-    } else {
-        false
+            .is_ok())
     }
 }
 
