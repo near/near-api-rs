@@ -129,7 +129,7 @@ impl ExecuteSignedTransaction {
 
         let signed_tr = self
             .signer
-            .sign(transaction, public_key.clone(), nonce, block_hash)
+            .sign(transaction, public_key, nonce, block_hash)
             .await?;
 
         self.transaction =
@@ -161,7 +161,7 @@ impl ExecuteSignedTransaction {
             .map_err(SignerError::from)?;
         let (nonce, hash, _) = self
             .signer
-            .fetch_tx_nonce(transaction.signer_id.clone(), signer_key.clone(), network)
+            .fetch_tx_nonce(transaction.signer_id.clone(), signer_key, network)
             .await
             .map_err(MetaSignError::from)?;
         self.presign_offline(signer_key, hash, nonce).await
@@ -438,7 +438,7 @@ impl ExecuteMetaTransaction {
             .map_err(MetaSignError::from)?;
         let (nonce, block_hash, block_height) = self
             .signer
-            .fetch_tx_nonce(transaction.signer_id.clone(), signer_key.clone(), network)
+            .fetch_tx_nonce(transaction.signer_id.clone(), signer_key, network)
             .await
             .map_err(MetaSignError::from)?;
         self.presign_offline(signer_key, block_hash, nonce, block_height)

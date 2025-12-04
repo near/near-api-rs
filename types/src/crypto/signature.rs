@@ -55,7 +55,7 @@ impl Signature {
 
     /// Verifies that this signature is indeed signs the data with given public key.
     /// Also if public key doesn't match on the curve returns `false`.
-    pub fn verify(&self, data: CryptoHash, public_key: &PublicKey) -> bool {
+    pub fn verify(&self, data: CryptoHash, public_key: PublicKey) -> bool {
         match (&self, public_key) {
             (Self::ED25519(signature), PublicKey::ED25519(public_key)) => {
                 ed25519_dalek::VerifyingKey::from_bytes(&public_key.0)

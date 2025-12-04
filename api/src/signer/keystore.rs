@@ -22,25 +22,24 @@ impl SignerTrait for KeystoreSigner {
     async fn get_secret_key(
         &self,
         signer_id: &AccountId,
-        public_key: &PublicKey,
+        public_key: PublicKey,
     ) -> Result<SecretKey, SignerError> {
         debug!(target: KEYSTORE_SIGNER_TARGET, "Searching for matching public key");
         self.potential_pubkeys
             .iter()
-            .find(|key| *key == public_key)
+            .find(|key| **key == public_key)
             .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?;
 
         info!(target: KEYSTORE_SIGNER_TARGET, "Retrieving secret key");
         // TODO: fix this. Well the search is a bit suboptimal, but it's not a big deal for now
-        let secret = if let Ok(secret) =
-            Self::get_secret_key(signer_id, public_key.clone(), "mainnet").await
-        {
-            secret
-        } else {
-            Self::get_secret_key(signer_id, public_key.clone(), "testnet")
-                .await
-                .map_err(|_| SignerError::SecretKeyIsNotAvailable)?
-        };
+        let secret =
+            if let Ok(secret) = Self::get_secret_key(signer_id, public_key, "mainnet").await {
+                secret
+            } else {
+                Self::get_secret_key(signer_id, public_key, "testnet")
+                    .await
+                    .map_err(|_| SignerError::SecretKeyIsNotAvailable)?
+            };
 
         info!(target: KEYSTORE_SIGNER_TARGET, "Secret key prepared successfully");
         Ok(secret.private_key)
@@ -84,7 +83,7 @@ impl KeystoreSigner {
             .filter(|(_, access_key)| {
                 matches!(access_key.permission, AccessKeyPermission::FullAccess)
             })
-            .map(|(public_key, _)| public_key.clone())
+            .map(|(public_key, _)| *public_key)
             .map(|key| Self::get_secret_key(&account_id, key, &network.network_name));
         let potential_pubkeys: Vec<PublicKey> = join_all(potential_pubkeys)
             .await

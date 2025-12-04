@@ -113,7 +113,7 @@ async fn access_key_management() -> TestResult {
     let public_key = secret.public_key();
 
     alice_acc
-        .add_key(AccessKeyPermission::FullAccess, public_key.clone())
+        .add_key(AccessKeyPermission::FullAccess, public_key)
         .with_signer(signer.clone())
         .send_to(&network)
         .await?
@@ -123,7 +123,7 @@ async fn access_key_management() -> TestResult {
     assert_eq!(keys.data.len(), 2);
 
     let new_key_info = alice_acc
-        .access_key(public_key.clone())
+        .access_key(public_key)
         .fetch_from(&network)
         .await?;
 

@@ -137,11 +137,11 @@ impl SignerTrait for LedgerSigner {
         &self,
         _signer_id: AccountId,
         _public_key: PublicKey,
-        payload: NEP413Payload,
+        payload: &NEP413Payload,
     ) -> Result<Signature, SignerError> {
         info!(target: LEDGER_SIGNER_TARGET, "Signing NEP413 message with Ledger");
         let hd_path = self.hd_path.clone();
-        let payload = payload.into();
+        let payload = payload.to_owned().into();
 
         let signature: Vec<u8> = tokio::task::spawn_blocking(move || {
             let signature =
@@ -164,7 +164,7 @@ impl SignerTrait for LedgerSigner {
     async fn get_secret_key(
         &self,
         _signer_id: &AccountId,
-        _public_key: &PublicKey,
+        _public_key: PublicKey,
     ) -> Result<SecretKey, SignerError> {
         warn!(target: LEDGER_SIGNER_TARGET, "Attempted to access secret key, which is not available for Ledger signer");
         Err(SignerError::SecretKeyIsNotAvailable)
@@ -173,14 +173,14 @@ impl SignerTrait for LedgerSigner {
     #[instrument(skip(self))]
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
         if let Some(public_key) = self.public_key.get() {
-            Ok(public_key.clone())
+            Ok(*public_key)
         } else {
             let public_key = near_ledger::get_wallet_id(self.hd_path.clone())
                 .map_err(|_| PublicKeyError::PublicKeyIsNotAvailable)?;
             let public_key = PublicKey::ED25519(
                 near_api_types::crypto::public_key::ED25519PublicKey(*public_key.as_bytes()),
             );
-            self.public_key.set(public_key.clone())?;
+            self.public_key.set(public_key)?;
             Ok(public_key)
         }
     }

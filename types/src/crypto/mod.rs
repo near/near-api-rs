@@ -84,7 +84,7 @@ mod tests {
                         Signature::from_parts(KeyType::SECP256K1, &sign[..65]).unwrap()
                     }
                 };
-                let _ = signature.verify(CryptoHash(*data), public_key);
+                let _ = signature.verify(CryptoHash(*data), *public_key);
             },
         );
     }
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn regression_signature_verification_originally_failed() {
         let signature = Signature::from_parts(KeyType::SECP256K1, &[4; 65]).unwrap();
-        let _ = signature.verify(CryptoHash([0; 32]), &PublicKey::empty(KeyType::SECP256K1));
+        let _ = signature.verify(CryptoHash([0; 32]), PublicKey::empty(KeyType::SECP256K1));
     }
 
     #[test]
