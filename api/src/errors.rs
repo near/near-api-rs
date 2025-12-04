@@ -329,3 +329,14 @@ impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()
         Self::TransportError(err)
     }
 }
+
+/// Errors that can occur when verifying NEP-413 signed messages.
+#[derive(thiserror::Error, Debug)]
+pub enum Nep413VerificationError {
+    /// Error verifying the cryptographic signature
+    #[error("Signature verification error: {0}")]
+    SignatureVerification(#[source] near_api_types::errors::Nep413Error),
+    /// Error querying the NEAR RPC
+    #[error("RPC query error: {0}")]
+    RpcError(#[source] Box<dyn std::error::Error + Send + Sync>),
+}
