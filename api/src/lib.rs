@@ -55,7 +55,6 @@ mod stake;
 mod storage;
 mod tokens;
 mod transactions;
-pub mod verify;
 
 // TODO: to be honest, there is almost nothing in this file
 // we should maybe integrate with them more tightly

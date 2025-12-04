@@ -177,6 +177,69 @@ pub struct NEP413Payload {
     pub callback_url: Option<String>,
 }
 
+const NEP413_SIGN_MESSAGE_PREFIX: u32 = (1u32 << 31) + 413;
+
+impl NEP413Payload {
+    /// Compute the NEP-413 hash for this payload.
+    pub fn compute_hash(&self) -> Result<CryptoHash, SignerError> {
+        let mut bytes = NEP413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
+        borsh::to_writer(&mut bytes, self)?;
+        Ok(CryptoHash::hash(&bytes))
+    }
+
+    /// Extract timestamp from nonce (first 8 bytes as big-endian u64 milliseconds).
+    pub fn extract_timestamp_from_nonce(&self) -> u64 {
+        u64::from_be_bytes(self.nonce[..8].try_into().unwrap_or_default())
+    }
+
+    /// Verify signature and that the public key belongs to the account.
+    pub async fn verify(
+        &self,
+        account_id: &AccountId,
+        public_key: &PublicKey,
+        signature: &Signature,
+        network: &NetworkConfig,
+    ) -> Result<bool, SignerError> {
+        let hash = self.compute_hash()?;
+        if !signature.verify(hash, public_key) {
+            return Ok(false);
+        }
+
+        crate::Account(account_id.clone())
+            .access_key(public_key.clone())
+            .fetch_from(network)
+            .await
+            .map(|_| true)
+            .or_else(|e| {
+                if is_missing_access_key(&e) {
+                    Ok(false)
+                } else {
+                    Err(SignerError::AccessKeyQueryError(Box::new(e)))
+                }
+            })
+    }
+}
+
+fn is_missing_access_key(
+    err: &crate::errors::QueryError<near_openapi_client::types::RpcQueryError>,
+) -> bool {
+    use crate::errors::{RetryError, SendRequestError};
+    use near_openapi_client::types::RpcQueryError;
+
+    if let crate::errors::QueryError::QueryError(retry_error) = err {
+        matches!(
+            retry_error.as_ref(),
+            RetryError::RetriesExhausted(SendRequestError::ServerError(
+                RpcQueryError::UnknownAccessKey { .. } | RpcQueryError::UnknownAccount { .. }
+            )) | RetryError::Critical(SendRequestError::ServerError(
+                RpcQueryError::UnknownAccessKey { .. } | RpcQueryError::UnknownAccount { .. }
+            ))
+        )
+    } else {
+        false
+    }
+}
+
 #[cfg(feature = "ledger")]
 impl From<NEP413Payload> for near_ledger::NEP413Payload {
     fn from(payload: NEP413Payload) -> Self {
@@ -318,13 +381,9 @@ pub trait SignerTrait {
         public_key: PublicKey,
         payload: NEP413Payload,
     ) -> Result<Signature, SignerError> {
-        const NEP413_413_SIGN_MESSAGE_PREFIX: u32 = (1u32 << 31u32) + 413u32;
-        let mut bytes = NEP413_413_SIGN_MESSAGE_PREFIX.to_le_bytes().to_vec();
-        borsh::to_writer(&mut bytes, &payload)?;
-        let hash = CryptoHash::hash(&bytes);
+        let hash = payload.compute_hash()?;
         let secret = self.get_secret_key(&signer_id, &public_key).await?;
-        let signature = secret.sign(hash);
-        Ok(signature)
+        Ok(secret.sign(hash))
     }
 
     /// Returns the secret key associated with this signer.

@@ -70,6 +70,8 @@ pub enum SignerError {
     FetchNonceError(Box<QueryError<RpcQueryError>>),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
+    #[error("Failed to query access key: {0:?}")]
+    AccessKeyQueryError(Box<QueryError<RpcQueryError>>),
 
     #[cfg(feature = "ledger")]
     #[error(transparent)]
@@ -328,18 +330,4 @@ impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()
 
         Self::TransportError(err)
     }
-}
-
-/// Errors that can occur when verifying NEP-413 signed messages.
-#[derive(thiserror::Error, Debug)]
-pub enum Nep413VerificationError {
-    /// Error verifying the cryptographic signature
-    #[error("Signature verification error: {0}")]
-    SignatureVerification(#[source] near_api_types::errors::Nep413Error),
-    /// Error querying the NEAR RPC
-    #[error("RPC query error: {0}")]
-    RpcError(#[source] Box<dyn std::error::Error + Send + Sync>),
-    /// The public key is not a full access key (NEP-413 requires full access keys)
-    #[error("Public key is not a full access key (NEP-413 requires full access keys)")]
-    NotFullAccessKey,
 }

@@ -133,23 +133,3 @@ impl From<secp256k1::Error> for SignatureErrors {
         Self::InvalidSignatureData(value)
     }
 }
-
-/// Errors that can occur when working with NEP-413 messages.
-#[derive(thiserror::Error, Debug)]
-pub enum Nep413Error {
-    /// Error decoding base64 signature
-    #[error("Base64 decode error: {0}")]
-    Base64Decode(#[from] base64::DecodeError),
-    /// Error parsing signature
-    #[error("Signature parsing error: {0}")]
-    SignatureParsing(#[source] DataConversionError),
-    /// Invalid nonce length (expected 32 bytes)
-    #[error("Invalid nonce length: expected 32 bytes, got {0}")]
-    InvalidNonceLength(usize),
-    /// Public key not found for the account
-    #[error("Public key not associated with account")]
-    PublicKeyNotAssociated,
-    /// Error serializing the payload
-    #[error("Payload serialization error: {0}")]
-    SerializationError(#[from] std::io::Error),
-}
