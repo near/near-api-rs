@@ -49,7 +49,7 @@ async fn deploy_global_contract_as_account_id_and_use_it() -> TestResult {
         base64_code_bytes
     );
 
-    let contract = Contract(global_contract.account_id.clone());
+    let contract = Contract::from_id(global_contract.account_id.clone());
 
     assert_eq!(
         contract.wasm().fetch_from(&network).await?.data.code_base64,
@@ -133,7 +133,7 @@ async fn deploy_global_contract_as_hash_and_use_it() -> TestResult {
         .await?
         .assert_success();
 
-    let contract = Contract(account_id.clone());
+    let contract = Contract::from_id(account_id.clone());
 
     assert_eq!(
         contract.wasm().fetch_from(&network).await?.data.code_base64,

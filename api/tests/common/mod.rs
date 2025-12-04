@@ -18,20 +18,20 @@ pub async fn setup_social_contract() -> Result<TestContext, TestError> {
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
-    let contract = Contract("social.near".parse()?);
+    let contract = Contract::from_id("social.near");
     let account: AccountId = "user.sandbox".parse()?;
 
     sandbox.create_account(account.clone()).send().await?;
 
     sandbox
-        .import_account(RPCEndpoint::mainnet().url, contract.account_id().clone())
+        .import_account(RPCEndpoint::mainnet().url, "social.near".parse()?)
         .send()
         .await?;
 
     contract
         .call_function("new", ())
         .transaction()
-        .with_signer(contract.account_id().clone(), signer.clone())
+        .with_signer("social.near", signer.clone())
         .send_to(&network)
         .await?
         .assert_success();
@@ -39,7 +39,7 @@ pub async fn setup_social_contract() -> Result<TestContext, TestError> {
     contract
         .call_function("set_status", serde_json::json!({ "status": "Live" }))
         .transaction()
-        .with_signer(contract.account_id().clone(), signer.clone())
+        .with_signer("social.near", signer.clone())
         .send_to(&network)
         .await?
         .assert_success();
@@ -58,20 +58,20 @@ pub async fn setup_ft_contract() -> Result<TestContext, TestError> {
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
-    let contract = Contract("wrap.near".parse()?);
+    let contract = Contract::from_id("wrap.near");
     let account: AccountId = "user.sandbox".parse()?;
 
     sandbox.create_account(account.clone()).send().await?;
 
     sandbox
-        .import_account(RPCEndpoint::mainnet().url, contract.account_id().clone())
+        .import_account(RPCEndpoint::mainnet().url, "wrap.near".parse()?)
         .send()
         .await?;
 
     contract
         .call_function("new", ())
         .transaction()
-        .with_signer(contract.account_id().clone(), signer.clone())
+        .with_signer("wrap.near", signer.clone())
         .send_to(&network)
         .await?
         .assert_success();
