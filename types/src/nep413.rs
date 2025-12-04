@@ -219,7 +219,7 @@ impl<'de> serde::Deserialize<'de> for Nonce {
 
 impl From<[u8; 32]> for Nonce {
     fn from(arr: [u8; 32]) -> Self {
-        Nonce(arr)
+        Self(arr)
     }
 }
 
@@ -251,7 +251,7 @@ pub struct PayloadJson {
 
 impl From<PayloadJson> for Payload {
     fn from(value: PayloadJson) -> Self {
-        Payload {
+        Self {
             message: value.message,
             nonce: value.nonce.0,
             recipient: value.recipient,
@@ -262,7 +262,7 @@ impl From<PayloadJson> for Payload {
 
 impl From<Payload> for PayloadJson {
     fn from(value: Payload) -> Self {
-        PayloadJson {
+        Self {
             message: value.message,
             nonce: Nonce(value.nonce),
             recipient: value.recipient,
@@ -760,7 +760,7 @@ mod tests {
         // Create SignedMessage (as wallet would return)
         let signed_message = SignedMessage {
             account_id: "user.near".parse().unwrap(),
-            public_key: public_key.clone(),
+            public_key,
             signature: signature_base64,
             state: Some("csrf_token_abc123".to_string()),
         };
