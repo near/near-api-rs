@@ -8,6 +8,7 @@ pub mod crypto;
 pub mod errors;
 pub mod ft;
 pub mod json;
+pub mod nep413;
 pub mod nft;
 pub mod reference;
 pub mod signable_message;
