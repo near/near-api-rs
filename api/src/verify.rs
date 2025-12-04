@@ -37,6 +37,7 @@
 //! ```
 
 use near_api_types::nep413::{Payload, SignedMessage};
+use near_api_types::AccessKeyPermission;
 
 use crate::{config::NetworkConfig, errors::Nep413VerificationError, Account};
 
@@ -45,6 +46,7 @@ use crate::{config::NetworkConfig, errors::Nep413VerificationError, Account};
 /// This function performs two verifications:
 /// 1. Cryptographic signature verification - ensures the signature is valid for the payload
 /// 2. Account key verification - queries the NEAR RPC to verify the public key belongs to the account
+///    and is a **full access key** (NEP-413 requires full access keys for signing)
 ///
 /// # Arguments
 ///
@@ -55,7 +57,7 @@ use crate::{config::NetworkConfig, errors::Nep413VerificationError, Account};
 /// # Returns
 ///
 /// Returns `Ok(true)` if both verifications pass, `Ok(false)` if the signature is invalid,
-/// or an error if verification fails (e.g., network error, public key not found).
+/// or an error if verification fails (e.g., network error, public key not found, not a full access key).
 ///
 /// # Example
 ///
@@ -96,8 +98,8 @@ pub async fn verify_signed_message(
         return Ok(false);
     }
 
-    // Step 2: Verify the public key belongs to the account
-    verify_public_key_belongs_to_account(
+    // Step 2: Verify the public key belongs to the account AND is a full access key
+    verify_full_access_key(
         &signed_message.account_id,
         &signed_message.public_key,
         network,
@@ -105,10 +107,11 @@ pub async fn verify_signed_message(
     .await
 }
 
-/// Verify that a public key is associated with an account.
+/// Verify that a public key is a full access key for an account.
 ///
 /// This queries the NEAR RPC to check if the given public key is registered
-/// as an access key for the account.
+/// as a **full access** key for the account. Per NEP-413 spec, messages must
+/// be signed with full access keys only.
 ///
 /// # Arguments
 ///
@@ -118,8 +121,59 @@ pub async fn verify_signed_message(
 ///
 /// # Returns
 ///
-/// Returns `Ok(true)` if the public key is associated with the account,
-/// `Ok(false)` if not found, or an error if the query fails for other reasons.
+/// Returns `Ok(true)` if the public key is a full access key for the account,
+/// `Ok(false)` if key not found, or an error if the query fails or key is not full access.
+pub async fn verify_full_access_key(
+    account_id: &near_api_types::AccountId,
+    public_key: &near_api_types::PublicKey,
+    network: &NetworkConfig,
+) -> Result<bool, Nep413VerificationError> {
+    // Query the specific access key directly
+    let key_result = Account(account_id.clone())
+        .access_key(public_key.clone())
+        .fetch_from(network)
+        .await;
+
+    match key_result {
+        Ok(data) => {
+            // Check if it's a full access key (NEP-413 requirement)
+            match data.data.permission {
+                AccessKeyPermission::FullAccess => Ok(true),
+                AccessKeyPermission::FunctionCall(_) => {
+                    Err(Nep413VerificationError::NotFullAccessKey)
+                }
+            }
+        }
+        Err(e) => {
+            // Check if the error indicates the key wasn't found vs a real error
+            let error_str = format!("{:?}", e);
+            if error_str.contains("UnknownAccessKey")
+                || error_str.contains("does not exist")
+                || error_str.contains("AccessKeyDoesNotExist")
+            {
+                Ok(false) // Key not found
+            } else {
+                Err(Nep413VerificationError::RpcError(Box::new(e)))
+            }
+        }
+    }
+}
+
+/// Verify that a public key is associated with an account (any key type).
+///
+/// This is a simpler check that doesn't require the key to be a full access key.
+/// For NEP-413 verification, use [`verify_full_access_key`] instead.
+///
+/// # Arguments
+///
+/// * `account_id` - The account ID to check
+/// * `public_key` - The public key to verify
+/// * `network` - The network configuration to use for RPC queries
+///
+/// # Returns
+///
+/// Returns `Ok(true)` if the public key is associated with the account (any key type),
+/// `Ok(false)` if not found, or an error if the query fails.
 pub async fn verify_public_key_belongs_to_account(
     account_id: &near_api_types::AccountId,
     public_key: &near_api_types::PublicKey,

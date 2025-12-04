@@ -339,4 +339,7 @@ pub enum Nep413VerificationError {
     /// Error querying the NEAR RPC
     #[error("RPC query error: {0}")]
     RpcError(#[source] Box<dyn std::error::Error + Send + Sync>),
+    /// The public key is not a full access key (NEP-413 requires full access keys)
+    #[error("Public key is not a full access key (NEP-413 requires full access keys)")]
+    NotFullAccessKey,
 }
