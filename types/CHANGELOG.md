@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add NEP-413 message verification ([#98](https://github.com/near/near-api-rs/pull/98))
-- updated acount id to v2, updated openapi-types, fixed DeterministicStateInit action serialization ([#97](https://github.com/near/near-api-rs/pull/97))
+- updated account id to v2, updated openapi-types, fixed DeterministicStateInit action serialization ([#97](https://github.com/near/near-api-rs/pull/97))
 
 ### Other
 
