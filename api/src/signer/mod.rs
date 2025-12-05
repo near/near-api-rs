@@ -212,7 +212,7 @@ impl NEP413Payload {
             return Ok(false);
         }
 
-        let access_key = crate::Account(account_id.clone())
+        let access_key = crate::Account::from_id(account_id)
             .access_key(public_key)
             .fetch_from(network)
             .await;
@@ -545,7 +545,7 @@ impl Signer {
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
-        let nonce_data = crate::account::Account(account_id.clone())
+        let nonce_data = crate::account::Account::from_id(&account_id)
             .access_key(public_key)
             .fetch_from(network)
             .await
@@ -1023,7 +1023,7 @@ mod nep_413_tests {
         let tx_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
         let public_key = msg_signer.get_public_key().await?;
 
-        Account(DEFAULT_GENESIS_ACCOUNT.into())
+        Account::from_id(DEFAULT_GENESIS_ACCOUNT)
             .add_key(
                 AccessKeyPermission::FunctionCall(FunctionCallPermission {
                     allowance: Some(NearToken::from_near(1)),

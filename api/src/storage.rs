@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use near_api_types::{AccountId, Data, NearToken, StorageBalance, StorageBalanceInternal};
+use near_api_types::{
+    near_account_id::TryIntoAccountId, AccountId, Data, NearToken, StorageBalance,
+    StorageBalanceInternal,
+};
 use serde_json::json;
 
 use crate::{
@@ -37,11 +40,11 @@ use crate::{
 /// # }
 /// ```
 #[derive(Clone, Debug)]
-pub struct StorageDeposit(crate::Contract);
+pub struct StorageDeposit(pub(crate) crate::Contract);
 
 impl StorageDeposit {
-    pub const fn on_contract(contract_id: AccountId) -> Self {
-        Self(crate::Contract(contract_id))
+    pub fn on_contract(contract_id: impl TryIntoAccountId) -> Self {
+        Self(crate::Contract::from_id(contract_id))
     }
 
     /// Returns the underlying contract account ID for this storage deposit wrapper.
@@ -57,9 +60,9 @@ impl StorageDeposit {
     /// # Ok(())
     /// # }
     /// ```
-    pub const fn contract_id(&self) -> &AccountId {
-        self.0.account_id()
-    }
+    // pub const fn contract_id(&self) -> &AccountId {
+    //     self.0.account_id()
+    // }
 
     /// Converts this storage deposit wrapper to a Contract for other contract operations.
     ///

@@ -50,7 +50,7 @@ impl Chain {
     /// # }
     /// ```
     pub fn block_number() -> RequestBuilder<PostprocessHandler<BlockHeight, RpcBlockHandler>> {
-        RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
+        RequestBuilder::new(Ok(SimpleBlockRpc), Reference::Optimistic, RpcBlockHandler)
             .map(|data| data.header.height)
     }
 
@@ -80,7 +80,7 @@ impl Chain {
     /// # }
     /// ```
     pub fn block_hash() -> RequestBuilder<AndThenHandler<CryptoHash, RpcBlockHandler>> {
-        RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
+        RequestBuilder::new(Ok(SimpleBlockRpc), Reference::Optimistic, RpcBlockHandler)
             .and_then(|data| Ok(CryptoHash::try_from(data.header.hash)?))
     }
 
@@ -123,7 +123,7 @@ impl Chain {
     /// # }
     /// ```
     pub fn block() -> RequestBuilder<RpcBlockHandler> {
-        RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
+        RequestBuilder::new(Ok(SimpleBlockRpc), Reference::Optimistic, RpcBlockHandler)
     }
 
     // TODO: chunk info

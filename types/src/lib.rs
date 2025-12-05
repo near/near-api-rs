@@ -18,8 +18,9 @@ pub mod transaction;
 pub mod utils;
 
 pub use near_abi as abi;
-pub use near_account_id::AccountId;
+pub use near_account_id::{self, AccountId, AccountIdRef};
 pub use near_gas::NearGas;
+
 pub use near_openapi_types::{
     AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
     RpcValidatorResponse, StoreKey, StoreValue, TxExecutionStatus, ViewStateResult,

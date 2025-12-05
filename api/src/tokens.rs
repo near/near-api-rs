@@ -145,7 +145,7 @@ impl Tokens {
     /// # }
     /// ```
     pub fn as_account(&self) -> crate::account::Account {
-        crate::account::Account(self.account_id.clone())
+        crate::account::Account::from_id(&self.account_id)
     }
 
     /// Fetches the total NEAR balance ([UserBalance]) of the account.
@@ -169,7 +169,7 @@ impl Tokens {
         };
 
         RequestBuilder::new(
-            SimpleQueryRpc { request },
+            Ok(SimpleQueryRpc { request }),
             Reference::Optimistic,
             AccountViewHandler,
         )
@@ -206,7 +206,7 @@ impl Tokens {
     pub fn nft_metadata(
         contract_id: AccountId,
     ) -> RequestBuilder<CallResultHandler<NFTContractMetadata>> {
-        Contract(contract_id)
+        Contract::from_id(contract_id)
             .call_function("nft_metadata", ())
             .read_only()
     }
@@ -232,7 +232,7 @@ impl Tokens {
         &self,
         nft_contract: AccountId,
     ) -> RequestBuilder<CallResultHandler<Vec<Token>>> {
-        Contract(nft_contract)
+        Contract::from_id(nft_contract)
             .call_function(
                 "nft_tokens_for_owner",
                 json!({
@@ -262,7 +262,7 @@ impl Tokens {
     pub fn ft_metadata(
         contract_id: AccountId,
     ) -> RequestBuilder<CallResultHandler<FungibleTokenMetadata>> {
-        Contract(contract_id)
+        Contract::from_id(contract_id)
             .call_function("ft_metadata", ())
             .read_only()
     }
@@ -308,7 +308,7 @@ impl Tokens {
         MultiRequestBuilder::new(handler, Reference::Optimistic)
             .add_query_builder(Self::ft_metadata(ft_contract.clone()))
             .add_query_builder(
-                Contract(ft_contract)
+                Contract::from_id(ft_contract)
                     .call_function(
                         "ft_balance_of",
                         json!({
@@ -409,7 +409,7 @@ impl SendToBuilder {
         ft_contract: AccountId,
         amount: FTBalance,
     ) -> TransactionWithSign<FTTransactionable> {
-        let transaction = Contract(ft_contract)
+        let transaction = Contract::from_id(ft_contract)
             .call_function(
                 "ft_transfer",
                 json!({
@@ -436,7 +436,7 @@ impl SendToBuilder {
     ///
     /// For transferring an NFT and calling a receiver contract method in a single transaction, see [`nft_call`](Self::nft_call).
     pub fn nft(self, nft_contract: AccountId, token_id: String) -> ConstructTransaction {
-        Contract(nft_contract)
+        Contract::from_id(nft_contract)
             .call_function(
                 "nft_transfer",
                 json!({
@@ -484,7 +484,7 @@ impl SendToBuilder {
         amount: FTBalance,
         msg: String,
     ) -> TransactionWithSign<FTTransactionable> {
-        let transaction = Contract(ft_contract)
+        let transaction = Contract::from_id(ft_contract)
             .call_function(
                 "ft_transfer_call",
                 json!({
@@ -538,7 +538,7 @@ impl SendToBuilder {
         token_id: String,
         msg: String,
     ) -> ConstructTransaction {
-        Contract(nft_contract)
+        Contract::from_id(nft_contract)
             .call_function(
                 "nft_transfer_call",
                 json!({

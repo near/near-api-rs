@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use near_api_types::errors::DataConversionError;
+use near_api_types::{errors::DataConversionError, near_account_id::ParseAccountError};
 use near_openapi_client::types::{
     FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
     RpcTransactionError,
@@ -159,6 +159,8 @@ pub enum ArgumentValidationError {
     BorshSerializationError(Arc<std::io::Error>),
     #[error("Account creation error: {0}")]
     AccountCreationError(#[from] AccountCreationError),
+    #[error("Invalid account ID: {0}")]
+    ParseAccountError(#[from] ParseAccountError),
     #[error("Multiple errors: {0:?}")]
     MultipleErrors(Vec<ArgumentValidationError>),
 }
@@ -199,6 +201,8 @@ pub enum FaucetError {
         "The <{0}> network config does not have a defined faucet (helper service) that can sponsor the creation of an account."
     )]
     FaucetIsNotDefined(String),
+    #[error("Failed to parse account ID: {0}")]
+    ParseAccountError(#[from] ParseAccountError),
     #[error("Failed to send message: {0}")]
     SendError(#[from] reqwest::Error),
 }

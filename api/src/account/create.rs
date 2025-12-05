@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 
 use near_api_types::{
+    near_account_id::{ParseAccountError, TryIntoAccountId},
     transaction::{
         actions::{AddKeyAction, CreateAccountAction, TransferAction},
         PrepopulateTransaction,
@@ -20,7 +21,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct CreateAccountBuilder {
-    pub account_id: AccountId,
+    pub(crate) account_id: Result<AccountId, ParseAccountError>,
 }
 
 impl CreateAccountBuilder {
@@ -29,12 +30,12 @@ impl CreateAccountBuilder {
     /// You can only create an sub-account of your own account or sub-account of the linkdrop account ([near](https://nearblocks.io/address/near) on mainnet , [testnet](https://testnet.nearblocks.io/address/testnet) on testnet)
     pub fn fund_myself(
         self,
-        signer_account_id: AccountId,
+        signer_account_id: impl TryIntoAccountId,
         initial_balance: NearToken,
     ) -> FundMyselfBuilder {
         FundMyselfBuilder {
             new_account_id: self.account_id,
-            signer_account_id,
+            signer_account_id: signer_account_id.try_into_account_id(),
             initial_balance,
         }
     }
@@ -52,8 +53,8 @@ impl CreateAccountBuilder {
 
 #[derive(Clone, Debug)]
 pub struct FundMyselfBuilder {
-    new_account_id: AccountId,
-    signer_account_id: AccountId,
+    new_account_id: Result<AccountId, ParseAccountError>,
+    signer_account_id: Result<AccountId, ParseAccountError>,
     initial_balance: NearToken,
 }
 
@@ -66,42 +67,51 @@ impl FundMyselfBuilder {
         pk: impl Into<PublicKey>,
     ) -> TransactionWithSign<CreateAccountFundMyselfTx> {
         let public_key = pk.into();
-        let transaction = if self
+        let transaction = self
             .new_account_id
-            .is_sub_account_of(&self.signer_account_id)
-        {
-            ConstructTransaction::new(self.signer_account_id.clone(), self.new_account_id.clone())
-                .add_actions(vec![
-                    Action::CreateAccount(CreateAccountAction {}),
-                    Action::Transfer(TransferAction {
-                        deposit: self.initial_balance,
-                    }),
-                    Action::AddKey(Box::new(AddKeyAction {
-                        public_key,
-                        access_key: AccessKey {
-                            nonce: 0.into(),
-                            permission: AccessKeyPermission::FullAccess,
-                        },
-                    })),
-                ])
-                .transaction
-        } else if let Some(linkdrop_account_id) = self.new_account_id.get_parent_account_id() {
-            Contract(linkdrop_account_id.to_owned())
-                .call_function(
-                    "create_account",
-                    json!({
-                        "new_account_id": self.new_account_id.to_string(),
-                        "new_public_key": public_key,
-                    }),
-                )
-                .transaction()
-                .gas(NearGas::from_tgas(30))
-                .deposit(self.initial_balance)
-                .with_signer_account(self.signer_account_id.clone())
-                .transaction
-        } else {
-            Err(AccountCreationError::TopLevelAccountIsNotAllowed.into())
-        };
+            .and_then(|id| {
+                self.signer_account_id
+                    .clone()
+                    .map(|signer_id| (id, signer_id))
+            })
+            .clone()
+            .map_err(Into::into)
+            .map(|(new_account_id, signer_account_id)| {
+                if new_account_id.is_sub_account_of(&signer_account_id) {
+                    ConstructTransaction::new(signer_account_id, new_account_id)
+                        .add_actions(vec![
+                            Action::CreateAccount(CreateAccountAction {}),
+                            Action::Transfer(TransferAction {
+                                deposit: self.initial_balance,
+                            }),
+                            Action::AddKey(Box::new(AddKeyAction {
+                                public_key,
+                                access_key: AccessKey {
+                                    nonce: 0.into(),
+                                    permission: AccessKeyPermission::FullAccess,
+                                },
+                            })),
+                        ])
+                        .transaction
+                } else if let Some(linkdrop_account_id) = new_account_id.get_parent_account_id() {
+                    Contract::from_id(linkdrop_account_id.to_owned())
+                        .call_function(
+                            "create_account",
+                            json!({
+                                "new_account_id": new_account_id.to_string(),
+                                "new_public_key": public_key,
+                            }),
+                        )
+                        .transaction()
+                        .gas(NearGas::from_tgas(30))
+                        .deposit(self.initial_balance)
+                        .with_signer_account(signer_account_id)
+                        .transaction
+                } else {
+                    Err(AccountCreationError::TopLevelAccountIsNotAllowed.into())
+                }
+            })
+            .flatten();
 
         TransactionWithSign {
             tx: CreateAccountFundMyselfTx {
@@ -113,7 +123,7 @@ impl FundMyselfBuilder {
 
 #[derive(Clone, Debug)]
 pub struct SponsorByFaucetServiceBuilder {
-    new_account_id: AccountId,
+    new_account_id: Result<AccountId, ParseAccountError>,
 }
 
 impl SponsorByFaucetServiceBuilder {
@@ -133,7 +143,7 @@ impl SponsorByFaucetServiceBuilder {
 
 #[derive(Clone, Debug)]
 pub struct CreateAccountByFaucet {
-    pub new_account_id: AccountId,
+    pub new_account_id: Result<AccountId, ParseAccountError>,
     pub public_key: PublicKey,
 }
 
@@ -179,7 +189,7 @@ impl CreateAccountByFaucet {
     /// ```
     pub async fn send_to_faucet(self, url: &Url) -> Result<Response, FaucetError> {
         let mut data = std::collections::HashMap::new();
-        data.insert("newAccountId", self.new_account_id.to_string());
+        data.insert("newAccountId", self.new_account_id?.to_string());
         data.insert("newAccountPublicKey", self.public_key.to_string());
 
         let client = reqwest::Client::new();

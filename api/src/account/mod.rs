@@ -1,6 +1,10 @@
 use near_api_types::{
     json::U64,
-    transaction::actions::{AccessKey, AddKeyAction, DeleteAccountAction, DeleteKeyAction},
+    near_account_id::{ParseAccountError, TryIntoAccountId},
+    transaction::{
+        actions::{AccessKey, AddKeyAction, DeleteAccountAction, DeleteKeyAction},
+        PrepopulateTransaction,
+    },
     AccessKeyPermission, AccountId, Action, PublicKey, Reference,
 };
 
@@ -30,9 +34,13 @@ mod create;
 /// # }
 /// ```
 #[derive(Clone, Debug)]
-pub struct Account(pub AccountId);
+pub struct Account(pub(crate) Result<AccountId, ParseAccountError>);
 
 impl Account {
+    pub fn from_id(account_id: impl TryIntoAccountId) -> Self {
+        Self(account_id.try_into_account_id())
+    }
+
     /// Returns the underlying account ID for this account.
     ///
     /// # Example
@@ -46,9 +54,9 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub const fn account_id(&self) -> &AccountId {
-        &self.0
-    }
+    // pub const fn account_id(&self) -> &AccountId {
+    //     &self.0
+    // }
 
     /// Converts this account to a Contract for contract-related operations.
     ///
@@ -84,7 +92,7 @@ impl Account {
     /// # }
     /// ```
     pub fn tokens(&self) -> crate::tokens::Tokens {
-        crate::tokens::Tokens::account(self.0.clone())
+        crate::tokens::Tokens::account(self.0.clone().unwrap())
     }
 
     /// Creates a Delegation wrapper for staking-related operations on this account.
@@ -102,7 +110,7 @@ impl Account {
     /// # }
     /// ```
     pub fn delegation(&self) -> crate::stake::Delegation {
-        crate::stake::Delegation(self.0.clone())
+        crate::stake::Delegation(self.0.clone().unwrap())
     }
 
     /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_api_types::AccountView)> with the account information for the given account ID.
@@ -118,14 +126,10 @@ impl Account {
     /// # }
     /// ```
     pub fn view(&self) -> RequestBuilder<AccountViewHandler> {
-        let request = QueryRequest::ViewAccount {
-            account_id: self.0.clone(),
-        };
-        RequestBuilder::new(
-            SimpleQueryRpc { request },
-            Reference::Optimistic,
-            Default::default(),
-        )
+        let request = self.0.clone().map_err(Into::into).map(|id| SimpleQueryRpc {
+            request: QueryRequest::ViewAccount { account_id: id },
+        });
+        RequestBuilder::new(request, Reference::Optimistic, Default::default())
     }
 
     /// Prepares a query to fetch the [Data](crate::Data)<[AccessKey]> with the access key information for the given account public key.
@@ -148,15 +152,13 @@ impl Account {
         &self,
         signer_public_key: impl Into<PublicKey>,
     ) -> RequestBuilder<AccessKeyHandler> {
-        let request = QueryRequest::ViewAccessKey {
-            account_id: self.0.clone(),
-            public_key: signer_public_key.into().into(),
-        };
-        RpcBuilder::new(
-            SimpleQueryRpc { request },
-            Reference::Optimistic,
-            Default::default(),
-        )
+        let request = self.0.clone().map_err(Into::into).map(|id| SimpleQueryRpc {
+            request: QueryRequest::ViewAccessKey {
+                account_id: id,
+                public_key: signer_public_key.into().into(),
+            },
+        });
+        RpcBuilder::new(request, Reference::Optimistic, Default::default())
     }
 
     /// Prepares a query to fetch the Vec<([`PublicKey`], [`AccessKey`])> list of access keys for the given account ID.
@@ -172,14 +174,10 @@ impl Account {
     /// # }
     /// ```
     pub fn list_keys(&self) -> RequestBuilder<AccessKeyListHandler> {
-        let request = QueryRequest::ViewAccessKeyList {
-            account_id: self.0.clone(),
-        };
-        RpcBuilder::new(
-            SimpleQueryRpc { request },
-            Reference::Optimistic,
-            Default::default(),
-        )
+        let request = self.0.clone().map_err(Into::into).map(|id| SimpleQueryRpc {
+            request: QueryRequest::ViewAccessKeyList { account_id: id },
+        });
+        RpcBuilder::new(request, Reference::Optimistic, Default::default())
     }
 
     /// Adds a new access key to the given account ID.
@@ -204,15 +202,26 @@ impl Account {
         permission: AccessKeyPermission,
         public_key: impl Into<PublicKey>,
     ) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::AddKey(
-            Box::new(AddKeyAction {
-                access_key: AccessKey {
-                    nonce: U64::from(0),
-                    permission,
-                },
-                public_key: public_key.into(),
-            }),
-        ))
+        let prepopulated = self
+            .0
+            .clone()
+            .map_err(Into::into)
+            .map(|id| PrepopulateTransaction {
+                signer_id: id.clone(),
+                receiver_id: id,
+                actions: vec![],
+            });
+
+        ConstructTransaction {
+            transaction: prepopulated,
+        }
+        .add_action(Action::AddKey(Box::new(AddKeyAction {
+            access_key: AccessKey {
+                nonce: U64::from(0),
+                permission,
+            },
+            public_key: public_key.into(),
+        })))
     }
 
     /// Deletes an access key from the given account ID.
@@ -231,11 +240,22 @@ impl Account {
     /// # }
     /// ```
     pub fn delete_key(&self, public_key: impl Into<PublicKey>) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::DeleteKey(
-            Box::new(DeleteKeyAction {
-                public_key: public_key.into(),
-            }),
-        ))
+        let prepopulated = self
+            .0
+            .clone()
+            .map_err(Into::into)
+            .map(|id| PrepopulateTransaction {
+                signer_id: id.clone(),
+                receiver_id: id,
+                actions: vec![],
+            });
+
+        ConstructTransaction {
+            transaction: prepopulated,
+        }
+        .add_action(Action::DeleteKey(Box::new(DeleteKeyAction {
+            public_key: public_key.into(),
+        })))
     }
 
     /// Deletes multiple access keys from the given account ID.
@@ -255,12 +275,25 @@ impl Account {
     /// # }
     /// ```
     pub fn delete_keys(&self, public_keys: Vec<PublicKey>) -> ConstructTransaction {
-        let actions = public_keys
-            .into_iter()
-            .map(|public_key| Action::DeleteKey(Box::new(DeleteKeyAction { public_key })))
-            .collect();
+        let prepopulated = self
+            .0
+            .clone()
+            .map_err(Into::into)
+            .map(|id| PrepopulateTransaction {
+                signer_id: id.clone(),
+                receiver_id: id,
+                actions: vec![],
+            });
 
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_actions(actions)
+        ConstructTransaction {
+            transaction: prepopulated,
+        }
+        .add_actions(
+            public_keys
+                .into_iter()
+                .map(|public_key| Action::DeleteKey(Box::new(DeleteKeyAction { public_key })))
+                .collect(),
+        )
     }
 
     /// Deletes the account with the given beneficiary ID. The account balance will be transferred to the beneficiary.
@@ -286,11 +319,27 @@ impl Account {
     /// ```
     pub fn delete_account_with_beneficiary(
         &self,
-        beneficiary_id: AccountId,
+        beneficiary_id: impl TryIntoAccountId,
     ) -> ConstructTransaction {
-        ConstructTransaction::new(self.0.clone(), self.0.clone()).add_action(Action::DeleteAccount(
-            DeleteAccountAction { beneficiary_id },
-        ))
+        let prepopulated = self
+            .0
+            .clone()
+            .and_then(|id| {
+                beneficiary_id
+                    .try_into_account_id()
+                    .map(|beneficiary_id| PrepopulateTransaction {
+                        signer_id: id.clone(),
+                        receiver_id: id,
+                        actions: vec![Action::DeleteAccount(DeleteAccountAction {
+                            beneficiary_id,
+                        })],
+                    })
+            })
+            .map_err(Into::into);
+
+        ConstructTransaction {
+            transaction: prepopulated,
+        }
     }
 
     /// Creates a new account builder for the given account ID.
@@ -359,7 +408,9 @@ impl Account {
     /// # Ok(())
     /// # }
     /// ```
-    pub const fn create_account(account_id: AccountId) -> CreateAccountBuilder {
-        CreateAccountBuilder { account_id }
+    pub fn create_account(account_id: impl TryIntoAccountId) -> CreateAccountBuilder {
+        CreateAccountBuilder {
+            account_id: account_id.try_into_account_id(),
+        }
     }
 }

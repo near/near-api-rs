@@ -5,7 +5,7 @@ async fn regression_85() -> testresult::TestResult {
     let network_config =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    let contract = near_api::Contract(near_sandbox::config::DEFAULT_GENESIS_ACCOUNT.into())
+    let contract = near_api::Contract::from_id(near_sandbox::config::DEFAULT_GENESIS_ACCOUNT)
         .call_function("increment", ())
         .read_only::<u64>()
         .fetch_from(&network_config)
