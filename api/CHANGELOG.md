@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/near/near-api-rs/compare/near-api-v0.7.8...near-api-v0.8.0) - 2025-12-04
+
+### Added
+
+- Add NEP-413 message verification ([#98](https://github.com/near/near-api-rs/pull/98))
+- [**breaking**] signer interface improvement ([#89](https://github.com/near/near-api-rs/pull/89))
+
+### Other
+
+- clean up comments in utils.rs
+- [**breaking**] simplify and remove PublicKeyProvider to improve code clarity ([#95](https://github.com/near/near-api-rs/pull/95))
+- restricted usage of unwrap and expects, removed some unwraps in signing ([#96](https://github.com/near/near-api-rs/pull/96))
+- migrated examples and tests to TestResult from unwraps
+- [**breaking**] defer errors for contract interaction ([#93](https://github.com/near/near-api-rs/pull/93))
+
 ## [0.7.7](https://github.com/near/near-api-rs/compare/near-api-v0.7.6...near-api-v0.7.7) - 2025-11-10
 
 ### Added
