@@ -43,4 +43,4 @@ The library is in good condition, but lacks a few points to be even better:
 - [x] self-sustainable. remove the `nearcore` as a dependency ([#5](https://github.com/near/near-api-rs/issues/5))
 
 ## Examples
-The crate provides [examples](./examples/) that contain detailed information on using the library.
+The crate provides [examples](./api/examples/) that contain detailed information on using the library.
