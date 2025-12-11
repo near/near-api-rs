@@ -104,6 +104,10 @@ impl RPCEndpoint {
             header.set_sensitive(true);
 
             headers.insert(
+                reqwest::header::HeaderName::from_static("authorization"),
+                header.clone(),
+            );
+            headers.insert(
                 reqwest::header::HeaderName::from_static("x-api-key"),
                 header,
             );
