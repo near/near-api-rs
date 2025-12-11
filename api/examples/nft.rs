@@ -38,7 +38,7 @@ async fn main() -> testresult::TestResult {
         .await?
         .assert_success();
 
-    let contract = Contract(nft.account_id.clone());
+    let contract = Contract::from_id(nft.account_id.clone());
 
     // Mint NFT via contract call
     contract

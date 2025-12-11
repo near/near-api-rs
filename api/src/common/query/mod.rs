@@ -159,7 +159,7 @@ where
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    /// let balance: NearToken = Contract::from_id("some_contract.testnet".parse()?)
     ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))
@@ -320,19 +320,34 @@ where
     Query::Error: std::fmt::Debug + Send + Sync,
 {
     pub fn new(
-        request: Query,
+        request: Result<Query, ArgumentValidationError>,
         reference: impl Into<Query::RpcReference>,
         handler: Handler,
     ) -> Self {
         Self {
             reference: reference.into(),
-            request: Ok(Arc::new(request)),
+            request: request.map(|request| Arc::new(request) as _),
             handler,
         }
     }
 
     pub fn with_deferred_error(mut self, error: ArgumentValidationError) -> Self {
-        self.request = Err(error);
+        match &mut self.request {
+            Ok(_) => {
+                self.request = Err(error);
+            }
+            Err(current_error) => match current_error {
+                ArgumentValidationError::MultipleErrors(errors) => {
+                    errors.push(error);
+                }
+                _ => {
+                    self.request = Err(ArgumentValidationError::multiple(vec![
+                        error,
+                        current_error.clone(),
+                    ]));
+                }
+            },
+        }
         self
     }
 
@@ -353,7 +368,7 @@ where
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    /// let balance: NearToken = Contract::from_id("some_contract.testnet".parse()?)
     ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .map(|balance: Data<u128>| NearToken::from_yoctonear(balance.data))
@@ -385,7 +400,7 @@ where
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let balance: NearToken = Contract("some_contract.testnet".parse()?)
+    /// let balance: NearToken = Contract::from_id("some_contract.testnet".parse()?)
     ///         .call_function("get_balance", ())
     ///         .read_only()
     ///         .and_then(|balance: Data<String>| Ok(NearToken::from_yoctonear(balance.data.parse()?)))

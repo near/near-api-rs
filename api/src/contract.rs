@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use borsh::BorshDeserialize;
+use near_api_types::near_account_id::{ParseAccountError, TryIntoAccountId};
+use near_api_types::transaction::PrepopulateTransaction;
 use near_api_types::{
     contract::ContractSourceMetadata,
     transaction::actions::{
@@ -36,31 +38,35 @@ use crate::{
 /// use near_api::*;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let abi = Contract("some_contract.testnet".parse()?).abi().fetch_from_testnet().await?;
+/// let abi = Contract::from_id("some_contract.testnet".parse()?).abi().fetch_from_testnet().await?;
 /// println!("ABI: {:?}", abi);
 /// # Ok(())
 /// # }
 /// ```
 #[derive(Clone, Debug)]
-pub struct Contract(pub AccountId);
+pub struct Contract(pub(crate) Result<AccountId, ParseAccountError>);
 
 impl Contract {
-    /// Returns the underlying account ID for this contract.
-    ///
-    /// # Example
-    /// ```rust,no_run
-    /// use near_api::*;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let contract = Contract("contract.testnet".parse()?);
-    /// let account_id = contract.account_id();
-    /// println!("Contract account ID: {}", account_id);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub const fn account_id(&self) -> &AccountId {
-        &self.0
+    pub fn from_id(account_id: impl TryIntoAccountId) -> Self {
+        Self(account_id.try_into_account_id())
     }
+
+    // /// Returns the underlying account ID for this contract.
+    // ///
+    // /// # Example
+    // /// ```rust,no_run
+    // /// use near_api::*;
+    // ///
+    // /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    // /// let contract = Contract::from_id("contract.testnet".parse()?);
+    // /// let account_id = contract.account_id();
+    // /// println!("Contract account ID: {}", account_id);
+    // /// # Ok(())
+    // /// # }
+    // /// ```
+    // pub const fn account_id(&self) -> &AccountId {
+    //     &self.0
+    // }
 
     /// Converts this contract to an Account for account-related operations.
     ///
@@ -69,7 +75,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let contract = Contract("contract.testnet".parse()?);
+    /// let contract = Contract::from_id("contract.testnet".parse()?);
     /// let account = contract.as_account();
     /// let account_info = account.view().fetch_from_testnet().await?;
     /// println!("Account balance: {}", account_info.data.amount);
@@ -89,7 +95,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let contract = Contract("usdt.tether-token.near".parse()?);
+    /// let contract = Contract::from_id("usdt.tether-token.near".parse()?);
     /// let storage = contract.storage_deposit();
     ///
     /// // Check storage balance for an account
@@ -99,7 +105,7 @@ impl Contract {
     /// # }
     /// ```
     pub fn storage_deposit(&self) -> crate::StorageDeposit {
-        crate::StorageDeposit::on_contract(self.0.clone())
+        crate::StorageDeposit(self.clone())
     }
 
     /// Prepares a call to a contract function with JSON-serialized arguments.
@@ -116,7 +122,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let number: Data<u64> = Contract("some_contract.testnet".parse()?)
+    /// let number: Data<u64> = Contract::from_id("some_contract.testnet".parse()?)
     ///     .call_function("get_number", ())
     ///     .read_only()
     ///     .fetch_from_testnet()
@@ -133,7 +139,7 @@ impl Contract {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::from_ledger()?;
-    /// let result = Contract("some_contract.testnet".parse()?)
+    /// let result = Contract::from_id("some_contract.testnet".parse()?)
     ///     .call_function("set_number", json!({ "number": 100 }))
     ///     .transaction()
     ///      // Optional
@@ -175,7 +181,7 @@ impl Contract {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let signer = Signer::from_ledger()?;
     /// let args = MyArgs { value: 42 };
-    /// let result = Contract("some_contract.testnet".parse()?)
+    /// let result = Contract::from_id("some_contract.testnet".parse()?)
     ///     .call_function_borsh("set_value", args)
     ///     .transaction()
     ///     .with_signer("alice.testnet".parse()?, signer)
@@ -211,7 +217,7 @@ impl Contract {
     /// let signer = Signer::from_ledger()?;
     /// // Pre-serialized or custom-encoded data
     /// let raw_args = vec![1, 2, 3, 4];
-    /// let result = Contract("some_contract.testnet".parse()?)
+    /// let result = Contract::from_id("some_contract.testnet".parse()?)
     ///     .call_function_raw("custom_method", raw_args)
     ///     .transaction()
     ///     .with_signer("alice.testnet".parse()?, signer)
@@ -329,7 +335,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let abi = Contract("some_contract.testnet".parse()?).abi().fetch_from_testnet().await?;
+    /// let abi = Contract::from_id("some_contract.testnet".parse()?).abi().fetch_from_testnet().await?;
     /// println!("ABI: {:?}", abi);
     /// # Ok(())
     /// # }
@@ -353,21 +359,21 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let wasm = Contract("some_contract.testnet".parse()?).wasm().fetch_from_testnet().await?;
+    /// let wasm = Contract::from_id("some_contract.testnet".parse()?).wasm().fetch_from_testnet().await?;
     /// println!("WASM: {}", wasm.data.code_base64);
     /// # Ok(())
     /// # }
     /// ```
     pub fn wasm(&self) -> RequestBuilder<ViewCodeHandler> {
-        let request = QueryRequest::ViewCode {
-            account_id: self.0.clone(),
-        };
+        let request = self
+            .0
+            .clone()
+            .map_err(Into::into)
+            .map(|account_id| SimpleQueryRpc {
+                request: QueryRequest::ViewCode { account_id },
+            });
 
-        RequestBuilder::new(
-            SimpleQueryRpc { request },
-            Reference::Optimistic,
-            ViewCodeHandler,
-        )
+        RequestBuilder::new(request, Reference::Optimistic, ViewCodeHandler)
     }
 
     /// Creates a builder to query contract code from the global contract code storage.
@@ -416,7 +422,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let storage = Contract("some_contract.testnet".parse()?)
+    /// let storage = Contract::from_id("some_contract.testnet".parse()?)
     ///     .view_storage_with_prefix(b"se")
     ///     .fetch_from_testnet()
     ///     .await?;
@@ -425,17 +431,19 @@ impl Contract {
     /// # }
     /// ```
     pub fn view_storage_with_prefix(&self, prefix: &[u8]) -> RequestBuilder<ViewStateHandler> {
-        let request = QueryRequest::ViewState {
-            account_id: self.0.clone(),
-            prefix_base64: StoreKey(to_base64(prefix)),
-            include_proof: Some(false),
-        };
+        let request = self
+            .0
+            .clone()
+            .map_err(Into::into)
+            .map(|account_id| SimpleQueryRpc {
+                request: QueryRequest::ViewState {
+                    account_id,
+                    prefix_base64: StoreKey(to_base64(prefix)),
+                    include_proof: Some(false),
+                },
+            });
 
-        RequestBuilder::new(
-            SimpleQueryRpc { request },
-            Reference::Optimistic,
-            ViewStateHandler,
-        )
+        RequestBuilder::new(request, Reference::Optimistic, ViewStateHandler)
     }
 
     /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_api_types::ViewStateResult)>).
@@ -447,7 +455,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let storage = Contract("some_contract.testnet".parse()?)
+    /// let storage = Contract::from_id("some_contract.testnet".parse()?)
     ///     .view_storage()
     ///     .fetch_from_testnet()
     ///     .await?;
@@ -470,7 +478,7 @@ impl Contract {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let source_metadata = Contract("some_contract.testnet".parse()?)
+    /// let source_metadata = Contract::from_id("some_contract.testnet".parse()?)
     ///     .contract_source_metadata()
     ///     .fetch_from_testnet()
     ///     .await?;
@@ -758,7 +766,7 @@ impl GlobalDeployBuilder {
 
 #[derive(Debug, Clone)]
 pub struct CallFunctionBuilder {
-    contract: AccountId,
+    contract: Result<AccountId, ParseAccountError>,
     method_name: String,
     args: Result<Vec<u8>, ArgumentValidationError>,
 }
@@ -771,10 +779,10 @@ impl CallFunctionBuilder {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let balance: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ()).read_only().fetch_from_testnet().await?;
+    /// let balance: Data<u64> = Contract::from_id("some_contract.testnet".parse()?).call_function("get_balance", ()).read_only().fetch_from_testnet().await?;
     /// println!("Balance: {:?}", balance);
     ///
-    /// let balance_at_block: Data<u64> = Contract("some_contract.testnet".parse()?).call_function("get_balance", ()).read_only().at(Reference::AtBlock(1000000)).fetch_from_testnet().await?;
+    /// let balance_at_block: Data<u64> = Contract::from_id("some_contract.testnet".parse()?).call_function("get_balance", ()).read_only().at(Reference::AtBlock(1000000)).fetch_from_testnet().await?;
     /// println!("Balance at block 1000000: {:?}", balance_at_block);
     /// # Ok(())
     /// # }
@@ -782,20 +790,29 @@ impl CallFunctionBuilder {
     pub fn read_only<Response: Send + Sync + DeserializeOwned>(
         self,
     ) -> RequestBuilder<CallResultHandler<Response>> {
-        let request = QueryRequest::CallFunction {
-            account_id: self.contract,
-            method_name: self.method_name,
-            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
-        };
+        let request = self
+            .contract
+            .map_err(Into::into)
+            .map(|account_id| SimpleQueryRpc {
+                request: QueryRequest::CallFunction {
+                    account_id,
+                    method_name: self.method_name,
+                    args_base64: FunctionArgs(
+                        self.args.as_deref().map(to_base64).unwrap_or_default(),
+                    ),
+                },
+            });
 
         let mut builder = RequestBuilder::new(
-            SimpleQueryRpc { request },
+            request,
             Reference::Optimistic,
             CallResultHandler::<Response>::new(),
         );
-        if let Err(err) = self.args {
-            builder = builder.with_deferred_error(err);
+
+        if let Some(args_error) = self.args.as_ref().err() {
+            builder = builder.with_deferred_error(args_error.clone());
         }
+
         builder
     }
 
@@ -808,7 +825,7 @@ impl CallFunctionBuilder {
     /// use near_api::*;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let value: Data<u64> = Contract("some_contract.testnet".parse()?)
+    /// let value: Data<u64> = Contract::from_id("some_contract.testnet".parse()?)
     ///     .call_function("get_number", ())
     ///     .read_only_borsh()
     ///     .fetch_from_testnet()
@@ -820,20 +837,29 @@ impl CallFunctionBuilder {
     pub fn read_only_borsh<Response: Send + Sync + BorshDeserialize>(
         self,
     ) -> RequestBuilder<CallResultBorshHandler<Response>> {
-        let request = QueryRequest::CallFunction {
-            account_id: self.contract,
-            method_name: self.method_name,
-            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
-        };
+        let request = self
+            .contract
+            .map_err(Into::into)
+            .map(|account_id| SimpleQueryRpc {
+                request: QueryRequest::CallFunction {
+                    account_id,
+                    method_name: self.method_name,
+                    args_base64: FunctionArgs(
+                        self.args.as_deref().map(to_base64).unwrap_or_default(),
+                    ),
+                },
+            });
 
         let mut builder = RequestBuilder::new(
-            SimpleQueryRpc { request },
+            request,
             Reference::Optimistic,
             CallResultBorshHandler::<Response>::new(),
         );
-        if let Err(err) = self.args {
-            builder = builder.with_deferred_error(err);
+
+        if let Some(args_error) = self.args.as_ref().err() {
+            builder = builder.with_deferred_error(args_error.clone());
         }
+
         builder
     }
 
@@ -847,7 +873,7 @@ impl CallFunctionBuilder {
 
 #[derive(Debug, Clone)]
 pub struct ContractTransactBuilder {
-    contract: AccountId,
+    contract: Result<AccountId, ParseAccountError>,
     method_name: String,
     args: Result<Vec<u8>, ArgumentValidationError>,
     gas: Option<NearGas>,
@@ -856,7 +882,7 @@ pub struct ContractTransactBuilder {
 
 impl ContractTransactBuilder {
     const fn new(
-        contract: AccountId,
+        contract: Result<AccountId, ParseAccountError>,
         method_name: String,
         args: Result<Vec<u8>, ArgumentValidationError>,
     ) -> Self {
@@ -895,30 +921,50 @@ impl ContractTransactBuilder {
     /// This will return the [`ExecuteSignedTransaction`] that can be used to sign and send the transaction to the network.
     pub fn with_signer(
         self,
-        signer_id: AccountId,
+        signer_id: impl TryIntoAccountId,
         signer: Arc<Signer>,
     ) -> ExecuteSignedTransaction {
         self.with_signer_account(signer_id).with_signer(signer)
     }
 
     // Re-used by stake.rs and tokens.rs as we do have extra signer_id context, but we don't need there a signer
-    pub(crate) fn with_signer_account(self, signer_id: AccountId) -> ConstructTransaction {
+    pub(crate) fn with_signer_account(
+        self,
+        signer_id: impl TryIntoAccountId,
+    ) -> ConstructTransaction {
         let gas = self.gas.unwrap_or_else(|| NearGas::from_tgas(100));
         let deposit = self.deposit.unwrap_or_else(|| NearToken::from_yoctonear(0));
 
-        let err = self.args.as_deref().err().cloned();
+        let args = self.args.as_ref().err().cloned();
 
-        let mut transaction = Transaction::construct(signer_id, self.contract).add_action(
-            Action::FunctionCall(Box::new(FunctionCallAction {
-                method_name: self.method_name.to_owned(),
-                args: self.args.unwrap_or_default(),
-                gas,
-                deposit,
-            })),
-        );
-        if let Some(err) = err {
-            transaction = transaction.with_deferred_error(err);
+        let prepopulated_transaction = self
+            .contract
+            .and_then(|id| {
+                signer_id
+                    .try_into_account_id()
+                    .map(|signer_id| (id, signer_id))
+            })
+            .map(|(receiver_id, signer_id)| PrepopulateTransaction {
+                signer_id,
+                receiver_id,
+                actions: vec![],
+            })
+            .map_err(Into::into);
+
+        let mut transaction = ConstructTransaction {
+            transaction: prepopulated_transaction,
         }
+        .add_action(Action::FunctionCall(Box::new(FunctionCallAction {
+            method_name: self.method_name.to_owned(),
+            args: self.args.unwrap_or_default(),
+            gas,
+            deposit,
+        })));
+
+        if let Some(error) = args {
+            transaction = transaction.with_deferred_error(error);
+        }
+
         transaction
     }
 }
@@ -942,14 +988,18 @@ impl GlobalWasmBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn by_account_id(&self, account_id: AccountId) -> RequestBuilder<ViewCodeHandler> {
-        let request = QueryRequest::ViewGlobalContractCodeByAccountId { account_id };
+    pub fn by_account_id(
+        &self,
+        account_id: impl TryIntoAccountId,
+    ) -> RequestBuilder<ViewCodeHandler> {
+        let request = account_id
+            .try_into_account_id()
+            .map_err(Into::into)
+            .map(|account_id| SimpleQueryRpc {
+                request: QueryRequest::ViewGlobalContractCodeByAccountId { account_id },
+            });
 
-        RequestBuilder::new(
-            SimpleQueryRpc { request },
-            Reference::Optimistic,
-            ViewCodeHandler,
-        )
+        RequestBuilder::new(request, Reference::Optimistic, ViewCodeHandler)
     }
 
     /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) by hash.
@@ -971,7 +1021,7 @@ impl GlobalWasmBuilder {
         let request = QueryRequest::ViewGlobalContractCode { code_hash };
 
         RequestBuilder::new(
-            SimpleQueryRpc { request },
+            Ok(SimpleQueryRpc { request }),
             Reference::Optimistic,
             ViewCodeHandler,
         )

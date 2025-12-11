@@ -20,7 +20,7 @@ async fn contract_without_init_call() -> TestResult {
         .await?
         .assert_success();
 
-    let contract = Contract(account.clone());
+    let contract = Contract::from_id(account.clone());
 
     assert!(!contract
         .wasm()
@@ -85,7 +85,7 @@ async fn contract_with_init_call() -> TestResult {
         .await?
         .assert_success();
 
-    let contract = Contract(account.clone());
+    let contract = Contract::from_id(account.clone());
 
     assert!(!contract
         .wasm()

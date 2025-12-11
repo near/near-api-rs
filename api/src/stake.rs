@@ -65,7 +65,7 @@ impl Delegation {
     /// # }
     /// ```
     pub fn as_account(&self) -> crate::account::Account {
-        crate::account::Account(self.0.clone())
+        crate::account::Account::from_id(&self.0)
     }
 
     /// Prepares a new contract query (`get_account_staked_balance`) for fetching the staked balance ([NearToken]) of the account on the staking pool.
@@ -89,7 +89,7 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function(
                 "get_account_staked_balance",
                 serde_json::json!({
@@ -121,7 +121,7 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function(
                 "get_account_unstaked_balance",
                 serde_json::json!({
@@ -153,7 +153,7 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function(
                 "get_account_total_balance",
                 serde_json::json!({
@@ -236,7 +236,7 @@ impl Delegation {
         &self,
         pool: AccountId,
     ) -> RequestBuilder<CallResultHandler<bool>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function(
                 "is_account_unstaked_balance_available",
                 serde_json::json!({
@@ -267,7 +267,7 @@ impl Delegation {
     /// # }
     /// ```
     pub fn deposit(&self, pool: AccountId, amount: NearToken) -> ConstructTransaction {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("deposit", ())
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -298,7 +298,7 @@ impl Delegation {
     /// # }
     /// ```
     pub fn deposit_and_stake(&self, pool: AccountId, amount: NearToken) -> ConstructTransaction {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("deposit_and_stake", ())
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -334,7 +334,7 @@ impl Delegation {
             "amount": amount,
         });
 
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("stake", args)
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -363,7 +363,7 @@ impl Delegation {
     /// # }
     /// ```
     pub fn stake_all(&self, pool: AccountId) -> ConstructTransaction {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("stake_all", ())
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -394,7 +394,7 @@ impl Delegation {
             "amount": amount,
         });
 
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("unstake", args)
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -421,7 +421,7 @@ impl Delegation {
     /// # }
     /// ```
     pub fn unstake_all(&self, pool: AccountId) -> ConstructTransaction {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("unstake_all", ())
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -452,7 +452,7 @@ impl Delegation {
             "amount": amount,
         });
 
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("withdraw", args)
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -479,7 +479,7 @@ impl Delegation {
     /// # }
     /// ```
     pub fn withdraw_all(&self, pool: AccountId) -> ConstructTransaction {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("withdraw_all", ())
             .transaction()
             .gas(NearGas::from_tgas(50))
@@ -523,7 +523,7 @@ impl Staking {
     /// ```
     pub fn active_staking_pools() -> RpcBuilder<ActiveStakingPoolQuery, ActiveStakingHandler> {
         RpcBuilder::new(
-            ActiveStakingPoolQuery,
+            Ok(ActiveStakingPoolQuery),
             Reference::Optimistic,
             ActiveStakingHandler,
         )
@@ -543,7 +543,7 @@ impl Staking {
     /// ```
     pub fn epoch_validators_info() -> RequestBuilder<RpcValidatorHandler> {
         RequestBuilder::new(
-            SimpleValidatorRpc,
+            Ok(SimpleValidatorRpc),
             EpochReference::Latest,
             RpcValidatorHandler,
         )
@@ -565,7 +565,7 @@ impl Staking {
     ) -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>>
     {
         RequestBuilder::new(
-            SimpleValidatorRpc,
+            Ok(SimpleValidatorRpc),
             EpochReference::Latest,
             RpcValidatorHandler,
         )
@@ -614,7 +614,7 @@ impl Staking {
     pub fn staking_pool_reward_fee(
         pool: AccountId,
     ) -> RequestBuilder<CallResultHandler<RewardFeeFraction>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("get_reward_fee_fraction", ())
             .read_only()
     }
@@ -636,7 +636,7 @@ impl Staking {
     /// # }
     /// ```
     pub fn staking_pool_delegators(pool: AccountId) -> RequestBuilder<CallResultHandler<u64>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("get_number_of_accounts", ())
             .read_only()
     }
@@ -660,7 +660,7 @@ impl Staking {
     pub fn staking_pool_total_stake(
         pool: AccountId,
     ) -> RequestBuilder<PostprocessHandler<NearToken, CallResultHandler<u128>>> {
-        Contract(pool)
+        Contract::from_id(pool)
             .call_function("get_total_staked_balance", ())
             .read_only()
             .map(near_data_to_near_token)

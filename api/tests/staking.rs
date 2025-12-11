@@ -38,7 +38,7 @@ async fn init() -> Result<TestContext, testresult::TestError> {
     patch.send().await?;
 
     // Init staking pool
-    near_api::Contract(staking_pool.clone())
+    near_api::Contract::from_id(staking_pool.clone())
         .call_function(
             "new",
             serde_json::json!({

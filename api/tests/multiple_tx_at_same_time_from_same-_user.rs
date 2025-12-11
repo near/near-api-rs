@@ -21,7 +21,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
-    let start_nonce = Account(account.clone())
+    let start_nonce = Account::from_id(&account)
         .access_key(signer.get_public_key().await?)
         .fetch_from(&network)
         .await?
@@ -48,7 +48,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
 
     assert_eq!(txs.len(), 20);
 
-    let end_nonce = Account(account.clone())
+    let end_nonce = Account::from_id(&account)
         .access_key(signer.get_public_key().await?)
         .fetch_from(&network)
         .await?
@@ -70,7 +70,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let secret = generate_secret_key()?;
-    Account(account.clone())
+    Account::from_id(&account)
         .add_key(AccessKeyPermission::FullAccess, secret.public_key())
         .with_signer(signer.clone())
         .send_to(&network)
@@ -80,7 +80,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     signer.add_secret_key_to_pool(secret.clone()).await?;
 
     let secret2 = generate_secret_key()?;
-    Account(account.clone())
+    Account::from_id(&account)
         .add_key(AccessKeyPermission::FullAccess, secret2.public_key())
         .with_signer(signer.clone())
         .send_to(&network)

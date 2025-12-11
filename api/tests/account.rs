@@ -36,7 +36,7 @@ async fn create_and_delete_account() -> TestResult {
 
     assert_eq!(balance_before_del.total.as_near(), 1);
 
-    Account(account_id.clone())
+    Account::from_id(&account_id)
         .delete_account_with_beneficiary(new_account.clone())
         .with_signer(signer.clone())
         .wait_until(TxExecutionStatus::Final)
@@ -103,7 +103,7 @@ async fn access_key_management() -> TestResult {
     let network: NetworkConfig = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse()?);
     let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
-    let alice_acc = Account(alice.clone());
+    let alice_acc = Account::from_id(&alice);
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let keys = alice_acc.list_keys().fetch_from(&network).await?;

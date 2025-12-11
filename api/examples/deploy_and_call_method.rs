@@ -25,7 +25,7 @@ async fn main() -> TestResult {
         .unwrap()
         .assert_success();
 
-    let contract = Contract(account.clone());
+    let contract = Contract::from_id(account.clone());
 
     // Let's fetch current value on a contract
     let current_value: Data<i8> = contract

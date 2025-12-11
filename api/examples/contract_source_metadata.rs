@@ -9,7 +9,7 @@ async fn main() -> TestResult {
         ("desolate-toad.testnet", FIRST_METADATA),
         ("fat-fabulous-toad.testnet", SECOND_METADATA),
     ] {
-        let source_metadata = Contract(AccountId::from_str(account_name).expect("no err"))
+        let source_metadata = Contract::from_id(AccountId::from_str(account_name).expect("no err"))
             .contract_source_metadata()
             .fetch_from_testnet()
             .await?;

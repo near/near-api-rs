@@ -20,7 +20,7 @@ async fn main() -> testresult::TestResult {
         .send()
         .await?;
 
-    Contract(token.clone())
+    Contract::from_id(token.clone())
         .call_function("new", ())
         .transaction()
         .with_signer(token.clone(), signer.clone())
