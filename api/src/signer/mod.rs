@@ -394,7 +394,7 @@ pub trait SignerTrait {
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    nonce_cache: tokio::sync::RwLock<HashMap<(AccountId, PublicKey), AtomicU64>>,
+    nonce_cache: futures::lock::Mutex<HashMap<(AccountId, PublicKey), Arc<AtomicU64>>>,
     current_public_key: AtomicUsize,
 }
 
@@ -410,7 +410,7 @@ impl Signer {
                 public_key,
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
-            nonce_cache: tokio::sync::RwLock::new(HashMap::new()),
+            nonce_cache: futures::lock::Mutex::new(HashMap::new()),
             current_public_key: AtomicUsize::new(0),
         }))
     }
@@ -545,37 +545,32 @@ impl Signer {
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
+
         let nonce_data = crate::account::Account(account_id.clone())
             .access_key(public_key)
             .fetch_from(network)
             .await
             .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
-        let nonce_cache = self.nonce_cache.read().await;
 
-        if let Some(nonce) = nonce_cache.get(&(account_id.clone(), public_key)) {
-            let nonce = nonce.fetch_add(1, Ordering::SeqCst);
-            drop(nonce_cache);
-            trace!(target: SIGNER_TARGET, "Nonce fetched from cache");
-            return Ok((nonce + 1, nonce_data.block_hash, nonce_data.block_height));
-        } else {
-            drop(nonce_cache);
-        }
-
-        // It's initialization, so it's better to take write lock, so other will wait
-
-        // case where multiple writers end up at the same lock acquisition point and tries
-        // to overwrite the cached value that a previous writer already wrote.
         let nonce = self
             .nonce_cache
-            .write()
+            .lock()
             .await
-            .entry((account_id.clone(), public_key))
-            .or_insert_with(|| AtomicU64::new(nonce_data.data.nonce.0 + 1))
-            .fetch_max(nonce_data.data.nonce.0 + 1, Ordering::SeqCst)
-            .max(nonce_data.data.nonce.0 + 1);
+            .entry((account_id, public_key))
+            .and_modify(|_| {
+                trace!(target: SIGNER_TARGET, "Nonce fetched from cache");
+            })
+            .or_insert_with(|| {
+                info!(target: SIGNER_TARGET, "Nonce fetched and cached");
+                Arc::new(AtomicU64::new(nonce_data.data.nonce.0))
+            })
+            .clone();
 
-        info!(target: SIGNER_TARGET, "Nonce fetched and cached");
-        Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
+        Ok((
+            nonce.fetch_add(1, Ordering::SeqCst) + 1,
+            nonce_data.block_hash,
+            nonce_data.block_height,
+        ))
     }
 
     /// Creates a [Signer](`Signer`) using seed phrase with default HD path.
