@@ -126,7 +126,7 @@ use near_api_types::{
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, instrument, warn};
 
 use crate::{
     config::NetworkConfig,
