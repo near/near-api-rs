@@ -110,7 +110,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -394,7 +394,7 @@ pub trait SignerTrait {
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    nonce_cache: futures::lock::Mutex<HashMap<(AccountId, PublicKey), Arc<AtomicU64>>>,
+    nonce_cache: futures::lock::Mutex<HashMap<(AccountId, PublicKey), u64>>,
     current_public_key: AtomicUsize,
 }
 
@@ -552,25 +552,14 @@ impl Signer {
             .await
             .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
 
-        let nonce = self
-            .nonce_cache
-            .lock()
-            .await
-            .entry((account_id, public_key))
-            .and_modify(|_| {
-                trace!(target: SIGNER_TARGET, "Nonce fetched from cache");
-            })
-            .or_insert_with(|| {
-                info!(target: SIGNER_TARGET, "Nonce fetched and cached");
-                Arc::new(AtomicU64::new(nonce_data.data.nonce.0))
-            })
-            .clone();
+        let nonce = {
+            let mut nonce_cache = self.nonce_cache.lock().await;
+            let nonce = nonce_cache.entry((account_id, public_key)).or_default();
+            *nonce = (*nonce).max(nonce_data.data.nonce.0) + 1;
+            *nonce
+        };
 
-        Ok((
-            nonce.fetch_add(1, Ordering::SeqCst) + 1,
-            nonce_data.block_hash,
-            nonce_data.block_height,
-        ))
+        Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
     /// Creates a [Signer](`Signer`) using seed phrase with default HD path.
