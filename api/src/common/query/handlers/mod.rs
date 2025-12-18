@@ -86,9 +86,7 @@ where
             Ok(Data {
                 data,
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -138,9 +136,7 @@ where
             Ok(Data {
                 data,
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -198,9 +194,7 @@ impl ResponseHandler for AccountViewHandler {
                 .try_into()
                 .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -252,9 +246,7 @@ impl ResponseHandler for AccessKeyListHandler {
                     })
                     .collect(),
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -306,9 +298,7 @@ impl ResponseHandler for AccessKeyHandler {
                         .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
                 },
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -351,9 +341,7 @@ impl ResponseHandler for ViewStateHandler {
             Ok(Data {
                 data: ViewStateResult { proof, values },
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
@@ -396,9 +384,7 @@ impl ResponseHandler for ViewCodeHandler {
             Ok(Data {
                 data: ContractCodeView { code_base64, hash },
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
