@@ -140,7 +140,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                block_hash: hash.try_into()?,
+                block_hash: hash.into(),
                 actions: actions
                     .into_iter()
                     .map(Action::try_from)
@@ -153,7 +153,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                block_hash: hash.try_into()?,
+                block_hash: hash.into(),
                 actions: actions
                     .into_iter()
                     .map(Action::try_from)

@@ -55,8 +55,8 @@ near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
 near-ledger = "0.9.1"
-near-openapi-client = "0.6"
-near-openapi-types = "0.6"
+near-openapi-client = "0.7"
+near-openapi-types = "0.7"
 
 # Dev-dependencies
 near-primitives = { version = "0.34" }

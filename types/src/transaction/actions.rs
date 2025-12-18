@@ -94,7 +94,7 @@ impl TryFrom<near_openapi_types::DeterministicStateInitAction> for Deterministic
         match state_init {
             near_openapi_types::DeterministicAccountStateInit::V1(v1) => Ok(Self {
                 state_init: DeterministicAccountStateInit::V1(DeterministicAccountStateInitV1 {
-                    code: v1.code.try_into()?,
+                    code: v1.code.into(),
                     data: v1
                         .data
                         .into_iter()
@@ -135,15 +135,14 @@ pub struct UseGlobalContractAction {
     pub contract_identifier: GlobalContractIdentifier,
 }
 
-impl TryFrom<near_openapi_types::UseGlobalContractAction> for UseGlobalContractAction {
-    type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::UseGlobalContractAction) -> Result<Self, Self::Error> {
+impl From<near_openapi_types::UseGlobalContractAction> for UseGlobalContractAction {
+    fn from(val: near_openapi_types::UseGlobalContractAction) -> Self {
         let near_openapi_types::UseGlobalContractAction {
             contract_identifier,
         } = val;
-        Ok(Self {
-            contract_identifier: contract_identifier.try_into()?,
-        })
+        Self {
+            contract_identifier: contract_identifier.into(),
+        }
     }
 }
 
@@ -471,35 +470,28 @@ pub enum GlobalContractIdentifier {
     AccountId(AccountId),
 }
 
-impl TryFrom<near_openapi_types::GlobalContractIdentifier> for GlobalContractIdentifier {
-    type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::GlobalContractIdentifier) -> Result<Self, Self::Error> {
+impl From<near_openapi_types::GlobalContractIdentifier> for GlobalContractIdentifier {
+    fn from(val: near_openapi_types::GlobalContractIdentifier) -> Self {
         match val {
             near_openapi_types::GlobalContractIdentifier::CodeHash(code_hash) => {
-                Ok(Self::CodeHash(code_hash.try_into()?))
+                Self::CodeHash(code_hash.into())
             }
             near_openapi_types::GlobalContractIdentifier::AccountId(account_id) => {
-                Ok(Self::AccountId(account_id))
+                Self::AccountId(account_id)
             }
         }
     }
 }
 
-impl TryFrom<near_openapi_types::GlobalContractIdentifierView> for GlobalContractIdentifier {
-    type Error = DataConversionError;
-    fn try_from(
-        val: near_openapi_types::GlobalContractIdentifierView,
-    ) -> Result<Self, Self::Error> {
-        let near_openapi_types::GlobalContractIdentifierView {
-            subtype_0: code_hash,
-            subtype_1: account_id,
-        } = val;
-        if let Some(code_hash) = code_hash {
-            Ok(Self::CodeHash(code_hash.try_into()?))
-        } else if let Some(account_id) = account_id {
-            Ok(Self::AccountId(account_id))
-        } else {
-            Err(DataConversionError::InvalidGlobalContractIdentifier)
+impl From<near_openapi_types::GlobalContractIdentifierView> for GlobalContractIdentifier {
+    fn from(val: near_openapi_types::GlobalContractIdentifierView) -> Self {
+        match val {
+            near_openapi_types::GlobalContractIdentifierView::CryptoHash(code_hash) => {
+                Self::CodeHash(code_hash.into())
+            }
+            near_openapi_types::GlobalContractIdentifierView::AccountId(account_id) => {
+                Self::AccountId(account_id)
+            }
         }
     }
 }
@@ -516,7 +508,7 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
                 DeterministicStateInitAction {
                     state_init: DeterministicAccountStateInit::V1(
                         DeterministicAccountStateInitV1 {
-                            code: code.try_into()?,
+                            code: code.into(),
                             data: data
                                 .into_iter()
                                 .map(|(k, v)| {
@@ -595,7 +587,7 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
             }
             near_openapi_types::ActionView::UseGlobalContract { code_hash } => {
                 Ok(Self::UseGlobalContract(Box::new(UseGlobalContractAction {
-                    contract_identifier: GlobalContractIdentifier::CodeHash(code_hash.try_into()?),
+                    contract_identifier: GlobalContractIdentifier::CodeHash(code_hash.into()),
                 })))
             }
             near_openapi_types::ActionView::UseGlobalContractByAccountId { account_id } => {

@@ -148,13 +148,9 @@ impl TryFrom<Vec<u8>> for CryptoHash {
     }
 }
 
-impl TryFrom<near_openapi_types::CryptoHash> for CryptoHash {
-    type Error = DataConversionError;
-
-    fn try_from(value: near_openapi_types::CryptoHash) -> Result<Self, Self::Error> {
-        let near_openapi_types::CryptoHash(hash) = value;
-        let bytes = bs58::decode(hash).into_vec()?;
-        Self::try_from(bytes)
+impl From<near_openapi_types::CryptoHash> for CryptoHash {
+    fn from(value: near_openapi_types::CryptoHash) -> Self {
+        Self(value.0)
     }
 }
 
@@ -172,6 +168,6 @@ impl std::fmt::Display for CryptoHash {
 
 impl From<CryptoHash> for near_openapi_types::CryptoHash {
     fn from(hash: CryptoHash) -> Self {
-        Self(hash.to_string())
+        Self(hash.0)
     }
 }

@@ -98,7 +98,7 @@ impl TryFrom<near_openapi_types::NonDelegateAction> for NonDelegateAction {
             near_openapi_types::NonDelegateAction::UseGlobalContract(
                 use_global_contract_action,
             ) => Ok(Self(Action::UseGlobalContract(Box::new(
-                use_global_contract_action.try_into()?,
+                use_global_contract_action.into(),
             )))),
             near_openapi_types::NonDelegateAction::AddGasKey(add_gas_key_action) => Ok(Self(
                 Action::AddGasKey(Box::new(add_gas_key_action.try_into()?)),
