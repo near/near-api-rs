@@ -160,7 +160,7 @@ pub enum ArgumentValidationError {
     #[error("Account creation error: {0}")]
     AccountCreationError(#[from] AccountCreationError),
     #[error("Multiple errors: {0:?}")]
-    MultipleErrors(Vec<ArgumentValidationError>),
+    MultipleErrors(Vec<Self>),
 }
 
 impl ArgumentValidationError {
