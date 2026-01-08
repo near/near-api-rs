@@ -1,6 +1,6 @@
 {
     "version": "0.2",
-    "ignorePaths": [],
+    "ignorePaths": ["CODEOWNERS"],
     "dictionaryDefinitions": [],
     "dictionaries": [
         "rust"
