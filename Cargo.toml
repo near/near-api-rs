@@ -61,7 +61,7 @@ near-openapi-types = "0.7"
 # Dev-dependencies
 near-primitives = { version = "0.34" }
 near-crypto = { version = "0.34" }
-near-sandbox = { version = "0.3.0", features = [
+near-sandbox = { version = "0.3.4", features = [
     "generate",
 ], default-features = false }
 testresult = "0.4"
