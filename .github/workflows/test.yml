@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest]
+        platform: [ubuntu-latest, warp-macos-latest-arm64-6x]
         toolchain:
           - stable
           - ${{ needs.get_msrv.outputs.version }}
