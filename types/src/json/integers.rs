@@ -254,10 +254,8 @@ mod tests {
 
             // Verify it's serialized as a string (starts and ends with quotes)
             assert!(
-                serialized.len() >= 2 
-                && serialized.starts_with('"') 
-                && serialized.ends_with('"'),
-                "Expected string format but got: {}", 
+                serialized.len() >= 2 && serialized.starts_with('"') && serialized.ends_with('"'),
+                "Expected string format but got: {}",
                 serialized
             );
 
