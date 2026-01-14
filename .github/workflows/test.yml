@@ -100,6 +100,8 @@ jobs:
           - ${{ needs.get_msrv.outputs.version }}
     runs-on: ${{ matrix.platform }}
     name: CI with ${{ matrix.toolchain }}
+    env:
+      NEAR_SANDBOX_RPC_TIMEOUT_SECS: ${{ matrix.platform == 'warp-macos-latest-arm64-6x' && '30' || '' }}
     steps:
     - uses: actions/checkout@v4
     - name: "${{ matrix.toolchain }}"
