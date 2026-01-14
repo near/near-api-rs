@@ -253,7 +253,13 @@ mod tests {
             let serialized = serde_json::to_string(&u128_value).unwrap();
 
             // Verify it's serialized as a string (starts and ends with quotes)
-            assert!(serialized.starts_with('"') && serialized.ends_with('"'));
+            assert!(
+                serialized.len() >= 2 
+                && serialized.starts_with('"') 
+                && serialized.ends_with('"'),
+                "Expected string format but got: {}", 
+                serialized
+            );
 
             // Verify it can be deserialized back correctly
             let deserialized: U128 = serde_json::from_str(&serialized).unwrap();
