@@ -100,8 +100,6 @@ jobs:
           - ${{ needs.get_msrv.outputs.version }}
     runs-on: ${{ matrix.platform }}
     name: CI with ${{ matrix.toolchain }}
-    env:
-      NEAR_SANDBOX_RPC_TIMEOUT_SECS: ${{ matrix.platform == 'warp-macos-latest-arm64-6x' && '30' || '' }}
     steps:
     - uses: actions/checkout@v4
     - name: "${{ matrix.toolchain }}"
@@ -117,6 +115,8 @@ jobs:
     - name: Check with stable features
       run: cargo check --examples --all-features
     - name: Run tests
+      env:
+        NEAR_SANDBOX_RPC_TIMEOUT_SECS: ${{ matrix.platform == 'warp-macos-latest-arm64-6x' && '30' || '10' }}
       run: cargo test --all-features
   spellcheck:
     runs-on: ubuntu-latest
