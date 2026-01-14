@@ -38,6 +38,17 @@ async fn contract_without_init_call() -> TestResult {
         .version
         .is_some());
 
+    let abi = contract.abi().fetch_from(&network).await?;
+    assert!(abi.is_some());
+
+    let raw_value: Data<Vec<u8>> = contract
+        .call_function("get_num", ())
+        .read_only_raw()
+        .fetch_from(&network)
+        .await?;
+    let decoded: i8 = serde_json::from_slice(&raw_value.data)?;
+    assert_eq!(decoded, 0);
+
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
         .read_only()

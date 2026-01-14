@@ -15,8 +15,8 @@ use crate::{
     advanced::{query_request::QueryRequest, query_rpc::SimpleQueryRpc},
     common::{
         query::{
-            CallResultBorshHandler, CallResultHandler, PostprocessHandler, RequestBuilder,
-            ViewCodeHandler, ViewStateHandler,
+            CallResultBorshHandler, CallResultHandler, CallResultRawHandler, PostprocessHandler,
+            RequestBuilder, ViewCodeHandler, ViewStateHandler,
         },
         send::ExecuteSignedTransaction,
         utils::to_base64,
@@ -337,10 +337,10 @@ impl Contract {
     pub fn abi(
         &self,
     ) -> RequestBuilder<
-        PostprocessHandler<Option<near_api_types::abi::AbiRoot>, CallResultHandler<Vec<u8>>>,
+        PostprocessHandler<Option<near_api_types::abi::AbiRoot>, CallResultRawHandler>,
     > {
         self.call_function("__contract_abi", ())
-            .read_only()
+            .read_only_raw()
             .map(|data: Data<Vec<u8>>| {
                 serde_json::from_slice(zstd::decode_all(data.data.as_slice()).ok()?.as_slice()).ok()
             })
@@ -792,6 +792,40 @@ impl CallFunctionBuilder {
             SimpleQueryRpc { request },
             Reference::Optimistic,
             CallResultHandler::<Response>::new(),
+        );
+        if let Err(err) = self.args {
+            builder = builder.with_deferred_error(err);
+        }
+        builder
+    }
+
+    /// Prepares a read-only query that returns raw bytes without JSON deserialization.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let raw: Data<Vec<u8>> = Contract("some_contract.testnet".parse()?)
+    ///     .call_function("get_raw_payload", ())
+    ///     .read_only_raw()
+    ///     .fetch_from_testnet()
+    ///     .await?;
+    /// println!("Raw bytes len: {}", raw.data.len());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn read_only_raw(self) -> RequestBuilder<CallResultRawHandler> {
+        let request = QueryRequest::CallFunction {
+            account_id: self.contract,
+            method_name: self.method_name,
+            args_base64: FunctionArgs(self.args.as_deref().map(to_base64).unwrap_or_default()),
+        };
+
+        let mut builder = RequestBuilder::new(
+            SimpleQueryRpc { request },
+            Reference::Optimistic,
+            CallResultRawHandler::new(),
         );
         if let Err(err) = self.args {
             builder = builder.with_deferred_error(err);
