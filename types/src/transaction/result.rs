@@ -210,11 +210,11 @@ impl TryFrom<FinalExecutionOutcomeView> for ExecutionFinalResult {
                 .map(|t| t.outcome.gas_burnt.as_gas())
                 .sum::<u64>();
 
-        let transaction_outcome = transaction_outcome.try_into()?;
+        let transaction_outcome = transaction_outcome.into();
         let receipts = receipts_outcome
             .into_iter()
-            .map(ExecutionOutcome::try_from)
-            .collect::<Result<_, DataConversionError>>()?;
+            .map(ExecutionOutcome::from)
+            .collect();
 
         let total_gas_burnt = NearGas::from_gas(total_gas_burnt);
         Ok(Self {
@@ -515,7 +515,7 @@ impl ExecutionOutcome {
                 Ok(ValueOrReceiptId::Value(Value::from_string(value)))
             }
             ExecutionStatusView::SuccessReceiptId(hash) => {
-                Ok(ValueOrReceiptId::ReceiptId(hash.try_into()?))
+                Ok(ValueOrReceiptId::ReceiptId(hash.into()))
             }
             ExecutionStatusView::Failure(err) => {
                 Err(ExecutionError::TransactionExecutionFailed(Box::new(err)))
@@ -576,9 +576,8 @@ impl Value {
     }
 }
 
-impl TryFrom<near_openapi_types::ExecutionOutcomeWithIdView> for ExecutionOutcome {
-    type Error = DataConversionError;
-    fn try_from(view: near_openapi_types::ExecutionOutcomeWithIdView) -> Result<Self, Self::Error> {
+impl From<near_openapi_types::ExecutionOutcomeWithIdView> for ExecutionOutcome {
+    fn from(view: near_openapi_types::ExecutionOutcomeWithIdView) -> Self {
         let near_openapi_types::ExecutionOutcomeWithIdView {
             id,
             block_hash,
@@ -586,19 +585,19 @@ impl TryFrom<near_openapi_types::ExecutionOutcomeWithIdView> for ExecutionOutcom
             proof: _, // TODO: research if we need this
         } = view;
 
-        Ok(Self {
-            transaction_hash: CryptoHash::try_from(id)?,
-            block_hash: CryptoHash::try_from(block_hash)?,
+        Self {
+            transaction_hash: id.into(),
+            block_hash: block_hash.into(),
             logs: outcome.logs,
             receipt_ids: outcome
                 .receipt_ids
                 .into_iter()
-                .map(CryptoHash::try_from)
-                .collect::<Result<Vec<_>, DataConversionError>>()?,
+                .map(CryptoHash::from)
+                .collect(),
             gas_burnt: outcome.gas_burnt,
             tokens_burnt: outcome.tokens_burnt,
             executor_id: outcome.executor_id,
             status: outcome.status,
-        })
+        }
     }
 }
