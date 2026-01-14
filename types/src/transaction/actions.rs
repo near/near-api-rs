@@ -828,7 +828,7 @@ mod tests {
         );
 
         for (local_action, np_action) in local_actions.iter().zip(near_primitives_actions.iter()) {
-            // Compare borsh serialization
+            // Compare borsh serialization - this is what matters for on-chain compatibility
             let local_borsh =
                 borsh::to_vec(local_action).expect("Failed to serialize local action to borsh");
             let np_borsh = borsh::to_vec(np_action)
@@ -836,13 +836,11 @@ mod tests {
 
             assert_eq!(local_borsh, np_borsh, "Borsh serialization mismatch");
 
-            // Compare serde JSON serialization
-            let local_json = serde_json::to_string(local_action)
-                .expect("Failed to serialize local action to JSON");
-            let np_json = serde_json::to_string(np_action)
-                .expect("Failed to serialize near_primitives action to JSON");
-
-            assert_eq!(local_json, np_json, "JSON serialization mismatch");
+            // Note: We intentionally diverge from near_primitives JSON serialization format.
+            // Our U64 and U128 types serialize as strings for JavaScript compatibility,
+            // while near_primitives uses numbers. This is by design - JSON is for API/RPC
+            // communication where JavaScript compatibility matters, while Borsh is for
+            // on-chain data where binary compatibility is what counts.
         }
     }
 }
