@@ -115,7 +115,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     name: Test ${{ matrix.toolchain }} on ${{ matrix.platform }}
     env:
-      NEAR_SANDBOX_RPC_TIMEOUT_SECS: ${{ contains(matrix.platform, 'macos') && '30' || '' }}
+      NEAR_SANDBOX_RPC_TIMEOUT_SECS: 30
     steps:
     - uses: actions/checkout@v4
 
