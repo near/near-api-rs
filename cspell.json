@@ -6,6 +6,9 @@
         "rust"
     ],
     "words": [
+        "nextest",
+        "warpbuild",
+        "taiki",
         "testresult",
         "rustc",
         "libudev",
