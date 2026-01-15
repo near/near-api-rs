@@ -131,9 +131,7 @@ impl ResponseHandler for CallResultRawHandler {
             Ok(Data {
                 data: result,
                 block_height,
-                block_hash: block_hash
-                    .try_into()
-                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+                block_hash: block_hash.into(),
             })
         } else {
             warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
