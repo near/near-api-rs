@@ -155,6 +155,43 @@ jobs:
     - name: Run tests with nextest
       run: cargo nextest run --all-features --profile ci
 
+  coverage:
+    needs: [get_msrv]
+    runs-on: warp-ubuntu-latest-x64-4x
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM and system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm lld libudev-dev libsystemd-dev
+
+      - name: Install Rust ${{ needs.get_msrv.outputs.version }}
+        run: |
+          rustup toolchain install ${{ needs.get_msrv.outputs.version }} --profile minimal
+          rustup override set ${{ needs.get_msrv.outputs.version }}
+          rustup component add rust-src --toolchain ${{ needs.get_msrv.outputs.version }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: warpbuild
+          shared-key: "linux-${{ needs.get_msrv.outputs.version }}-coverage"
+          cache-all-crates: true
+
+      - name: Install cargo-llvm-cov and nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,nextest
+
+      - name: Generate code coverage
+        run: cargo llvm-cov nextest --all-features --profile ci --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+
   spellcheck:
     runs-on: ubuntu-latest
     steps:
