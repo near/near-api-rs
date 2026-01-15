@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.3](https://github.com/near/near-api-rs/compare/near-api-types-v0.8.2...near-api-types-v0.8.3) - 2026-01-15
+
+### Added
+
+- serialize U128 and U64 as JSON strings ([#112](https://github.com/near/near-api-rs/pull/112))
+- updated openapi types to 0.7 ([#104](https://github.com/near/near-api-rs/pull/104))
+
 ## [0.8.2](https://github.com/near/near-api-rs/compare/near-api-types-v0.8.1...near-api-types-v0.8.2) - 2025-12-14
 
 ### Fixed
