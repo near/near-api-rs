@@ -1,11 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct U64(pub u64);
 
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct U128(pub u128);
 
 impl From<u64> for U64 {
@@ -17,6 +17,24 @@ impl From<u64> for U64 {
 impl From<u128> for U128 {
     fn from(value: u128) -> Self {
         Self(value)
+    }
+}
+
+impl Serialize for U64 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+impl Serialize for U128 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
     }
 }
 
@@ -141,7 +159,7 @@ mod tests {
         let u64_value = U64(1234567890);
         let serialized = serde_json::to_string(&u64_value).unwrap();
 
-        assert_eq!(serialized, "1234567890");
+        assert_eq!(serialized, "\"1234567890\"");
     }
 
     #[test]
@@ -149,7 +167,7 @@ mod tests {
         let u128_value = U128(12345678901234567890);
         let serialized = serde_json::to_string(&u128_value).unwrap();
 
-        assert_eq!(serialized, "12345678901234567890");
+        assert_eq!(serialized, "\"12345678901234567890\"");
     }
 
     #[test]
@@ -202,5 +220,48 @@ mod tests {
         let deserialized = U128::try_from_slice(&serialized).unwrap();
 
         assert_eq!(deserialized, u128_value);
+    }
+
+    #[test]
+    fn test_u128_max_value_serde() {
+        // Test with the maximum U128 value to ensure it can be properly serialized and deserialized
+        let max_value = U128(u128::MAX);
+        let serialized = serde_json::to_string(&max_value).unwrap();
+
+        // Should be serialized as a string
+        assert_eq!(serialized, "\"340282366920938463463374607431768211455\"");
+
+        // Should be able to deserialize back
+        let deserialized: U128 = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, max_value);
+    }
+
+    #[test]
+    fn test_u128_roundtrip() {
+        // Test that serialization and deserialization work correctly for various values
+        let test_values = vec![
+            0u128,
+            1u128,
+            u64::MAX as u128,
+            u64::MAX as u128 + 1,
+            12345678901234567890u128,
+            u128::MAX,
+        ];
+
+        for value in test_values {
+            let u128_value = U128(value);
+            let serialized = serde_json::to_string(&u128_value).unwrap();
+
+            // Verify it's serialized as a string (starts and ends with quotes)
+            assert!(
+                serialized.len() >= 2 && serialized.starts_with('"') && serialized.ends_with('"'),
+                "Expected string format but got: {}",
+                serialized
+            );
+
+            // Verify it can be deserialized back correctly
+            let deserialized: U128 = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(deserialized, u128_value);
+        }
     }
 }
