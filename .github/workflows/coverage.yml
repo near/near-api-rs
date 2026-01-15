@@ -4,8 +4,11 @@ on:
     branches:
       - main
   pull_request:
+
 env:
+  CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
+  CARGO_INCREMENTAL: 0
 
 jobs:
   get_msrv:
@@ -17,44 +20,46 @@ jobs:
     - name: Get MSRV
       id: rust_msrv
       run: |
-        RUST_MSRV="$(cat Cargo.toml | sed -n 's/rust-version *= *"\(.*\)"/\1/p')"
+        RUST_MSRV="$(grep '^rust-version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')"
         echo "Found MSRV: $RUST_MSRV"
         echo "version=$RUST_MSRV" >> "$GITHUB_OUTPUT"
 
   coverage:
     needs: [get_msrv]
-    runs-on: ubuntu-latest
-    name: "Coverage"
+    runs-on: warp-ubuntu-latest-x64-4x
+    name: Coverage
     steps:
       - uses: actions/checkout@v4
-      - name: Install LLVM
+
+      - name: Install LLVM and system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm lld
-          sudo apt-get -y install libudev-dev libsystemd-dev
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
-      - name: Llvm version
-        run: llvm-config --version
-      - name: Clang version
-        run: clang --version
-      - name: "${{ needs.get_msrv.outputs.version }} with rustfmt, and wasm32"
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ needs.get_msrv.outputs.version }}
-          target: wasm32-unknown-unknown
-      - name: Set Default Toolchain
-        run: rustup override set ${{ needs.get_msrv.outputs.version }}
+          sudo apt-get install -y llvm lld libudev-dev libsystemd-dev
+
+      - name: Install Rust ${{ needs.get_msrv.outputs.version }}
+        run: |
+          rustup toolchain install ${{ needs.get_msrv.outputs.version }} --profile minimal
+          rustup override set ${{ needs.get_msrv.outputs.version }}
+          rustup component add rust-src --toolchain ${{ needs.get_msrv.outputs.version }}
+          rustup target add wasm32-unknown-unknown --toolchain ${{ needs.get_msrv.outputs.version }}
+
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: warpbuild
+          shared-key: "linux-${{ needs.get_msrv.outputs.version }}-coverage"
+          cache-all-crates: true
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
       - name: Rust version
         run: rustc --version --verbose
-      - name: Add rust-src component
-        run: rustup component add rust-src --toolchain ${{ needs.get_msrv.outputs.version }}
-      - name: Verify Rust Toolchain
-        run: rustup show
+
       - name: Generate code coverage
         run: cargo +${{ needs.get_msrv.outputs.version }} llvm-cov --lcov --output-path llvm-cov-output.lcov
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         with:
