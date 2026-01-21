@@ -537,6 +537,9 @@ impl Signer {
     /// Fetches the transaction nonce and block hash associated to the access key. Internally
     /// caches the nonce as to not need to query for it every time, and ending up having to run
     /// into contention with others.
+    ///
+    /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
+    /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
     #[instrument(skip(self, network), fields(account_id = %account_id))]
     pub async fn fetch_tx_nonce(
         &self,
@@ -544,10 +547,13 @@ impl Signer {
         public_key: PublicKey,
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
+        use near_api_types::Reference;
+
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
 
         let nonce_data = crate::account::Account(account_id.clone())
             .access_key(public_key)
+            .at(Reference::Final)
             .fetch_from(network)
             .await
             .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
