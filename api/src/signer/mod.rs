@@ -120,7 +120,7 @@ use near_api_types::{
         delegate_action::{NonDelegateAction, SignedDelegateAction},
         PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
     },
-    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -547,8 +547,6 @@ impl Signer {
         public_key: PublicKey,
         network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
-        use near_api_types::Reference;
-
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
 
         let nonce_data = crate::account::Account(account_id.clone())
