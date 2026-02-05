@@ -4,7 +4,7 @@ members = ["api", "types"]
 rust-version = "1.85"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 version = "0.8.3"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
