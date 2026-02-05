@@ -11,12 +11,12 @@ use primitive_types::U256;
 use secp256k1::Message;
 
 use crate::{
+    CryptoHash, PublicKey,
     crypto::{
-        public_key::Secp256K1PublicKey, secret_key::SECP256K1, split_key_type_data, KeyType,
-        SECP256K1_SIGNATURE_LENGTH,
+        KeyType, SECP256K1_SIGNATURE_LENGTH, public_key::Secp256K1PublicKey, secret_key::SECP256K1,
+        split_key_type_data,
     },
     errors::{DataConversionError, SignatureErrors},
-    CryptoHash, PublicKey,
 };
 
 /// Signature container supporting different curves.

@@ -2,7 +2,7 @@ use near_api_types::{Data, NearToken, StorageBalance};
 
 mod common;
 
-use common::{setup_ft_contract, setup_social_contract, TestContext};
+use common::{TestContext, setup_ft_contract, setup_social_contract};
 use testresult::TestResult;
 
 #[tokio::test]

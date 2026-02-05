@@ -22,21 +22,25 @@ async fn contract_without_init_call() -> TestResult {
 
     let contract = Contract(account.clone());
 
-    assert!(!contract
-        .wasm()
-        .fetch_from(&network)
-        .await?
-        .data
-        .code_base64
-        .is_empty());
+    assert!(
+        !contract
+            .wasm()
+            .fetch_from(&network)
+            .await?
+            .data
+            .code_base64
+            .is_empty()
+    );
 
-    assert!(contract
-        .contract_source_metadata()
-        .fetch_from(&network)
-        .await?
-        .data
-        .version
-        .is_some());
+    assert!(
+        contract
+            .contract_source_metadata()
+            .fetch_from(&network)
+            .await?
+            .data
+            .version
+            .is_some()
+    );
 
     let abi = contract.abi().fetch_from(&network).await?;
     assert!(abi.is_some());
@@ -98,13 +102,15 @@ async fn contract_with_init_call() -> TestResult {
 
     let contract = Contract(account.clone());
 
-    assert!(!contract
-        .wasm()
-        .fetch_from(&network)
-        .await?
-        .data
-        .code_base64
-        .is_empty());
+    assert!(
+        !contract
+            .wasm()
+            .fetch_from(&network)
+            .await?
+            .data
+            .code_base64
+            .is_empty()
+    );
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 // New errors can be added to the codebase, so we want to handle them gracefully
 #![allow(unreachable_patterns)]
 
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use near_api_types::NearToken;
 use near_openapi_client::types::{
     RpcBlockError, RpcQueryError, RpcTransactionError, RpcValidatorError,

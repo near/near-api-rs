@@ -1,15 +1,16 @@
 use std::collections::BTreeMap;
 
 use near_api_types::{
-    stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
     AccountId, Data, EpochReference, NearGas, NearToken, Reference,
+    stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
 };
 use near_openapi_client::types::{RpcQueryError, RpcQueryResponse};
 
 use crate::{
+    NetworkConfig,
     advanced::{
-        query_request::QueryRequest, query_rpc::SimpleQueryRpc, validator_rpc::SimpleValidatorRpc,
-        ResponseHandler, RpcBuilder,
+        ResponseHandler, RpcBuilder, query_request::QueryRequest, query_rpc::SimpleQueryRpc,
+        validator_rpc::SimpleValidatorRpc,
     },
     common::{
         query::{
@@ -22,7 +23,6 @@ use crate::{
     contract::Contract,
     errors::{QueryCreationError, QueryError, SendRequestError},
     transactions::ConstructTransaction,
-    NetworkConfig,
 };
 
 /// A wrapper struct that simplifies interactions with the [Staking Pool](https://github.com/near/core-contracts/tree/master/staking-pool) standard on behalf of the account.
@@ -561,9 +561,8 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake(
-    ) -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>>
-    {
+    pub fn validators_stake()
+    -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>> {
         RequestBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,

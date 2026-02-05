@@ -1,6 +1,6 @@
 use near_api::{AccountId, NearToken, RPCEndpoint, Signer, Staking};
 use near_sandbox::{
-    config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, sandbox::patch::StateRecord, FetchData,
+    FetchData, config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, sandbox::patch::StateRecord,
 };
 use testresult::TestResult;
 
@@ -204,12 +204,14 @@ async fn test_user_can_unstake_but_cannot_withdraw_immediately() -> TestResult {
     assert_eq!(balance.total, NearToken::from_near(5));
 
     // Can't withdraw immediately after unstaking due to minimum withdrawal period
-    assert!(staker_delegation
-        .withdraw_all(ctx.staking_pool.clone())
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.network)
-        .await?
-        .is_failure());
+    assert!(
+        staker_delegation
+            .withdraw_all(ctx.staking_pool.clone())
+            .with_signer(ctx.signer.clone())
+            .send_to(&ctx.network)
+            .await?
+            .is_failure()
+    );
 
     Ok(())
 }

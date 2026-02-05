@@ -70,7 +70,7 @@ fn split_key_type_data(value: &str) -> Result<(KeyType, &str), DataConversionErr
 mod tests {
     use crate::CryptoHash;
 
-    use super::{public_key::PublicKey, secret_key::SecretKey, signature::Signature, KeyType};
+    use super::{KeyType, public_key::PublicKey, secret_key::SecretKey, signature::Signature};
 
     #[test]
     fn signature_verify_fuzzer() {

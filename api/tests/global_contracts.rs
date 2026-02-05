@@ -1,10 +1,10 @@
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use near_api::*;
 
 use near_api_types::{AccountId, CryptoHash, Data};
 use near_sandbox::{
-    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
     GenesisAccount, SandboxConfig,
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
 };
 use testresult::TestResult;
 
@@ -56,13 +56,15 @@ async fn deploy_global_contract_as_account_id_and_use_it() -> TestResult {
         base64_code_bytes
     );
 
-    assert!(contract
-        .contract_source_metadata()
-        .fetch_from(&network)
-        .await?
-        .data
-        .version
-        .is_some());
+    assert!(
+        contract
+            .contract_source_metadata()
+            .fetch_from(&network)
+            .await?
+            .data
+            .version
+            .is_some()
+    );
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())
@@ -140,13 +142,15 @@ async fn deploy_global_contract_as_hash_and_use_it() -> TestResult {
         base64_code
     );
 
-    assert!(contract
-        .contract_source_metadata()
-        .fetch_from(&network)
-        .await?
-        .data
-        .version
-        .is_some());
+    assert!(
+        contract
+            .contract_source_metadata()
+            .fetch_from(&network)
+            .await?
+            .data
+            .version
+            .is_some()
+    );
 
     let current_value: Data<i8> = contract
         .call_function("get_num", ())

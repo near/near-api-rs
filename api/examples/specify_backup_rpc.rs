@@ -1,4 +1,4 @@
-use near_api::{types::Reference, Chain, NetworkConfig, RPCEndpoint};
+use near_api::{Chain, NetworkConfig, RPCEndpoint, types::Reference};
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {

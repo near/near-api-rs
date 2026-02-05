@@ -1,4 +1,4 @@
-use near_api::{types::Reference, Chain};
+use near_api::{Chain, types::Reference};
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {

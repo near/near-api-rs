@@ -1,15 +1,15 @@
 use near_api_types::Reference;
+use near_openapi_client::Client;
 use near_openapi_client::types::{
     BlockId, ErrorWrapperForRpcBlockError, Finality, JsonRpcRequestForBlock,
     JsonRpcRequestForBlockMethod, JsonRpcResponseForRpcBlockResponseAndRpcBlockError,
     RpcBlockError, RpcBlockRequest, RpcBlockResponse,
 };
-use near_openapi_client::Client;
 
 use crate::common::utils::to_retry_error;
 use crate::{
-    advanced::RpcType, common::utils::is_critical_blocks_error, config::RetryResponse,
-    errors::SendRequestError, NetworkConfig,
+    NetworkConfig, advanced::RpcType, common::utils::is_critical_blocks_error,
+    config::RetryResponse, errors::SendRequestError,
 };
 
 #[derive(Clone, Debug)]
