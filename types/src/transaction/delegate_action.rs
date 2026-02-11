@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::str::FromStr;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
@@ -18,6 +19,14 @@ impl TryFrom<Action> for NonDelegateAction {
             return Err(());
         }
         Ok(Self(action))
+    }
+}
+
+impl Deref for NonDelegateAction {
+    type Target = Action;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -160,7 +169,7 @@ impl std::fmt::Display for SignedDelegateActionAsBase64 {
             borsh::to_vec(&self.inner)
                 .expect("Signed Delegate Action serialization to borsh is not expected to fail"),
         );
-        write!(f, "{base64_signed_delegate_action}")
+        write!(f, "{{base64_signed_delegate_action}}")
     }
 }
 
