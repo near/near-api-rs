@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::str::FromStr;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
@@ -18,6 +19,14 @@ impl TryFrom<Action> for NonDelegateAction {
             return Err(());
         }
         Ok(Self(action))
+    }
+}
+
+impl Deref for NonDelegateAction {
+    type Target = Action;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
