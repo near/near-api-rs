@@ -6,11 +6,10 @@ use base64::{engine::general_purpose, Engine as _};
 use borsh;
 use near_openapi_types::{
     CallResult, ExecutionStatusView, FinalExecutionOutcomeView, FinalExecutionStatus,
-    TxExecutionError,
 };
 
 use crate::{
-    errors::{DataConversionError, ExecutionError},
+    errors::{DataConversionError, ExecutionError, TxExecutionError},
     transaction::{SignedTransaction, Transaction},
     AccountId, CryptoHash, NearGas, NearToken, Signature,
 };
@@ -144,7 +143,7 @@ pub struct ExecutionResult<T> {
 
     /// Value returned from an execution. This is a base64 encoded str for a successful
     /// execution or a `TxExecutionError` if a failed one.
-    pub(crate) value: T,
+    pub value: T,
     // pub(crate) transaction: ExecutionOutcome,
     // pub(crate) receipts: Vec<ExecutionOutcome>,
     pub(crate) details: ExecutionDetails,
@@ -241,7 +240,7 @@ impl ExecutionFinalResult {
             }),
             FinalExecutionStatus::Failure(tx_error) => Err(ExecutionResult {
                 total_gas_burnt: self.total_gas_burnt,
-                value: tx_error,
+                value: tx_error.into(),
                 details: self.details,
             }),
             _ => unreachable!(),
@@ -518,7 +517,9 @@ impl ExecutionOutcome {
                 Ok(ValueOrReceiptId::ReceiptId(hash.into()))
             }
             ExecutionStatusView::Failure(err) => {
-                Err(ExecutionError::TransactionExecutionFailed(Box::new(err)))
+                Err(ExecutionError::TransactionExecutionFailed(Box::new(
+                    err.into(),
+                )))
             }
             ExecutionStatusView::Unknown => Err(ExecutionError::ExecutionPendingOrUnknown),
         }

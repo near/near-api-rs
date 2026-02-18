@@ -1,3 +1,4 @@
+use near_api::errors::{FunctionCallError, QueryError, RetryError, SendRequestError};
 use near_api::*;
 
 use near_api_types::{AccountId, Data};
@@ -105,6 +106,86 @@ async fn contract_with_init_call() -> TestResult {
         .data
         .code_base64
         .is_empty());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn contract_panic_error() -> TestResult {
+    let network = near_sandbox::Sandbox::start_sandbox().await?;
+    let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse()?);
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+
+    Contract::deploy(account.clone())
+        .use_code(include_bytes!("../resources/panic.wasm").to_vec())
+        .without_init_call()
+        .with_signer(signer.clone())
+        .send_to(&network)
+        .await?
+        .assert_success();
+
+    let contract = Contract(account.clone());
+    let result: Result<Data<i8>, _> = contract
+        .call_function("get_status", ())
+        .read_only()
+        .fetch_from(&network)
+        .await;
+
+    let err = result.expect_err("Expected contract panic error");
+
+    let panic_value = match &err {
+        QueryError::QueryError(boxed) => match boxed.as_ref() {
+            RetryError::Critical(SendRequestError::WasmExecutionError(
+                FunctionCallError::ContractPanicError(value),
+            )) => value,
+            other => panic!("Expected Critical(WasmExecutionError(ContractPanicError)), got: {other:?}"),
+        },
+        other => panic!("Expected QueryError variant, got: {other:?}"),
+    };
+
+    assert_eq!(panic_value["error"]["name"], "CUSTOM_CONTRACT_ERROR");
+    assert_eq!(
+        panic_value["error"]["cause"]["name"],
+        "near_sdk::errors::custom::InvalidArgument"
+    );
+    assert_eq!(
+        panic_value["error"]["cause"]["info"]["message"],
+        "invalid readonly call"
+    );
+
+    // Transaction call to set_status should also panic with a similar error
+    let tx_result = contract
+        .call_function("set_status", json!({"message": "hello"}))
+        .transaction()
+        .with_signer(account.clone(), signer.clone())
+        .send_to(&network)
+        .await?;
+
+    let failure = tx_result.assert_failure();
+    let tx_panic_value = match &failure.value {
+        near_api_types::errors::TxExecutionError::ActionError(action_err) => {
+            match &action_err.kind {
+                near_api_types::errors::ActionErrorKind::FunctionCallError(
+                    near_api_types::errors::FunctionCallError::ContractPanicError(value),
+                ) => value,
+                other => {
+                    panic!("Expected FunctionCallError(ContractPanicError), got: {other:?}")
+                }
+            }
+        }
+        other => panic!("Expected ActionError, got: {other:?}"),
+    };
+
+    assert_eq!(tx_panic_value["error"]["name"], "CUSTOM_CONTRACT_ERROR");
+    assert_eq!(
+        tx_panic_value["error"]["cause"]["name"],
+        "near_sdk::errors::custom::InvalidArgument"
+    );
+    assert_eq!(
+        tx_panic_value["error"]["cause"]["info"]["message"],
+        "invalid tx call"
+    );
 
     Ok(())
 }

@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use near_api_types::errors::DataConversionError;
 use near_openapi_client::types::{
-    FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
-    RpcTransactionError,
+    InternalError, RpcQueryError, RpcRequestValidationErrorKind, RpcTransactionError,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -285,12 +284,57 @@ pub enum ValidationError {
 }
 
 #[derive(thiserror::Error, Debug)]
+pub enum FunctionCallError {
+    #[error("WasmUnknownError")]
+    WasmUnknownError,
+    #[error("EvmError")]
+    EvmError,
+    #[error("CompilationError({0})")]
+    CompilationError(#[from] near_openapi_client::types::CompilationError),
+    #[error("LinkError({msg})")]
+    LinkError { msg: String },
+    #[error("MethodResolveError({0})")]
+    MethodResolveError(#[from] near_openapi_client::types::MethodResolveError),
+    #[error("WasmTrap({0})")]
+    WasmTrap(near_openapi_client::types::WasmTrap),
+    #[error("HostError({0})")]
+    HostError(near_openapi_client::types::HostError),
+    #[error("ExecutionError({0})")]
+    ExecutionError(String),
+    #[error("ContractPanicError({0})")]
+    ContractPanicError(serde_json::Value),
+}
+
+impl From<near_openapi_client::types::FunctionCallError> for FunctionCallError {
+    fn from(err: near_openapi_client::types::FunctionCallError) -> Self {
+        use near_openapi_client::types::{
+            FunctionCallError as Ext, HostError as ExtHostError,
+        };
+        match err {
+            Ext::HostError(ExtHostError::GuestPanic { panic_msg }) => {
+                match serde_json::from_str::<serde_json::Value>(&panic_msg) {
+                    Ok(value) => Self::ContractPanicError(value),
+                    Err(_) => Self::HostError(ExtHostError::GuestPanic { panic_msg }),
+                }
+            }
+            Ext::HostError(other) => Self::HostError(other),
+            Ext::WasmUnknownError => Self::WasmUnknownError,
+            Ext::EvmError => Self::EvmError,
+            Ext::CompilationError(err) => Self::CompilationError(err),
+            Ext::LinkError { msg } => Self::LinkError { msg },
+            Ext::MethodResolveError(err) => Self::MethodResolveError(err),
+            Ext::WasmTrap(err) => Self::WasmTrap(err),
+            Ext::ExecutionError(msg) => Self::ExecutionError(msg),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
     #[error("Query creation error: {0}")]
     RequestCreationError(#[from] QueryCreationError),
     #[error("Transport error: {0}")]
     TransportError(near_openapi_client::Error<()>),
-    // This is a hack to support the old error handling in the RPC API.
     #[error("Wasm execution failed with error: {0}")]
     WasmExecutionError(#[from] FunctionCallError),
     #[error("Internal error: {0:?}")]
@@ -299,6 +343,14 @@ pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
     RequestValidationError(#[from] RpcRequestValidationErrorKind),
     #[error("Server error: {0}")]
     ServerError(RpcError),
+}
+
+impl<RpcError: std::fmt::Debug + Send + Sync>
+    From<near_openapi_client::types::FunctionCallError> for SendRequestError<RpcError>
+{
+    fn from(err: near_openapi_client::types::FunctionCallError) -> Self {
+        Self::WasmExecutionError(FunctionCallError::from(err))
+    }
 }
 
 // That's a BIG BIG HACK to handle inconsistent RPC errors
@@ -320,9 +372,14 @@ impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()
                 .and_then(|result| result.get("error"))
                 .and_then(|message| message.as_str())
                 .and_then(|message| message.strip_prefix("wasm execution failed with error: "))
-                .and_then(|message| serde_dbgfmt::from_str::<FunctionCallError>(message).ok());
+                .and_then(|message| {
+                    serde_dbgfmt::from_str::<near_openapi_client::types::FunctionCallError>(
+                        message,
+                    )
+                    .ok()
+                });
             if let Some(error) = error {
-                return Self::WasmExecutionError(error);
+                return Self::WasmExecutionError(FunctionCallError::from(error));
             }
         }
 
