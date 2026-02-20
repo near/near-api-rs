@@ -2,14 +2,18 @@ use near_api::{Chain, types::Reference};
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
-    // Fetch a single final block
-    let final_block = Chain::block()
+    // Fetch a optimistic block
+    let _optimistic_block = Chain::block().fetch_from_mainnet().await?;
+
+    let block_number = Chain::block_number()
         .at(Reference::Final)
         .fetch_from_mainnet()
         .await?;
 
-    let block_number = final_block.header.height;
-    let block_hash = final_block.header.hash.into();
+    let block_hash = Chain::block_hash()
+        .at(Reference::Final)
+        .fetch_from_mainnet()
+        .await?;
 
     let _block_by_number = Chain::block()
         .at(Reference::AtBlock(block_number))
