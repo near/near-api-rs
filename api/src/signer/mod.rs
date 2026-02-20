@@ -540,6 +540,7 @@ impl Signer {
     ///
     /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
     /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
+    #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, network), fields(account_id = %account_id))]
     pub async fn fetch_tx_nonce(
         &self,
