@@ -1,16 +1,16 @@
 use near_api_types::EpochReference;
+use near_openapi_client::Client;
 use near_openapi_client::types::{
     BlockId, EpochId, ErrorWrapperForRpcValidatorError, JsonRpcRequestForValidators,
     JsonRpcRequestForValidatorsMethod, JsonRpcResponseForRpcValidatorResponseAndRpcValidatorError,
     RpcValidatorError, RpcValidatorRequest, RpcValidatorResponse,
 };
-use near_openapi_client::Client;
 
 use crate::common::utils::to_retry_error;
 use crate::errors::SendRequestError;
 use crate::{
-    advanced::RpcType, common::utils::is_critical_validator_error, config::RetryResponse,
-    NetworkConfig,
+    NetworkConfig, advanced::RpcType, common::utils::is_critical_validator_error,
+    config::RetryResponse,
 };
 
 #[derive(Clone, Debug)]

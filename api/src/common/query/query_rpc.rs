@@ -5,11 +5,11 @@ use near_openapi_client::types::{
 };
 
 use crate::{
-    advanced::{query_request::QueryRequest, RpcType},
+    NetworkConfig,
+    advanced::{RpcType, query_request::QueryRequest},
     common::utils::{is_critical_query_error, to_retry_error},
     config::RetryResponse,
     errors::SendRequestError,
-    NetworkConfig,
 };
 use near_api_types::Reference;
 

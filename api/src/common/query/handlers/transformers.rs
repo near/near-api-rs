@@ -1,8 +1,8 @@
 use tracing::trace;
 
 use crate::{
-    advanced::{handlers::ResponseHandler, RpcType},
-    common::query::{ResultWithMethod, QUERY_EXECUTOR_TARGET},
+    advanced::{RpcType, handlers::ResponseHandler},
+    common::query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
     errors::QueryError,
 };
 

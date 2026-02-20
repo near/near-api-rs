@@ -3,13 +3,14 @@ use std::{fmt::Display, str::FromStr, sync::LazyLock};
 use ed25519_dalek::ed25519::signature::SignerMut;
 
 use crate::{
+    CryptoHash, PublicKey, Signature,
     crypto::{
+        KeyType,
         public_key::{ED25519PublicKey, Secp256K1PublicKey},
         signature::Secp256K1Signature,
-        split_key_type_data, KeyType,
+        split_key_type_data,
     },
     errors::{DataConversionError, SecretKeyError},
-    CryptoHash, PublicKey, Signature,
 };
 
 pub static SECP256K1: LazyLock<secp256k1::Secp256k1<secp256k1::All>> =

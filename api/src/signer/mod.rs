@@ -110,17 +110,17 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
 use near_api_types::{
-    transaction::{
-        delegate_action::{NonDelegateAction, SignedDelegateAction},
-        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
-    },
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
+    transaction::{
+        PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
+        delegate_action::{NonDelegateAction, SignedDelegateAction},
+    },
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -540,6 +540,7 @@ impl Signer {
     ///
     /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
     /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
+    #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, network), fields(account_id = %account_id))]
     pub async fn fetch_tx_nonce(
         &self,
@@ -849,15 +850,15 @@ pub fn generate_secret_key_from_seed_phrase(seed_phrase: String) -> Result<Secre
 
 #[cfg(test)]
 mod nep_413_tests {
-    use base64::{prelude::BASE64_STANDARD, Engine};
+    use base64::{Engine, prelude::BASE64_STANDARD};
     use near_api_types::{
-        crypto::KeyType, transaction::actions::FunctionCallPermission, AccessKeyPermission,
-        NearToken, Signature,
+        AccessKeyPermission, NearToken, Signature, crypto::KeyType,
+        transaction::actions::FunctionCallPermission,
     };
     use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
     use testresult::TestResult;
 
-    use crate::{signer::generate_secret_key, Account, NetworkConfig};
+    use crate::{Account, NetworkConfig, signer::generate_secret_key};
 
     use super::{NEP413Payload, Signer};
 

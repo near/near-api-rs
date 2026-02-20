@@ -4,10 +4,10 @@ use near_api_types::{AccountId, Data, NearToken, StorageBalance, StorageBalanceI
 use serde_json::json;
 
 use crate::{
+    Signer,
     common::query::{CallResultHandler, PostprocessHandler, RequestBuilder},
     contract::ContractTransactBuilder,
     transactions::ConstructTransaction,
-    Signer,
 };
 
 ///A wrapper struct that simplifies interactions with the [Storage Management](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) standard

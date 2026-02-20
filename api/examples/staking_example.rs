@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use near_api::{AccountId, NearToken, NetworkConfig, RPCEndpoint, Signer, Staking};
 use near_sandbox::{
-    config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, sandbox::patch::StateRecord, FetchData,
+    FetchData, config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY, sandbox::patch::StateRecord,
 };
 
 #[tokio::main]

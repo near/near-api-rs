@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use near_api::{types::AccountId, Contract};
+use near_api::{Contract, types::AccountId};
 use testresult::TestResult;
 
 #[tokio::main]
