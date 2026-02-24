@@ -33,6 +33,7 @@ url.workspace = true
 tokio = { workspace = true, default-features = false, features = ["time"] }
 tracing.workspace = true
 thiserror.workspace = true
+dashmap.workspace = true
 
 near-ledger = { workspace = true, optional = true }
 near-openapi-client.workspace = true

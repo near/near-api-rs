@@ -206,8 +206,6 @@ impl ExecuteSignedTransaction {
             }
         };
 
-        let wait_until = self.wait_until;
-
         if signed.is_none() {
             debug!(target: TX_EXECUTOR_TARGET, "Editing transaction with network config");
             transactionable.edit_with_network(network).await?;
@@ -216,28 +214,21 @@ impl ExecuteSignedTransaction {
             transactionable.validate_with_network(network).await?;
         }
 
-        let signed = match signed {
-            Some(s) => s,
+        match signed {
+            Some(signed) => Self::send_impl(network, signed, self.wait_until).await,
             None => {
-                debug!(target: TX_EXECUTOR_TARGET, "Signing transaction");
-                self.presign_with(network)
-                    .await?
-                    .transaction
-                    .signed()
-                    .expect("Expect to have it signed")
+                debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
+                let prepopulated = transactionable.prepopulated()?;
+                self.signer
+                    .sign_and_send(
+                        prepopulated.signer_id.clone(),
+                        network,
+                        prepopulated,
+                        self.wait_until,
+                    )
+                    .await
             }
-        };
-
-        info!(
-            target: TX_EXECUTOR_TARGET,
-            "Broadcasting signed transaction. Hash: {:?}, Signer: {:?}, Receiver: {:?}, Nonce: {}",
-            signed.get_hash(),
-            signed.transaction.signer_id(),
-            signed.transaction.receiver_id(),
-            signed.transaction.nonce(),
-        );
-
-        Self::send_impl(network, signed, wait_until).await
+        }
     }
 
     /// Sends the transaction to the default mainnet configuration.
@@ -256,7 +247,7 @@ impl ExecuteSignedTransaction {
         self.send_to(&network).await
     }
 
-    async fn send_impl(
+    pub(crate) async fn send_impl(
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
         wait_until: TxExecutionStatus,
