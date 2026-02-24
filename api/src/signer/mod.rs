@@ -141,6 +141,7 @@ use crate::{
 
 use secret_key::SecretKeySigner;
 
+pub mod executor;
 #[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
@@ -394,6 +395,8 @@ pub trait SignerTrait {
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError>;
 }
 
+pub type TransactionGroupKey = (AccountId, PublicKey, String);
+
 /// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
 /// of [SignerTrait](`SignerTrait`).
 ///
@@ -402,10 +405,7 @@ pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     current_public_key: AtomicUsize,
     // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
-    nonce_cache: futures::lock::Mutex<HashMap<(AccountId, PublicKey, String), u64>>,
-    // Having separate map for each group to not block non sequential transactions fetching nonce cache
-    sequential_locks:
-        dashmap::DashMap<(AccountId, PublicKey, String), Arc<futures::lock::Mutex<()>>>,
+    nonce_cache: futures::lock::Mutex<HashMap<TransactionGroupKey, u64>>,
     sequential: AtomicBool,
 }
 
@@ -423,7 +423,6 @@ impl Signer {
             )])),
             current_public_key: AtomicUsize::new(0),
             nonce_cache: futures::lock::Mutex::new(HashMap::new()),
-            sequential_locks: dashmap::DashMap::new(),
             sequential: AtomicBool::new(false),
         }))
     }
@@ -559,20 +558,21 @@ impl Signer {
     /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
     /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
     #[allow(clippy::significant_drop_tightening)]
-    #[instrument(skip(self, network))]
+    #[instrument(skip(self, network, account_id))]
     pub async fn fetch_tx_nonce(
         &self,
-        account_id: impl Into<AccountId> + std::fmt::Debug,
+        account_id: impl Into<AccountId>,
         public_key: PublicKey,
-        network: &NetworkConfig,
+        network: impl Into<NetworkConfig>,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
         let account_id = account_id.into();
+        let network = network.into();
 
         let nonce_data = crate::account::Account(account_id.clone())
             .access_key(public_key)
             .at(Reference::Final)
-            .fetch_from(network)
+            .fetch_from(&network)
             .await
             .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
 
@@ -594,20 +594,18 @@ impl Signer {
     ///
     /// It  handles the sequential execution if enabled, by acquiring a lock for the
     /// specific (account_id, public_key, network) group.
-    #[instrument(skip(self, account_id),
-    fields(
-        network = %network.network_name,
-    ))]
+    #[instrument(skip(self, account_id, network))]
     pub async fn sign_and_send(
         &self,
         account_id: impl Into<AccountId>,
-        network: &NetworkConfig,
+        network: impl Into<NetworkConfig>,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
         debug!(target: SIGNER_TARGET, "Sending transaction");
 
         let account_id = account_id.into();
+        let network = network.into();
 
         let public_key = self
             .get_public_key()
@@ -615,21 +613,39 @@ impl Signer {
             .map_err(SignerError::from)
             .map_err(MetaSignError::from)?;
 
-        // FIXME: this approach locks full shard
-        let sequential_locks = self
-            .sequential_locks
-            .entry((account_id.clone(), public_key, network.network_name.clone()))
-            .or_default()
-            .clone();
+        let (nonce, block_hash, _) = self
+            .fetch_tx_nonce(account_id, public_key, &network)
+            .await?;
 
-        let _maybe_locked = if self.sequential.load(Ordering::SeqCst) {
-            Some(sequential_locks.lock().await)
-        } else {
-            None
-        };
+        let signed_transaction = self
+            .sign(transaction, public_key, nonce, block_hash)
+            .await?;
+
+        ExecuteSignedTransaction::send_impl(network, signed_transaction, wait_until).await
+    }
+
+    pub async fn sign_and_send_sequential(
+        &self,
+        account_id: impl Into<AccountId>,
+        network: impl Into<NetworkConfig>,
+        transaction: PrepopulateTransaction,
+        wait_until: TxExecutionStatus,
+    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+        debug!(target: SIGNER_TARGET, "Sending transaction");
+
+        let account_id = account_id.into();
+        let network = network.into();
+
+        let public_key = self
+            .get_public_key()
+            .await
+            .map_err(SignerError::from)
+            .map_err(MetaSignError::from)?;
 
         // Note: during sequential execution nonce should be fetched after acquiring the lock
-        let (nonce, block_hash, _) = self.fetch_tx_nonce(account_id, public_key, network).await?;
+        let (nonce, block_hash, _) = self
+            .fetch_tx_nonce(account_id, public_key, network.clone())
+            .await?;
 
         let signed_transaction = self
             .sign(transaction, public_key, nonce, block_hash)

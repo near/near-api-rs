@@ -205,6 +205,12 @@ impl NetworkConfig {
     }
 }
 
+impl From<&NetworkConfig> for NetworkConfig {
+    fn from(value: &NetworkConfig) -> Self {
+        value.clone()
+    }
+}
+
 #[derive(Debug)]
 /// Represents the possible outcomes of a retry-able operation.
 pub enum RetryResponse<R, E> {
