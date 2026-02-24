@@ -11,7 +11,56 @@ use signer::generate_secret_key;
 use testresult::TestResult;
 
 #[tokio::test]
-async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
+async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
+    let receiver: AccountId = "tmp_account".parse()?;
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    sandbox.create_account(receiver.clone()).send().await?;
+
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    signer.set_sequential(true);
+
+    let start_nonce = Account(account.clone())
+        .access_key(signer.get_public_key().await?)
+        .fetch_from(&network)
+        .await?
+        .data
+        .nonce;
+
+    let tx_count = 100;
+    let tx = (0..tx_count).map(|i| {
+        Tokens::account(account.clone())
+            .send_to(receiver.clone())
+            .near(NearToken::from_millinear(i))
+    });
+
+    let txs = join_all(tx.map(|t| {
+        t.with_signer(Arc::clone(&signer))
+            .wait_until(near_api_types::TxExecutionStatus::Included)
+            .send_to(&network)
+    }))
+    .await
+    .into_iter()
+    .map(|t| t.map(|t| t.assert_success()))
+    .collect::<Result<Vec<_>, _>>()?;
+
+    assert_eq!(txs.len(), tx_count as usize);
+
+    let end_nonce = Account(account.clone())
+        .access_key(signer.get_public_key().await?)
+        .fetch_from(&network)
+        .await?
+        .data
+        .nonce;
+    assert_eq!(end_nonce.0, start_nonce.0 + tx_count as u64);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
@@ -28,7 +77,8 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
         .data
         .nonce;
 
-    let tx = (0..20).map(|i| {
+    let tx_count = 10_000;
+    let tx = (0..tx_count).map(|i| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
             .near(NearToken::from_millinear(i))
@@ -46,7 +96,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
 
-    assert_eq!(txs.len(), 20);
+    assert_eq!(txs.len(), tx_count as usize);
 
     let end_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await?)
@@ -54,7 +104,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
         .await?
         .data
         .nonce;
-    assert_eq!(end_nonce.0, start_nonce.0 + 20);
+    assert_eq!(end_nonce.0, start_nonce.0 + tx_count as u64);
 
     Ok(())
 }
