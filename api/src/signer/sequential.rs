@@ -5,6 +5,7 @@ use near_api_types::{
     transaction::{PrepopulateTransaction, SignedTransaction, result::ExecutionFinalResult},
 };
 
+use near_openapi_client::types::RpcTransactionStatusRequest;
 use tracing::{debug, instrument};
 
 use crate::{
@@ -70,7 +71,16 @@ impl Signer {
 
         match wait_until {
             TxExecutionStatus::Included => Ok(result),
-            _ => ExecuteSignedTransaction::fetch_tx(network, signed, wait_until).await,
+            _ => {
+                ExecuteSignedTransaction::fetch_tx(
+                    network,
+                    RpcTransactionStatusRequest::Variant0 {
+                        signed_tx_base64: signed.into(),
+                        wait_until,
+                    },
+                )
+                .await
+            }
         }
     }
 

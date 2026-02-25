@@ -135,12 +135,12 @@ use crate::{
 
 use secret_key::SecretKeySigner;
 
-pub mod executor;
 #[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
+pub mod sequential;
 
 const SIGNER_TARGET: &str = "near_api::signer";
 /// Default HD path for seed phrases and secret keys generation
@@ -389,12 +389,15 @@ pub trait SignerTrait {
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError>;
 }
 
+/// Each transaction group is identified by: account_id, public_key, network name
 pub type TransactionGroupKey = (AccountId, PublicKey, String);
 
 /// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
 /// of [SignerTrait](`SignerTrait`).
 ///
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
+/// It also provides a sequential send mode to avoid race conditions when sending multiple transactions
+/// at the same time. By default, the sequential send mode is disabled.
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     current_public_key: AtomicUsize,

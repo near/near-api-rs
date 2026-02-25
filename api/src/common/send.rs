@@ -237,17 +237,18 @@ impl ExecuteSignedTransaction {
     }
 
     /// Fetches the transaction status from the network.
-    pub(crate) async fn fetch_tx(
+    pub async fn fetch_tx(
         network: impl Into<NetworkConfig>,
-        signed_tr: SignedTransaction,
-        wait_until: TxExecutionStatus,
+        params: RpcTransactionStatusRequest,
     ) -> TxExecutionResult {
-        let hash = signed_tr.get_hash();
-        let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
+        info!(
+            target: TX_EXECUTOR_TARGET,
+            "Fetching transaction status. Params: {:?}",
+            params,
+        );
 
         let result = retry(network.into(), |client| {
-            let signed_tx_base64 = signed_tx_base64.clone();
-
+            let params = params.clone();
             async move {
                 let result = parse_rpc_response(
                     client
@@ -255,10 +256,7 @@ impl ExecuteSignedTransaction {
                             id: "0".to_string(),
                             jsonrpc: "2.0".to_string(),
                             method: JsonRpcRequestForTxMethod::Tx,
-                            params: RpcTransactionStatusRequest::Variant0 {
-                                signed_tx_base64,
-                                wait_until,
-                            },
+                            params,
                         })
                         .await
                         .map(|r| r.into_inner())
@@ -267,8 +265,7 @@ impl ExecuteSignedTransaction {
 
                 tracing::debug!(
                     target: TX_EXECUTOR_TARGET,
-                    "Fetching transaction {} resulted in {:?}",
-                    hash,
+                    "Fetching transaction resulted in {:?}",
                     result
                 );
 
@@ -302,8 +299,18 @@ impl ExecuteSignedTransaction {
         signed_tr: SignedTransaction,
         wait_until: TxExecutionStatus,
     ) -> TxExecutionResult {
+        info!(
+            target: TX_EXECUTOR_TARGET,
+            "Broadcasting signed transaction. Hash: {:?}, Signer: {:?}, Receiver: {:?}, Nonce: {}",
+            signed_tr.get_hash(),
+            signed_tr.transaction.signer_id(),
+            signed_tr.transaction.receiver_id(),
+            signed_tr.transaction.nonce(),
+        );
+
         let hash = signed_tr.get_hash();
         let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
+
         let result = retry(network.into(), |client| {
             let signed_tx_base64 = signed_tx_base64.clone();
             async move {
@@ -526,6 +533,16 @@ impl ExecuteMetaTransaction {
         network: &NetworkConfig,
         transaction: SignedDelegateAction,
     ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
+
+        info!(
+            target: META_EXECUTOR_TARGET,
+            "Broadcasting signed meta transaction. Signer: {:?}, Receiver: {:?}, Nonce: {}, Valid until: {}",
+            transaction.delegate_action.sender_id,
+            transaction.delegate_action.receiver_id,
+            transaction.delegate_action.nonce,
+            transaction.delegate_action.max_block_height
+        );
+
         let client = reqwest::Client::new();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
@@ -597,9 +614,8 @@ fn parse_rpc_response(
     }
 }
 
-fn into_final_outcome(
-    response: RpcTransactionResponse,
-) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+fn into_final_outcome(response: RpcTransactionResponse) -> TxExecutionResult {
+     // TODO: check if we need to add support for that final_execution_status
     let view = match response {
         RpcTransactionResponse::Variant0 {
             receipts_outcome,
