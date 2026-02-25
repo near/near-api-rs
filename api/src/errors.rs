@@ -71,32 +71,9 @@ pub enum SignerError {
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
 
-    #[error("Sequential signer error: {0}")]
-    SequentialSignerError(#[from] SequentialSignerError),
-
     #[cfg(feature = "ledger")]
     #[error(transparent)]
     LedgerError(#[from] LedgerError),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum SequentialSignerError {
-    #[error("Channel error: {0}")]
-    ChannelError(#[from] Box<dyn std::error::Error + Send + Sync>),
-}
-
-impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>>
-    for SequentialSignerError
-{
-    fn from(src: tokio::sync::mpsc::error::SendError<T>) -> Self {
-        Self::ChannelError(Box::new(src))
-    }
-}
-
-impl From<tokio::sync::oneshot::error::RecvError> for SequentialSignerError {
-    fn from(src: tokio::sync::oneshot::error::RecvError) -> Self {
-        Self::ChannelError(Box::new(src))
-    }
 }
 
 #[derive(thiserror::Error, Debug)]

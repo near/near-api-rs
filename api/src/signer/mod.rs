@@ -108,7 +108,6 @@
 
 use std::{
     collections::HashMap,
-    ops::Deref,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -127,13 +126,11 @@ use near_api_types::{
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
-use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
     config::NetworkConfig,
     errors::{AccessKeyFileError, MetaSignError, PublicKeyError, SecretError, SignerError},
-    signer::executor::TxJob,
 };
 
 use secret_key::SecretKeySigner;
@@ -394,9 +391,17 @@ pub trait SignerTrait {
 
 pub type TransactionGroupKey = (AccountId, PublicKey, String);
 
+/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
+/// of [SignerTrait](`SignerTrait`).
+///
+/// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
-    inner: Arc<InnerSigner>,
-    sequential_channels: dashmap::DashMap<TransactionGroupKey, mpsc::UnboundedSender<TxJob>>,
+    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    current_public_key: AtomicUsize,
+    // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
+    nonce_cache: futures::lock::Mutex<HashMap<TransactionGroupKey, u64>>,
+    // For sequential transactions, to avoid race conditions
+    sequential_locks: dashmap::DashMap<TransactionGroupKey, Arc<tokio::sync::Mutex<()>>>,
     sequential_mode: AtomicBool,
 }
 
@@ -408,19 +413,18 @@ impl Signer {
     ) -> Result<Arc<Self>, PublicKeyError> {
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
-            inner: Arc::new(InnerSigner {
-                pool: tokio::sync::RwLock::new(HashMap::from([(
-                    public_key,
-                    Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
-                )])),
-                current_public_key: AtomicUsize::new(0),
-                nonce_cache: futures::lock::Mutex::new(HashMap::new()),
-            }),
-            sequential_channels: dashmap::DashMap::new(),
+            pool: tokio::sync::RwLock::new(HashMap::from([(
+                public_key,
+                Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
+            )])),
+            current_public_key: AtomicUsize::new(0),
+            nonce_cache: futures::lock::Mutex::new(HashMap::new()),
+            sequential_locks: dashmap::DashMap::new(),
             sequential_mode: AtomicBool::new(false),
         }))
     }
 
+    /// Set sequential send mode for the signer
     pub fn set_sequential(&self, sequential: bool) {
         self.sequential_mode.store(sequential, Ordering::SeqCst);
     }
@@ -505,28 +509,7 @@ impl Signer {
             )
         })
     }
-}
 
-impl Deref for Signer {
-    type Target = InnerSigner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
-/// of [SignerTrait](`SignerTrait`).
-///
-/// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
-pub struct InnerSigner {
-    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    current_public_key: AtomicUsize,
-    // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
-    nonce_cache: futures::lock::Mutex<HashMap<TransactionGroupKey, u64>>,
-}
-
-impl InnerSigner {
     /// Adds a signer to the pool of signers.
     /// The [Signer](`Signer`) will rotate the provided implementation of [SignerTrait](`SignerTrait`) on each call to [get_public_key](`Signer::get_public_key`).
     #[instrument(skip(self, signer))]
