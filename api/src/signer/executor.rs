@@ -1,79 +1,67 @@
-use std::{ops::Deref, sync::Arc};
-
 use near_api_types::{
-    AccountId, PublicKey, TxExecutionStatus, transaction::PrepopulateTransaction,
+    AccountId, PublicKey, TxExecutionStatus,
+    transaction::{PrepopulateTransaction, SignedTransaction, result::ExecutionFinalResult},
 };
 
 use tokio::sync::{mpsc, oneshot};
-use tracing::{instrument, warn};
+use tracing::{debug, instrument, warn};
 
 use crate::{
     Signer,
-    advanced::TxExecutionResult,
+    advanced::{ExecuteSignedTransaction, TxExecutionResult},
     config::NetworkConfig,
     errors::{ExecuteTransactionError, SignerError},
-    signer::TransactionGroupKey,
+    signer::{InnerSigner, SIGNER_TARGET, TransactionGroupKey},
 };
 
-#[allow(async_fn_in_trait)]
-pub trait TxExecutor {
-    async fn sign_and_send(
+pub enum TxType {
+    Transaction(PrepopulateTransaction),
+    MetaTransaction(PrepopulateTransaction),
+}
+
+pub(crate) struct TxJob {
+    pub account_id: AccountId,
+    pub network: NetworkConfig,
+    pub transaction: TxType,
+    pub response_sender:
+        oneshot::Sender<Result<(SignedTransaction, ExecutionFinalResult), ExecuteTransactionError>>,
+}
+
+impl Signer {
+    #[instrument(skip(self, network, transaction, account_id))]
+    pub async fn sign_and_send(
         &self,
         account_id: impl Into<AccountId>,
         network: impl Into<NetworkConfig>,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
-    ) -> TxExecutionResult;
-}
+    ) -> TxExecutionResult {
+        let public_key = self
+            .get_public_key()
+            .await
+            .map_err(|e| ExecuteTransactionError::SignerError(SignerError::PublicKeyError(e)))?;
 
-pub enum TxType {
-    Transaction(PrepopulateTransaction),
-    TransactionMeta(PrepopulateTransaction),
-}
-
-struct TxJob {
-    pub account_id: AccountId,
-    pub network: NetworkConfig,
-    pub transaction: TxType,
-    pub wait_until: TxExecutionStatus,
-    pub response_sender: oneshot::Sender<TxExecutionResult>,
-}
-
-/// A [SequentialSigner](`SequentialSigner`) is a wrapper around a [Signer](`Signer`)
-/// that allows to execute transactions sequentially for the tx group
-pub struct SequentialSigner {
-    signer: Arc<Signer>,
-    sequential_channels: dashmap::DashMap<TransactionGroupKey, mpsc::UnboundedSender<TxJob>>,
-}
-
-impl SequentialSigner {
-    pub async fn new(signer: Signer) -> Self {
-        Self {
-            signer: Arc::new(signer),
-            sequential_channels: dashmap::DashMap::new(),
+        if self
+            .sequential_mode
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            self.broadcast_tx_sequentially(
+                account_id,
+                network,
+                public_key,
+                TxType::Transaction(transaction),
+                wait_until,
+            )
+            .await
+        } else {
+            let (_, execution_result) = self
+                .broadcast_tx(account_id, network, transaction, wait_until)
+                .await?;
+            Ok(execution_result)
         }
     }
 
-    async fn get_tx_group_channel(
-        &self,
-        tx_group_key: TransactionGroupKey,
-    ) -> mpsc::UnboundedSender<TxJob> {
-        self.sequential_channels
-            .entry(tx_group_key)
-            .or_insert_with(|| {
-                let (sender, receiver) = mpsc::unbounded_channel::<TxJob>();
-                let signer = self.signer.clone();
-
-                tokio::task::spawn(
-                    async move { signer.process_tx_group_sequential(receiver).await },
-                );
-
-                sender
-            })
-            .clone()
-    }
-
-    async fn execute_sequentially(
+    async fn broadcast_tx_sequentially(
         &self,
         account_id: impl Into<AccountId>,
         network: impl Into<NetworkConfig>,
@@ -92,7 +80,6 @@ impl SequentialSigner {
             account_id,
             network: network.clone(),
             transaction,
-            wait_until,
             response_sender,
         };
 
@@ -100,68 +87,90 @@ impl SequentialSigner {
             ExecuteTransactionError::SignerError(SignerError::SequentialSignerError(e.into()))
         })?;
 
-        response_receiver.await.map_err(|e| {
+        let (signed, execution_result) = response_receiver.await.map_err(|e| {
             ExecuteTransactionError::SignerError(SignerError::SequentialSignerError(e.into()))
-        })?
+        })??;
+
+        match wait_until {
+            TxExecutionStatus::Included => Ok(execution_result),
+            _ => ExecuteSignedTransaction::fetch_tx(network, signed, wait_until).await,
+        }
+    }
+
+    async fn get_tx_group_channel(
+        &self,
+        tx_group_key: TransactionGroupKey,
+    ) -> mpsc::UnboundedSender<TxJob> {
+        self.sequential_channels
+            .entry(tx_group_key)
+            .or_insert_with(|| {
+                let (sender, receiver) = mpsc::unbounded_channel::<TxJob>();
+                let signer = self.inner.clone();
+
+                tokio::task::spawn(
+                    async move { signer.process_tx_group_sequential(receiver).await },
+                );
+
+                sender
+            })
+            .clone()
     }
 }
 
-impl TxExecutor for SequentialSigner {
-    #[instrument(skip(self, network, transaction, account_id))]
-    async fn sign_and_send(
+impl InnerSigner {
+    /// Signs and sends a transaction to the network.
+    /// This method combines the signing and sending steps, and also manages the nonce
+    /// fetching and caching.
+    ///
+    /// This method does not wait for the transaction to be included in a block,
+    /// it only ensures that the transaction is sent to the network.
+    #[instrument(skip(self, account_id, network))]
+    async fn broadcast_tx(
         &self,
         account_id: impl Into<AccountId>,
         network: impl Into<NetworkConfig>,
         transaction: PrepopulateTransaction,
-        wait_until: TxExecutionStatus,
-    ) -> TxExecutionResult {
-        let public_key = self
-            .get_public_key()
-            .await
-            .map_err(|e| ExecuteTransactionError::SignerError(SignerError::PublicKeyError(e)))?;
+        wait_untill: TxExecutionStatus,
+    ) -> Result<(SignedTransaction, ExecutionFinalResult), ExecuteTransactionError> {
+        debug!(target: SIGNER_TARGET, "Sending transaction");
 
-        self.execute_sequentially(
-            account_id,
-            network,
-            public_key,
-            TxType::Transaction(transaction),
-            wait_until,
-        )
-        .await
+        let account_id = account_id.into();
+        let network = network.into();
+
+        let public_key = self.get_public_key().await.map_err(SignerError::from)?;
+
+        let (nonce, block_hash, _) = self
+            .fetch_tx_nonce(account_id, public_key, &network)
+            .await?;
+
+        let signed_transaction = self
+            .sign(transaction, public_key, nonce, block_hash)
+            .await?;
+
+        let execution_result =
+            ExecuteSignedTransaction::send_impl(network, signed_transaction.clone(), wait_untill)
+                .await?;
+
+        Ok((signed_transaction, execution_result))
     }
-}
 
-impl Deref for SequentialSigner {
-    type Target = Signer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.signer
-    }
-}
-
-impl From<Signer> for SequentialSigner {
-    fn from(signer: Signer) -> Self {
-        SequentialSigner {
-            signer: Arc::new(signer),
-            sequential_channels: dashmap::DashMap::new(),
-        }
-    }
-}
-
-impl Signer {
+    /// This method handles the sequential execution if enabled, by acquiring a lock for the
+    /// specific (account_id, public_key, network) group.
+    #[instrument(skip(self, receiver))]
     async fn process_tx_group_sequential(&self, mut receiver: mpsc::UnboundedReceiver<TxJob>) {
         while let Some(job) = receiver.recv().await {
             let TxJob {
                 account_id,
                 network,
                 transaction,
-                wait_until,
                 response_sender,
             }: TxJob = job;
 
+            // Waiting for transaction to be sent to be included in a block
+            // before processing the next one to ensure sequential execution.
             let result = match transaction {
                 TxType::Transaction(tx) => {
-                    self.sign_and_send(account_id, network, tx, wait_until)
+                    self.broadcast_tx(account_id, network, tx, TxExecutionStatus::Included)
                         .await
                 }
                 _ => unimplemented!("Meta transactions are not implemented yet"),

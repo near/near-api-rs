@@ -108,6 +108,7 @@
 
 use std::{
     collections::HashMap,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -117,26 +118,22 @@ use std::{
 
 use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
-    TxExecutionStatus,
     transaction::{
         PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
         delegate_action::{NonDelegateAction, SignedDelegateAction},
-        result::ExecutionFinalResult,
     },
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use slipped10::BIP32Path;
+use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
-    advanced::ExecuteSignedTransaction,
     config::NetworkConfig,
-    errors::{
-        AccessKeyFileError, ExecuteTransactionError, MetaSignError, PublicKeyError, SecretError,
-        SignerError,
-    },
+    errors::{AccessKeyFileError, MetaSignError, PublicKeyError, SecretError, SignerError},
+    signer::executor::TxJob,
 };
 
 use secret_key::SecretKeySigner;
@@ -397,16 +394,10 @@ pub trait SignerTrait {
 
 pub type TransactionGroupKey = (AccountId, PublicKey, String);
 
-/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
-/// of [SignerTrait](`SignerTrait`).
-///
-/// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 pub struct Signer {
-    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    current_public_key: AtomicUsize,
-    // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
-    nonce_cache: futures::lock::Mutex<HashMap<TransactionGroupKey, u64>>,
-    sequential: AtomicBool,
+    inner: Arc<InnerSigner>,
+    sequential_channels: dashmap::DashMap<TransactionGroupKey, mpsc::UnboundedSender<TxJob>>,
+    sequential_mode: AtomicBool,
 }
 
 impl Signer {
@@ -417,21 +408,125 @@ impl Signer {
     ) -> Result<Arc<Self>, PublicKeyError> {
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
-            pool: tokio::sync::RwLock::new(HashMap::from([(
-                public_key,
-                Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
-            )])),
-            current_public_key: AtomicUsize::new(0),
-            nonce_cache: futures::lock::Mutex::new(HashMap::new()),
-            sequential: AtomicBool::new(false),
+            inner: Arc::new(InnerSigner {
+                pool: tokio::sync::RwLock::new(HashMap::from([(
+                    public_key,
+                    Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
+                )])),
+                current_public_key: AtomicUsize::new(0),
+                nonce_cache: futures::lock::Mutex::new(HashMap::new()),
+            }),
+            sequential_channels: dashmap::DashMap::new(),
+            sequential_mode: AtomicBool::new(false),
         }))
     }
 
-    #[instrument(skip(self))]
     pub fn set_sequential(&self, sequential: bool) {
-        self.sequential.store(sequential, Ordering::SeqCst);
+        self.sequential_mode.store(sequential, Ordering::SeqCst);
     }
 
+    /// Creates a [Signer](`Signer`) using seed phrase with default HD path.
+    pub fn from_seed_phrase(
+        seed_phrase: &str,
+        password: Option<&str>,
+    ) -> Result<Arc<Self>, SecretError> {
+        let signer = Self::from_seed_phrase_with_hd_path(
+            seed_phrase,
+            DEFAULT_HD_PATH.parse().expect("Valid HD path"),
+            password,
+        )?;
+        Ok(signer)
+    }
+
+    /// Creates a [Signer](`Signer`) using a secret key.
+    pub fn from_secret_key(secret_key: SecretKey) -> Result<Arc<Self>, PublicKeyError> {
+        let inner = SecretKeySigner::new(secret_key);
+        Self::new(inner)
+    }
+
+    /// Creates a [Signer](`Signer`) using seed phrase with a custom HD path.
+    pub fn from_seed_phrase_with_hd_path(
+        seed_phrase: &str,
+        hd_path: BIP32Path,
+        password: Option<&str>,
+    ) -> Result<Arc<Self>, SecretError> {
+        let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
+        let inner = SecretKeySigner::new(secret_key);
+        Self::new(inner).map_err(|_| SecretError::DeriveKeyInvalidIndex)
+    }
+
+    /// Creates a [Signer](`Signer`) using a path to the access key file.
+    pub fn from_access_keyfile(path: PathBuf) -> Result<Arc<Self>, AccessKeyFileError> {
+        let keypair = AccountKeyPair::load_access_key_file(&path)?;
+        debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
+
+        if keypair.public_key != keypair.private_key.public_key() {
+            return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
+        }
+
+        let inner = SecretKeySigner::new(keypair.private_key);
+        Ok(Self::new(inner)?)
+    }
+
+    /// Creates a [Signer](`Signer`) using Ledger hardware wallet with default HD path.
+    #[cfg(feature = "ledger")]
+    pub fn from_ledger() -> Result<Arc<Self>, PublicKeyError> {
+        let inner =
+            ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
+        Self::new(inner)
+    }
+
+    /// Creates a [Signer](`Signer`) using Ledger hardware wallet with a custom HD path.
+    #[cfg(feature = "ledger")]
+    pub fn from_ledger_with_hd_path(hd_path: BIP32Path) -> Result<Arc<Self>, PublicKeyError> {
+        let inner = ledger::LedgerSigner::new(hd_path);
+        Self::new(inner)
+    }
+
+    /// Creates a [Signer](`Signer`) with keystore using a predefined public key.
+    #[cfg(feature = "keystore")]
+    pub fn from_keystore(pub_key: PublicKey) -> Result<Arc<Self>, PublicKeyError> {
+        let inner = keystore::KeystoreSigner::new_with_pubkey(pub_key);
+        Self::new(inner)
+    }
+
+    /// Creates a [Signer](`Signer`) with keystore. The provided function will query provided account for public keys and search
+    /// in the system keychain for the corresponding secret keys.
+    #[cfg(feature = "keystore")]
+    pub async fn from_keystore_with_search_for_keys(
+        account_id: AccountId,
+        network: &NetworkConfig,
+    ) -> Result<Arc<Self>, crate::errors::KeyStoreError> {
+        let inner = keystore::KeystoreSigner::search_for_keys(account_id, network).await?;
+        Self::new(inner).map_err(|_| {
+            // Convert SignerError into SecretError as a workaround since KeyStoreError doesn't have SignerError variant
+            crate::errors::KeyStoreError::SecretError(
+                crate::errors::SecretError::DeriveKeyInvalidIndex,
+            )
+        })
+    }
+}
+
+impl Deref for Signer {
+    type Target = InnerSigner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+/// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
+/// of [SignerTrait](`SignerTrait`).
+///
+/// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
+pub struct InnerSigner {
+    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    current_public_key: AtomicUsize,
+    // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
+    nonce_cache: futures::lock::Mutex<HashMap<TransactionGroupKey, u64>>,
+}
+
+impl InnerSigner {
     /// Adds a signer to the pool of signers.
     /// The [Signer](`Signer`) will rotate the provided implementation of [SignerTrait](`SignerTrait`) on each call to [get_public_key](`Signer::get_public_key`).
     #[instrument(skip(self, signer))]
@@ -586,153 +681,6 @@ impl Signer {
         };
 
         Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
-    }
-
-    /// Signs and sends a transaction to the network.
-    /// This method combines the signing and sending steps, and also manages the nonce
-    /// fetching and caching.
-    ///
-    /// It  handles the sequential execution if enabled, by acquiring a lock for the
-    /// specific (account_id, public_key, network) group.
-    #[instrument(skip(self, account_id, network))]
-    pub async fn sign_and_send(
-        &self,
-        account_id: impl Into<AccountId>,
-        network: impl Into<NetworkConfig>,
-        transaction: PrepopulateTransaction,
-        wait_until: TxExecutionStatus,
-    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
-        debug!(target: SIGNER_TARGET, "Sending transaction");
-
-        let account_id = account_id.into();
-        let network = network.into();
-
-        let public_key = self
-            .get_public_key()
-            .await
-            .map_err(SignerError::from)
-            .map_err(MetaSignError::from)?;
-
-        let (nonce, block_hash, _) = self
-            .fetch_tx_nonce(account_id, public_key, &network)
-            .await?;
-
-        let signed_transaction = self
-            .sign(transaction, public_key, nonce, block_hash)
-            .await?;
-
-        ExecuteSignedTransaction::send_impl(network, signed_transaction, wait_until).await
-    }
-
-    pub async fn sign_and_send_sequential(
-        &self,
-        account_id: impl Into<AccountId>,
-        network: impl Into<NetworkConfig>,
-        transaction: PrepopulateTransaction,
-        wait_until: TxExecutionStatus,
-    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
-        debug!(target: SIGNER_TARGET, "Sending transaction");
-
-        let account_id = account_id.into();
-        let network = network.into();
-
-        let public_key = self
-            .get_public_key()
-            .await
-            .map_err(SignerError::from)
-            .map_err(MetaSignError::from)?;
-
-        // Note: during sequential execution nonce should be fetched after acquiring the lock
-        let (nonce, block_hash, _) = self
-            .fetch_tx_nonce(account_id, public_key, network.clone())
-            .await?;
-
-        let signed_transaction = self
-            .sign(transaction, public_key, nonce, block_hash)
-            .await?;
-
-        ExecuteSignedTransaction::send_impl(network, signed_transaction, wait_until).await
-    }
-
-    /// Creates a [Signer](`Signer`) using seed phrase with default HD path.
-    pub fn from_seed_phrase(
-        seed_phrase: &str,
-        password: Option<&str>,
-    ) -> Result<Arc<Self>, SecretError> {
-        let signer = Self::from_seed_phrase_with_hd_path(
-            seed_phrase,
-            DEFAULT_HD_PATH.parse().expect("Valid HD path"),
-            password,
-        )?;
-        Ok(signer)
-    }
-
-    /// Creates a [Signer](`Signer`) using a secret key.
-    pub fn from_secret_key(secret_key: SecretKey) -> Result<Arc<Self>, PublicKeyError> {
-        let inner = SecretKeySigner::new(secret_key);
-        Self::new(inner)
-    }
-
-    /// Creates a [Signer](`Signer`) using seed phrase with a custom HD path.
-    pub fn from_seed_phrase_with_hd_path(
-        seed_phrase: &str,
-        hd_path: BIP32Path,
-        password: Option<&str>,
-    ) -> Result<Arc<Self>, SecretError> {
-        let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
-        let inner = SecretKeySigner::new(secret_key);
-        Self::new(inner).map_err(|_| SecretError::DeriveKeyInvalidIndex)
-    }
-
-    /// Creates a [Signer](`Signer`) using a path to the access key file.
-    pub fn from_access_keyfile(path: PathBuf) -> Result<Arc<Self>, AccessKeyFileError> {
-        let keypair = AccountKeyPair::load_access_key_file(&path)?;
-        debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
-
-        if keypair.public_key != keypair.private_key.public_key() {
-            return Err(AccessKeyFileError::PrivatePublicKeyMismatch);
-        }
-
-        let inner = SecretKeySigner::new(keypair.private_key);
-        Ok(Self::new(inner)?)
-    }
-
-    /// Creates a [Signer](`Signer`) using Ledger hardware wallet with default HD path.
-    #[cfg(feature = "ledger")]
-    pub fn from_ledger() -> Result<Arc<Self>, PublicKeyError> {
-        let inner =
-            ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
-        Self::new(inner)
-    }
-
-    /// Creates a [Signer](`Signer`) using Ledger hardware wallet with a custom HD path.
-    #[cfg(feature = "ledger")]
-    pub fn from_ledger_with_hd_path(hd_path: BIP32Path) -> Result<Arc<Self>, PublicKeyError> {
-        let inner = ledger::LedgerSigner::new(hd_path);
-        Self::new(inner)
-    }
-
-    /// Creates a [Signer](`Signer`) with keystore using a predefined public key.
-    #[cfg(feature = "keystore")]
-    pub fn from_keystore(pub_key: PublicKey) -> Result<Arc<Self>, PublicKeyError> {
-        let inner = keystore::KeystoreSigner::new_with_pubkey(pub_key);
-        Self::new(inner)
-    }
-
-    /// Creates a [Signer](`Signer`) with keystore. The provided function will query provided account for public keys and search
-    /// in the system keychain for the corresponding secret keys.
-    #[cfg(feature = "keystore")]
-    pub async fn from_keystore_with_search_for_keys(
-        account_id: AccountId,
-        network: &NetworkConfig,
-    ) -> Result<Arc<Self>, crate::errors::KeyStoreError> {
-        let inner = keystore::KeystoreSigner::search_for_keys(account_id, network).await?;
-        Self::new(inner).map_err(|_| {
-            // Convert SignerError into SecretError as a workaround since KeyStoreError doesn't have SignerError variant
-            crate::errors::KeyStoreError::SecretError(
-                crate::errors::SecretError::DeriveKeyInvalidIndex,
-            )
-        })
     }
 
     /// Retrieves the public key from the pool of signers.

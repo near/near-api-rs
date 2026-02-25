@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use near_openapi_client::types::{
     ErrorWrapperForRpcTransactionError, FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
+    JsonRpcRequestForTx, JsonRpcRequestForTxMethod,
     JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError, RpcSendTransactionRequest,
-    RpcTransactionError, RpcTransactionResponse,
+    RpcTransactionError, RpcTransactionResponse, RpcTransactionStatusRequest,
 };
 
 use near_api_types::{
@@ -230,6 +231,100 @@ impl ExecuteSignedTransaction {
                     .await
             }
         }
+    }
+
+    // TODO: may be move it to query?
+    pub(crate) async fn fetch_tx(
+        network: impl Into<NetworkConfig>,
+        signed_tr: SignedTransaction,
+        wait_until: TxExecutionStatus,
+    ) -> TxExecutionResult {
+        let hash = signed_tr.get_hash();
+        let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
+
+        let result = retry(network.into(), |client| {
+            let signed_tx_base64 = signed_tx_base64.clone();
+
+            async move {
+                let result = match client
+                    .tx(&JsonRpcRequestForTx {
+                        id: "0".to_string(),
+                        jsonrpc: "2.0".to_string(),
+                        method: JsonRpcRequestForTxMethod::Tx,
+                        params: RpcTransactionStatusRequest::Variant0 {
+                            signed_tx_base64,
+                            wait_until,
+                        },
+                    })
+                    .await
+                    .map(|r| r.into_inner())
+                    .map_err(SendRequestError::from)
+                {
+                    Ok(
+                        JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant0 {
+                            result,
+                            ..
+                        },
+                    ) => RetryResponse::Ok(result),
+                    Ok(
+                        JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant1 {
+                            error,
+                            ..
+                        },
+                    ) => {
+                        let error: SendRequestError<RpcTransactionError> =
+                            SendRequestError::from(error);
+                        to_retry_error(error, is_critical_transaction_error)
+                    }
+                    Err(err) => to_retry_error(err, is_critical_transaction_error),
+                };
+
+                tracing::debug!(
+                    target: TX_EXECUTOR_TARGET,
+                    "Broadcasting transaction {} resulted in {:?}",
+                    hash,
+                    result
+                );
+
+                result
+            }
+        })
+        .await
+        .map_err(ExecuteTransactionError::TransactionError)?;
+
+        // TODO: check if we need to add support for that final_execution_status
+        let final_execution_outcome_view = match result {
+            // We don't use `experimental_tx`, so we can ignore that, but just to be safe
+            RpcTransactionResponse::Variant0 {
+                final_execution_status: _,
+                receipts: _,
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            } => FinalExecutionOutcomeView {
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            },
+            RpcTransactionResponse::Variant1 {
+                final_execution_status: _,
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            } => FinalExecutionOutcomeView {
+                receipts_outcome,
+                status,
+                transaction,
+                transaction_outcome,
+            },
+        };
+
+        Ok(ExecutionFinalResult::try_from(
+            final_execution_outcome_view,
+        )?)
     }
 
     /// Sends the transaction to the default mainnet configuration.
@@ -483,6 +578,22 @@ impl ExecuteMetaTransaction {
             debug!(target: META_EXECUTOR_TARGET, "Validating pre-signed meta transaction with network config");
             transactionable.validate_with_network(network).await?;
         }
+
+        // match signed {
+        //     Some(signed) => Self::send_impl(network, signed, self.wait_until).await,
+        //     None => {
+        //         debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
+        //         let prepopulated = transactionable.prepopulated()?;
+        //         self.signer
+        //             .sign_and_send(
+        //                 prepopulated.signer_id.clone(),
+        //                 network,
+        //                 prepopulated,
+        //                 self.wait_until,
+        //             )
+        //             .await
+        //     }
+        // }
 
         let signed = match signed {
             Some(s) => s,

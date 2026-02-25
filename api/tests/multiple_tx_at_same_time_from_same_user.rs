@@ -16,7 +16,6 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
-    signer.set_sequential(true);
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await?)
@@ -24,6 +23,8 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
         .await?
         .data
         .nonce;
+
+    signer.set_sequential(true);
 
     let tx_count = 100;
     let tx = (0..tx_count).map(|i| {
@@ -34,7 +35,7 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
 
     let txs = join_all(tx.map(|t| {
         t.with_signer(Arc::clone(&signer))
-            .wait_until(near_api_types::TxExecutionStatus::Included)
+            .wait_until(near_api_types::TxExecutionStatus::Final)
             .send_to(&network)
     }))
     .await
