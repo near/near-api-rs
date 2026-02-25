@@ -579,44 +579,44 @@ impl ExecuteMetaTransaction {
             transactionable.validate_with_network(network).await?;
         }
 
-        // match signed {
-        //     Some(signed) => Self::send_impl(network, signed, self.wait_until).await,
-        //     None => {
-        //         debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
-        //         let prepopulated = transactionable.prepopulated()?;
-        //         self.signer
-        //             .sign_and_send(
-        //                 prepopulated.signer_id.clone(),
-        //                 network,
-        //                 prepopulated,
-        //                 self.wait_until,
-        //             )
-        //             .await
-        //     }
-        // }
-
-        let signed = match signed {
-            Some(s) => s,
+        match signed {
+            Some(signed) => Self::send_impl(network, signed).await,
             None => {
                 debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
-                self.presign_with(network)
-                    .await?
-                    .transaction
-                    .signed()
-                    .expect("Expect to have it signed")
+                let prepopulated = transactionable.prepopulated()?;
+                self.signer
+                    .sign_and_send_meta(
+                        prepopulated.signer_id.clone(),
+                        network,
+                        prepopulated,
+                        self.tx_live_for
+                            .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT),
+                    )
+                    .await
             }
-        };
+        }
+        // let signed = match signed {
+        //     Some(s) => s,
+        //     None => {
+        //         debug!(target: META_EXECUTOR_TARGET, "Signing meta transaction");
+        //         self.presign_with(network)
+        //             .await?
+        //             .transaction
+        //             .signed()
+        //             .expect("Expect to have it signed")
+        //     }
+        // };
 
-        info!(
-            target: META_EXECUTOR_TARGET,
-            "Broadcasting signed meta transaction. Signer: {:?}, Receiver: {:?}, Nonce: {}, Valid until: {}",
-            signed.delegate_action.sender_id,
-            signed.delegate_action.receiver_id,
-            signed.delegate_action.nonce,
-            signed.delegate_action.max_block_height
-        );
+        // info!(
+        //     target: META_EXECUTOR_TARGET,
+        //     "Broadcasting signed meta transaction. Signer: {:?}, Receiver: {:?}, Nonce: {}, Valid until: {}",
+        //     signed.delegate_action.sender_id,
+        //     signed.delegate_action.receiver_id,
+        //     signed.delegate_action.nonce,
+        //     signed.delegate_action.max_block_height
+        // );
 
-        Self::send_impl(network, signed).await
+        // Self::send_impl(network, signed).await
     }
 
     /// Sends the transaction to the default mainnet configuration.
@@ -635,7 +635,7 @@ impl ExecuteMetaTransaction {
         self.send_to(&network).await
     }
 
-    async fn send_impl(
+    pub(crate) async fn send_impl(
         network: &NetworkConfig,
         transaction: SignedDelegateAction,
     ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
