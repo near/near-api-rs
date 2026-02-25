@@ -533,7 +533,6 @@ impl ExecuteMetaTransaction {
         network: &NetworkConfig,
         transaction: SignedDelegateAction,
     ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
-
         info!(
             target: META_EXECUTOR_TARGET,
             "Broadcasting signed meta transaction. Signer: {:?}, Receiver: {:?}, Nonce: {}, Valid until: {}",
@@ -615,7 +614,7 @@ fn parse_rpc_response(
 }
 
 fn into_final_outcome(response: RpcTransactionResponse) -> TxExecutionResult {
-     // TODO: check if we need to add support for that final_execution_status
+    // TODO: check if we need to add support for that final_execution_status
     let view = match response {
         RpcTransactionResponse::Variant0 {
             receipts_outcome,

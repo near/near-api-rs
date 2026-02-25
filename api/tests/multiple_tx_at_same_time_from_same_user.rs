@@ -31,10 +31,10 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
     signer.set_sequential(true);
 
     let tx_count = 100;
-    let tx = (0..tx_count).map(|i| {
+    let tx = (0..tx_count).map(|_| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
-            .near(NearToken::from_millinear(i))
+            .near(NearToken::from_millinear(1))
     });
 
     join_all(tx.map(|t| {
@@ -62,6 +62,7 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
 async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let tx_count = 1000;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     sandbox.create_account(receiver.clone()).send().await?;
@@ -76,10 +77,10 @@ async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
         .data
         .nonce;
 
-    let tx = (0..20).map(|i| {
+    let tx = (0..tx_count).map(|_| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
-            .near(NearToken::from_millinear(i))
+            .near(NearToken::from_millinear(1))
     });
     // Even though we send multiple transactions with correct nonces, it still might fail
     // because of the blockchain/network inclusion race condition
@@ -100,7 +101,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
         .await?
         .data
         .nonce;
-    assert_eq!(end_nonce.0, start_nonce.0 + 20);
+    assert_eq!(end_nonce.0, start_nonce.0 + tx_count as u64);
 
     Ok(())
 }
@@ -110,7 +111,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let pubkey_count = 9;
-    let tx_count = 100;
+    let tx_count = 1000;
     let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -131,10 +132,10 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
         .data
         .nonce;
 
-    let tx = (0..tx_count).map(|i| {
+    let tx = (0..tx_count).map(|_| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
-            .near(NearToken::from_millinear(i))
+            .near(NearToken::from_millinear(1))
     });
 
     // Even though we send multiple transactions with correct nonces, it still might fail
@@ -170,7 +171,7 @@ async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let pubkey_count = 9;
-    let tx_count = 100;
+    let tx_count = 1000;
     let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -196,7 +197,7 @@ async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult
     let tx = (0..tx_count).map(|i| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
-            .near(NearToken::from_millinear(i))
+            .near(NearToken::from_millinear(1))
     });
 
     join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
