@@ -388,6 +388,11 @@ impl ExecuteMetaTransaction {
         self
     }
 
+    pub fn get_tx_lifetime(&self) -> BlockHeight {
+        self.tx_live_for
+            .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT)
+    }
+
     /// Signs the transaction offline without fetching the nonce or block hash from the network. Does not broadcast it.
     ///
     /// Signed transaction is stored in the [Self::transaction] struct variable.
@@ -408,10 +413,7 @@ impl ExecuteMetaTransaction {
         };
 
         let transaction = transaction.prepopulated()?;
-        let max_block_height = block_height
-            + self
-                .tx_live_for
-                .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT);
+        let max_block_height = block_height + self.get_tx_lifetime();
 
         let signed_tr = self
             .signer
@@ -514,8 +516,7 @@ impl ExecuteMetaTransaction {
                         prepopulated.signer_id.clone(),
                         network,
                         prepopulated,
-                        self.tx_live_for
-                            .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT),
+                        self.get_tx_lifetime(),
                     )
                     .await
             }
@@ -645,6 +646,10 @@ fn into_final_outcome(response: RpcTransactionResponse) -> TxExecutionResult {
             transaction,
             transaction_outcome,
         },
+        // FIXME: there also can be one more variant in case of sending transaction
+        // with TxExecutionStatus::None https://github.com/near/nearcore/blob/master/chain/jsonrpc/src/lib.rs#L784
+        // Since there is no such option in the near openapi, panic will ensue because
+        // near api still supports TxExecutionStatus::None during tx sending
     };
 
     Ok(ExecutionFinalResult::try_from(view)?)
