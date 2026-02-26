@@ -59,7 +59,7 @@ pub enum TransactionableOrSigned<Signed> {
 }
 
 impl<Signed> TransactionableOrSigned<Signed> {
-    pub fn signed(&self) -> Option<&Signed> {
+    pub const fn signed(&self) -> Option<&Signed> {
         match self {
             Self::Signed((signed, _)) => Some(signed),
             Self::Transactionable(_) => None,
@@ -622,6 +622,7 @@ fn parse_rpc_response(
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn into_final_outcome(response: RpcTransactionResponse) -> TxExecutionResult {
     // TODO: check if we need to add support for that final_execution_status
     let view = match response {

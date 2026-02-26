@@ -205,8 +205,8 @@ impl NetworkConfig {
     }
 }
 
-impl From<&NetworkConfig> for NetworkConfig {
-    fn from(value: &NetworkConfig) -> Self {
+impl From<&Self> for NetworkConfig {
+    fn from(value: &Self) -> Self {
         value.clone()
     }
 }
