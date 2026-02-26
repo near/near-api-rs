@@ -59,7 +59,7 @@ pub enum TransactionableOrSigned<Signed> {
 }
 
 impl<Signed> TransactionableOrSigned<Signed> {
-    pub fn signed(self) -> Option<Signed> {
+    pub fn signed(&self) -> Option<&Signed> {
         match self {
             Self::Signed((signed, _)) => Some(signed),
             Self::Transactionable(_) => None,
@@ -109,6 +109,13 @@ impl ExecuteSignedTransaction {
     pub const fn wait_until(mut self, wait_until: TxExecutionStatus) -> Self {
         self.wait_until = wait_until;
         self
+    }
+
+    /// Get transaction hash if the transaction is signed, otherwise returns None.
+    pub fn get_hash(&self) -> Option<CryptoHash> {
+        // FIXME: transaction hash should be retrieved without signing the transaction,
+        //  but currently it is designed to have complete transaction msg only alter signing
+        self.transaction.signed().map(|signed| signed.get_hash())
     }
 
     /// Signs the transaction offline without fetching the nonce or block hash from the network.
