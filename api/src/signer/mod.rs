@@ -428,6 +428,10 @@ impl Signer {
     }
 
     /// Set sequential send mode for the signer
+    /// 
+    /// If sequential mode is enabled, the signer will sign and send transactions sequentially
+    /// while waiting for the previous transaction to be included in the block.
+    /// This is useful to avoid race conditions when sending multiple transactions at the same time
     pub fn set_sequential(&self, sequential: bool) {
         self.sequential_mode.store(sequential, Ordering::SeqCst);
     }
