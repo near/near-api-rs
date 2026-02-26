@@ -107,6 +107,61 @@ async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
 }
 
 #[tokio::test]
+async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult {
+    let receiver: AccountId = "tmp_account".parse()?;
+    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let pubkey_count = 9;
+    let tx_count = 1000;
+    let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
+
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    sandbox.create_account(receiver.clone()).send().await?;
+
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+
+    signer.set_sequential(true);
+
+    join_all((0..pubkey_count).map(|_| add_key_to_pool(&account, &signer, &network)))
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let start_nonce = Account(account.clone())
+        .access_key(first_pubkey)
+        .fetch_from(&network)
+        .await?
+        .data
+        .nonce;
+
+    let tx = (0..tx_count).map(|_| {
+        Tokens::account(account.clone())
+            .send_to(receiver.clone())
+            .near(NearToken::from_millinear(1))
+    });
+
+    join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
+        .await
+        .into_iter()
+        .map(|t| t.map(|t| t.assert_success()))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let end_nonce = Account(account.clone())
+        .access_key(first_pubkey)
+        .fetch_from(&network)
+        .await?
+        .data
+        .nonce;
+
+    assert_eq!(
+        end_nonce.0,
+        start_nonce.0 + tx_count as u64 / (pubkey_count + 1)
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
@@ -150,60 +205,6 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
     join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
         .await
         .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let end_nonce = Account(account.clone())
-        .access_key(first_pubkey)
-        .fetch_from(&network)
-        .await?
-        .data
-        .nonce;
-    assert_eq!(
-        end_nonce.0,
-        start_nonce.0 + tx_count as u64 / (pubkey_count + 1)
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult {
-    let receiver: AccountId = "tmp_account".parse()?;
-    let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let pubkey_count = 9;
-    let tx_count = 1000;
-    let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
-
-    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
-    sandbox.create_account(receiver.clone()).send().await?;
-
-    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
-
-    signer.set_sequential(true);
-
-    join_all((0..pubkey_count).map(|_| add_key_to_pool(&account, &signer, &network)))
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let start_nonce = Account(account.clone())
-        .access_key(first_pubkey)
-        .fetch_from(&network)
-        .await?
-        .data
-        .nonce;
-
-    let tx = (0..tx_count).map(|i| {
-        Tokens::account(account.clone())
-            .send_to(receiver.clone())
-            .near(NearToken::from_millinear(1))
-    });
-
-    join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
-        .await
-        .into_iter()
-        .map(|t| t.map(|t| t.assert_success()))
         .collect::<Result<Vec<_>, _>>()?;
 
     let end_nonce = Account(account.clone())

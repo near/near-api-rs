@@ -148,7 +148,7 @@ impl ExecuteSignedTransaction {
     /// The provided call will fetch the nonce and block hash from the given network.
     pub async fn presign_with(
         self,
-        network: &NetworkConfig,
+        network: impl Into<NetworkConfig>,
     ) -> Result<Self, ExecuteTransactionError> {
         let transaction = match &self.transaction {
             TransactionableOrSigned::Transactionable(transaction) => transaction,
@@ -193,7 +193,8 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the custom provided network.
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
-    /// Please note that if the transaction is not presigned, it will be signed with the network's nonce and block hash.
+    /// Please note that if the transaction is not presigned, it will be signed with the network's nonce and block hash
+    /// and sent depending on signer mode.
     pub async fn send_to(mut self, network: impl Into<NetworkConfig>) -> TxExecutionResult {
         let network = network.into();
 
@@ -422,7 +423,7 @@ impl ExecuteMetaTransaction {
     /// This is useful if you want to sign with non-default network configuration (e.g, custom RPC URL, sandbox).
     pub async fn presign_with(
         self,
-        network: &NetworkConfig,
+        network: impl Into<NetworkConfig>,
     ) -> Result<Self, ExecuteMetaTransactionsError> {
         let transaction = match &self.transaction {
             TransactionableOrSigned::Transactionable(transaction) => transaction,
@@ -468,7 +469,8 @@ impl ExecuteMetaTransaction {
     /// Sends the transaction to the custom provided network.
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
-    /// Please note that if the transaction is not presigned, it will be sign with the network's nonce and block hash.
+    /// Please note that if the transaction is not presigned, it will be sign with the network's nonce and block hash
+    /// and sent depending on signer mode.
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
