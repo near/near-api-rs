@@ -155,7 +155,7 @@ impl ExecuteSignedTransaction {
     /// The provided call will fetch the nonce and block hash from the given network.
     pub async fn presign_with(
         self,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
     ) -> Result<Self, ExecuteTransactionError> {
         let transaction = match &self.transaction {
             TransactionableOrSigned::Transactionable(transaction) => transaction,
@@ -202,9 +202,7 @@ impl ExecuteSignedTransaction {
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
     /// Please note that if the transaction is not presigned, it will be signed with the network's nonce and block hash
     /// and sent depending on signer mode.
-    pub async fn send_to(mut self, network: impl Into<NetworkConfig>) -> TxExecutionResult {
-        let network = network.into();
-
+    pub async fn send_to(mut self, network: &NetworkConfig) -> TxExecutionResult {
         let (signed, transactionable) = match &mut self.transaction {
             TransactionableOrSigned::Transactionable(transaction) => {
                 debug!(target: TX_EXECUTOR_TARGET, "Preparing unsigned transaction");
@@ -218,10 +216,10 @@ impl ExecuteSignedTransaction {
 
         if signed.is_none() {
             debug!(target: TX_EXECUTOR_TARGET, "Editing transaction with network config");
-            transactionable.edit_with_network(&network).await?;
+            transactionable.edit_with_network(network).await?;
         } else {
             debug!(target: TX_EXECUTOR_TARGET, "Validating pre-signed transaction with network config");
-            transactionable.validate_with_network(&network).await?;
+            transactionable.validate_with_network(network).await?;
         }
 
         // If the transaction is signed, send it to the network.
@@ -246,7 +244,7 @@ impl ExecuteSignedTransaction {
 
     /// Fetches the transaction status from the network.
     pub async fn fetch_tx(
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
         params: RpcTransactionStatusRequest,
     ) -> TxExecutionResult {
         info!(
@@ -255,7 +253,7 @@ impl ExecuteSignedTransaction {
             params,
         );
 
-        let result = retry(network.into(), |client| {
+        let result = retry(network.clone(), |client| {
             let params = params.clone();
             async move {
                 let result = parse_rpc_response(
@@ -291,7 +289,7 @@ impl ExecuteSignedTransaction {
     /// Please note that this will sign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
     pub async fn send_to_mainnet(self) -> TxExecutionResult {
         let network = NetworkConfig::mainnet();
-        self.send_to(network).await
+        self.send_to(&network).await
     }
 
     /// Sends the transaction to the default testnet configuration.
@@ -299,11 +297,11 @@ impl ExecuteSignedTransaction {
     /// Please note that this will sign the transaction with the testnet's nonce and block hash if it's not presigned yet.
     pub async fn send_to_testnet(self) -> TxExecutionResult {
         let network = NetworkConfig::testnet();
-        self.send_to(network).await
+        self.send_to(&network).await
     }
 
     pub(crate) async fn send_impl(
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
         signed_tr: SignedTransaction,
         wait_until: TxExecutionStatus,
     ) -> TxExecutionResult {
@@ -319,7 +317,7 @@ impl ExecuteSignedTransaction {
         let hash = signed_tr.get_hash();
         let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
 
-        let result = retry(network.into(), |client| {
+        let result = retry(network.clone(), |client| {
             let signed_tx_base64 = signed_tx_base64.clone();
             async move {
                 let result = parse_rpc_response(
@@ -432,7 +430,7 @@ impl ExecuteMetaTransaction {
     /// This is useful if you want to sign with non-default network configuration (e.g, custom RPC URL, sandbox).
     pub async fn presign_with(
         self,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
     ) -> Result<Self, ExecuteMetaTransactionsError> {
         let transaction = match &self.transaction {
             TransactionableOrSigned::Transactionable(transaction) => transaction,

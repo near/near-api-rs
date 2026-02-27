@@ -31,7 +31,7 @@ async fn fetch_tx_status() -> TestResult {
         .assert_success();
 
     let res = ExecuteSignedTransaction::fetch_tx(
-        network,
+        &network,
         RpcTransactionStatusRequest::Variant1 {
             sender_account_id: account.clone(),
             tx_hash: tx_hash.into(),

@@ -648,16 +648,15 @@ impl Signer {
         &self,
         account_id: impl Into<AccountId>,
         public_key: PublicKey,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
     ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
         let account_id = account_id.into();
-        let network = network.into();
 
         let nonce_data = crate::account::Account(account_id.clone())
             .access_key(public_key)
             .at(Reference::Final)
-            .fetch_from(&network)
+            .fetch_from(network)
             .await
             .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
 

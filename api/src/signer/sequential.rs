@@ -33,12 +33,11 @@ impl Signer {
     pub async fn sign_and_send(
         &self,
         account_id: impl Into<AccountId>,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> TxExecutionResult {
         let account_id = account_id.into();
-        let network = network.into();
         let public_key = self
             .get_public_key()
             .await
@@ -63,7 +62,7 @@ impl Signer {
             .broadcast_tx(
                 account_id,
                 public_key,
-                &network,
+                network,
                 transaction,
                 TxExecutionStatus::Included,
             )
@@ -93,12 +92,11 @@ impl Signer {
     pub async fn sign_and_send_meta(
         &self,
         account_id: impl Into<AccountId>,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         tx_live_for: BlockHeight,
     ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         let account_id = account_id.into();
-        let network = network.into();
         let public_key = self
             .get_public_key()
             .await
@@ -128,18 +126,15 @@ impl Signer {
         &self,
         account_id: impl Into<AccountId>,
         public_key: PublicKey,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> Result<(SignedTransaction, ExecutionFinalResult), ExecuteTransactionError> {
         debug!(target: SIGNER_TARGET, "Broadcasting transaction");
 
         let account_id = account_id.into();
-        let network = network.into();
 
-        let (nonce, block_hash, _) = self
-            .fetch_tx_nonce(account_id, public_key, &network)
-            .await?;
+        let (nonce, block_hash, _) = self.fetch_tx_nonce(account_id, public_key, network).await?;
 
         let signed = self
             .sign(transaction, public_key, nonce, block_hash)
@@ -156,17 +151,15 @@ impl Signer {
         &self,
         account_id: impl Into<AccountId>,
         public_key: PublicKey,
-        network: impl Into<NetworkConfig>,
+        network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         tx_live_for: BlockHeight,
     ) -> Result<reqwest::Response, ExecuteMetaTransactionsError> {
         debug!(target: SIGNER_TARGET, "Broadcasting meta transaction");
-
         let account_id = account_id.into();
-        let network = network.into();
 
         let (nonce, block_hash, block_height) = self
-            .fetch_tx_nonce(account_id, public_key, &network)
+            .fetch_tx_nonce(account_id, public_key, network)
             .await
             .map_err(MetaSignError::from)?;
 
@@ -180,6 +173,6 @@ impl Signer {
             )
             .await?;
 
-        ExecuteMetaTransaction::send_impl(&network, signed).await
+        ExecuteMetaTransaction::send_impl(network, signed).await
     }
 }
