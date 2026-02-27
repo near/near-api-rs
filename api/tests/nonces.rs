@@ -52,7 +52,7 @@ async fn correct_nonces_for_different_networks() -> TestResult {
 }
 
 #[tokio::test]
-async fn sequential_nonce_incrementation() -> TestResult {
+async fn sequential_nonces() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
@@ -83,7 +83,7 @@ async fn sequential_nonce_incrementation() -> TestResult {
         .send_to(&network)
         .await
         .err()
-        .ok_or("Shouldnt be able to use with non sequential nonce")?;
+        .ok_or("Should not be able to use with non sequential nonce")?;
 
     Ok(())
 }

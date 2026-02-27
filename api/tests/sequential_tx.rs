@@ -90,10 +90,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
     // TX1 (nonce=100) arrives second ✗ (rejected - nonce too old, expected 104)
     // TX3 (nonce=102) arrives third ✗ (rejected - nonce too old, expected 104)
     // TX2 (nonce=101) arrives last ✗ (rejected - nonce too old, expected 104)
-    join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
+    join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network))).await;
 
     let end_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await?)
@@ -202,10 +199,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
     // TX3 (nonce=102) arrives third ✗ (rejected - nonce too old, expected 104)
     // TX2 (nonce=101) arrives last ✗ (rejected - nonce too old, expected 104)
 
-    join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network)))
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
+    join_all(tx.map(|t| t.with_signer(Arc::clone(&signer)).send_to(&network))).await;
 
     let end_nonce = Account(account.clone())
         .access_key(first_pubkey)
