@@ -371,11 +371,9 @@ pub enum TransactionResult {
     ///
     /// This is returned when `wait_until` is set to `None` or `Included`.
     /// The `status` field indicates how far the transaction has progressed.
-    Pending {
-        status: TxExecutionStatus,
-    },
+    Pending { status: TxExecutionStatus },
     /// Full execution result is available.
-    Final(ExecutionFinalResult),
+    Final(Box<ExecutionFinalResult>),
 }
 
 impl TransactionResult {
@@ -383,7 +381,9 @@ impl TransactionResult {
     #[allow(clippy::result_large_err)]
     pub fn into_result(self) -> Result<ExecutionSuccess, TransactionResultError> {
         match self {
-            Self::Final(result) => result.into_result().map_err(TransactionResultError::Failure),
+            Self::Final(result) => result
+                .into_result()
+                .map_err(|e| TransactionResultError::Failure(Box::new(e))),
             Self::Pending { status } => Err(TransactionResultError::Pending(status)),
         }
     }
@@ -413,13 +413,13 @@ impl TransactionResult {
     /// Returns the final execution result, if available.
     pub fn into_final(self) -> Option<ExecutionFinalResult> {
         match self {
-            Self::Final(result) => Some(result),
+            Self::Final(result) => Some(*result),
             Self::Pending { .. } => None,
         }
     }
 
     /// Returns the pending status, if the transaction is still pending.
-    pub fn pending_status(&self) -> Option<&TxExecutionStatus> {
+    pub const fn pending_status(&self) -> Option<&TxExecutionStatus> {
         match self {
             Self::Pending { status } => Some(status),
             Self::Final(_) => None,
@@ -455,13 +455,45 @@ impl TransactionResult {
             Self::Pending { .. } => false,
         }
     }
+
+    /// Returns the transaction that was executed.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the transaction is still pending.
+    #[track_caller]
+    pub fn transaction(&self) -> &Transaction {
+        match self {
+            Self::Final(result) => result.transaction(),
+            Self::Pending { status } => panic!(
+                "called `transaction()` on a pending transaction (status: {status:?}). \
+                 Use wait_until(TxExecutionStatus::Final) or handle the pending case."
+            ),
+        }
+    }
+
+    /// Grab all logs from both the transaction and receipt outcomes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the transaction is still pending.
+    #[track_caller]
+    pub fn logs(&self) -> Vec<&str> {
+        match self {
+            Self::Final(result) => result.logs(),
+            Self::Pending { status } => panic!(
+                "called `logs()` on a pending transaction (status: {status:?}). \
+                 Use wait_until(TxExecutionStatus::Final) or handle the pending case."
+            ),
+        }
+    }
 }
 
 /// Error type for [`TransactionResult::into_result`].
 #[derive(Debug)]
 pub enum TransactionResultError {
     /// The transaction failed execution.
-    Failure(ExecutionFailure),
+    Failure(Box<ExecutionFailure>),
     /// The transaction is still pending (was sent with `wait_until` set to `None` or `Included`).
     Pending(TxExecutionStatus),
 }

@@ -35,7 +35,7 @@ const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
 
 /// Internal enum to distinguish between a full RPC response and a minimal pending response.
 enum SendImplResponse {
-    Full(RpcTransactionResponse),
+    Full(Box<RpcTransactionResponse>),
     Pending(TxExecutionStatus),
 }
 
@@ -319,7 +319,7 @@ impl ExecuteSignedTransaction {
                             result,
                             ..
                         },
-                    ) => RetryResponse::Ok(SendImplResponse::Full(result)),
+                    ) => RetryResponse::Ok(SendImplResponse::Full(Box::new(result))),
                     Ok(
                         JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant1 {
                             error,
@@ -336,16 +336,25 @@ impl ExecuteSignedTransaction {
                         // fails to deserialize this into RpcTransactionResponse (which
                         // expects full execution data) and returns InvalidResponsePayload.
                         // We intercept this case and parse the minimal response ourselves.
-                        if let SendRequestError::TransportError(
-                            near_openapi_client::Error::InvalidResponsePayload(ref bytes, _),
-                        ) = err
-                        {
-                            if let Ok(minimal) =
-                                serde_json::from_slice::<MinimalTransactionResponse>(bytes)
+                        //
+                        // We only attempt this fallback when we explicitly requested a
+                        // minimal response, so unexpected/buggy RPC responses for higher
+                        // finality levels don't get silently treated as Pending.
+                        if matches!(
+                            wait_until,
+                            TxExecutionStatus::None | TxExecutionStatus::Included
+                        ) {
+                            if let SendRequestError::TransportError(
+                                near_openapi_client::Error::InvalidResponsePayload(ref bytes, _),
+                            ) = err
                             {
-                                return RetryResponse::Ok(SendImplResponse::Pending(
-                                    minimal.result.final_execution_status,
-                                ));
+                                if let Ok(minimal) =
+                                    serde_json::from_slice::<MinimalTransactionResponse>(bytes)
+                                {
+                                    return RetryResponse::Ok(SendImplResponse::Pending(
+                                        minimal.result.final_execution_status,
+                                    ));
+                                }
                             }
                         }
                         to_retry_error(err, is_critical_transaction_error)
@@ -368,7 +377,7 @@ impl ExecuteSignedTransaction {
         match result {
             SendImplResponse::Pending(status) => Ok(TransactionResult::Pending { status }),
             SendImplResponse::Full(rpc_response) => {
-                let final_execution_outcome_view = match rpc_response {
+                let final_execution_outcome_view = match *rpc_response {
                     // We don't use `experimental_tx`, so we can ignore that, but just to be safe
                     RpcTransactionResponse::Variant0 {
                         final_execution_status: _,
@@ -397,9 +406,9 @@ impl ExecuteSignedTransaction {
                     },
                 };
 
-                Ok(TransactionResult::Final(
+                Ok(TransactionResult::Final(Box::new(
                     ExecutionFinalResult::try_from(final_execution_outcome_view)?,
-                ))
+                )))
             }
         }
     }
