@@ -212,9 +212,11 @@ impl Transaction {
 
     /// Sets up a query to fetch the current status of a transaction by its hash and sender account ID.
     ///
-    /// Returns the transaction status at the current point in time without waiting for
-    /// any specific execution stage. If you need to wait until the transaction reaches
-    /// a particular stage (e.g., `Final`), use [`Transaction::status_with_options`] instead.
+    /// Waits until the transaction has been optimistically executed ([`TxExecutionStatus::ExecutedOptimistic`]),
+    /// ensuring that outcome fields (gas usage, logs, status) are populated.
+    /// If you need to wait until the transaction reaches a different stage
+    /// (e.g., [`TxExecutionStatus::Final`] or [`TxExecutionStatus::None`]),
+    /// use [`Transaction::status_with_options`] instead.
     ///
     /// The returned result is an [`ExecutionFinalResult`](near_api_types::transaction::result::ExecutionFinalResult)
     /// which provides details about gas usage, logs, and the execution status.
@@ -239,7 +241,11 @@ impl Transaction {
         sender_account_id: AccountId,
         tx_hash: CryptoHash,
     ) -> RequestBuilder<TransactionStatusHandler> {
-        Self::status_with_options(sender_account_id, tx_hash, TxExecutionStatus::None)
+        Self::status_with_options(
+            sender_account_id,
+            tx_hash,
+            TxExecutionStatus::ExecutedOptimistic,
+        )
     }
 
     /// Sets up a query to fetch the status of a transaction, waiting until it reaches
