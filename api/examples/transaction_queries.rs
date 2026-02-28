@@ -4,10 +4,27 @@ use near_api::{
 };
 use testresult::TestResult;
 
+/// This example queries mainnet with a known finalized transaction.
+///
+/// Sandbox does not support `EXPERIMENTAL_receipt` or `light_client_proof`,
+/// so this example is skipped when `CI=true`.
+///
+/// The transaction hash and sender can be overridden via environment variables:
+///   TX_HASH  — the transaction hash to query
+///   TX_SENDER — the sender account ID
 #[tokio::main]
 async fn main() -> TestResult {
-    let sender: AccountId = "omni.bridge.near".parse()?;
-    let tx_hash: CryptoHash = "GmvjRhbBwNCeekyZ4ezv43Zhs4U33kRTj6PRkFgKUKyJ".parse()?;
+    if std::env::var("CI").is_ok() {
+        println!("Skipping transaction_queries in CI (requires mainnet)");
+        return Ok(());
+    }
+
+    let sender: AccountId = std::env::var("TX_SENDER")
+        .unwrap_or_else(|_| "omni.bridge.near".to_string())
+        .parse()?;
+    let tx_hash: CryptoHash = std::env::var("TX_HASH")
+        .unwrap_or_else(|_| "GmvjRhbBwNCeekyZ4ezv43Zhs4U33kRTj6PRkFgKUKyJ".to_string())
+        .parse()?;
 
     let status = Transaction::status(sender.clone(), tx_hash)
         .fetch_from_mainnet()
@@ -29,12 +46,12 @@ async fn main() -> TestResult {
         status_final.receipt_outcomes().len(),
     );
 
-    let receipt_id = status_final
+    let receipt_id = *status_final
         .outcome()
         .receipt_ids
         .first()
         .expect("transaction should have at least one receipt");
-    let receipt = Transaction::receipt(*receipt_id)
+    let receipt = Transaction::receipt(receipt_id)
         .fetch_from_mainnet()
         .await?;
     println!(
