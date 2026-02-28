@@ -29,8 +29,12 @@ async fn main() -> TestResult {
         status_final.receipt_outcomes().len(),
     );
 
-    let receipt_id = status_final.outcome().receipt_ids[0];
-    let receipt = Transaction::receipt(receipt_id)
+    let receipt_id = status_final
+        .outcome()
+        .receipt_ids
+        .first()
+        .expect("transaction should have at least one receipt");
+    let receipt = Transaction::receipt(*receipt_id)
         .fetch_from_mainnet()
         .await?;
     println!(
