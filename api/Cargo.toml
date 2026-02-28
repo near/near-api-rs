@@ -57,3 +57,6 @@ keystore = ["dep:keyring"]
 tokio = { workspace = true, default-features = false, features = ["full"] }
 near-sandbox = { workspace = true, features = ["generate"] }
 testresult.workspace = true
+# Pin deflate64 (transitive: near-sandbox -> binary-install -> zip -> deflate64)
+# to a version compatible with our MSRV. v0.1.11 requires Rust 1.87+ (unbounded_shifts).
+deflate64 = ">=0.1.9, <0.1.11"
