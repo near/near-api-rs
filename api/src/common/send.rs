@@ -547,9 +547,7 @@ impl ExecuteMetaTransaction {
 /// This function strips the `final_execution_status` and optional `receipts` fields
 /// that are not part of `FinalExecutionOutcomeView`.
 // TODO: check if we need to add support for `final_execution_status`
-pub(crate) fn to_final_execution_outcome(
-    response: RpcTransactionResponse,
-) -> FinalExecutionOutcomeView {
+pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExecutionOutcomeView {
     match response {
         RpcTransactionResponse::Variant0 {
             final_execution_status: _,
