@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Arc;
 
 use near_openapi_client::types::{
@@ -11,7 +12,7 @@ use near_api_types::{
     transaction::{
         PrepopulateTransaction, SignedTransaction,
         delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
-        result::ExecutionFinalResult,
+        result::{ExecutionFinalResult, TransactionResult},
     },
 };
 use reqwest::Response;
@@ -31,6 +32,35 @@ use super::META_TRANSACTION_VALID_FOR_DEFAULT;
 
 const TX_EXECUTOR_TARGET: &str = "near_api::tx::executor";
 const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
+
+/// Internal enum to distinguish between a full RPC response and a minimal pending response.
+enum SendImplResponse {
+    Full(RpcTransactionResponse),
+    Pending(TxExecutionStatus),
+}
+
+impl fmt::Debug for SendImplResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Full(_) => write!(f, "Full(...)"),
+            Self::Pending(status) => write!(f, "Pending({status:?})"),
+        }
+    }
+}
+
+/// Minimal JSON-RPC response returned when `wait_until` is `NONE` or `INCLUDED`.
+///
+/// The RPC returns only `{"jsonrpc":"2.0","result":{"final_execution_status":"..."},"id":"0"}`
+/// which doesn't match the full `RpcTransactionResponse` schema.
+#[derive(serde::Deserialize)]
+struct MinimalTransactionResponse {
+    result: MinimalTransactionResult,
+}
+
+#[derive(serde::Deserialize)]
+struct MinimalTransactionResult {
+    final_execution_status: TxExecutionStatus,
+}
 
 #[async_trait::async_trait]
 pub trait Transactionable: Send + Sync {
@@ -191,10 +221,14 @@ impl ExecuteSignedTransaction {
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
     /// Please note that if the transaction is not presigned, it will be signed with the network's nonce and block hash.
+    ///
+    /// Returns a [`TransactionResult`] which is either:
+    /// - [`TransactionResult::Pending`] if `wait_until` is `None` or `Included` (no execution data available yet)
+    /// - [`TransactionResult::Final`] for higher finality levels with full execution results
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
-    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+    ) -> Result<TransactionResult, ExecuteTransactionError> {
         let (signed, transactionable) = match &mut self.transaction {
             TransactionableOrSigned::Transactionable(transaction) => {
                 debug!(target: TX_EXECUTOR_TARGET, "Preparing unsigned transaction");
@@ -243,7 +277,7 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the default mainnet configuration.
     ///
     /// Please note that this will sign the transaction with the mainnet's nonce and block hash if it's not presigned yet.
-    pub async fn send_to_mainnet(self) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+    pub async fn send_to_mainnet(self) -> Result<TransactionResult, ExecuteTransactionError> {
         let network = NetworkConfig::mainnet();
         self.send_to(&network).await
     }
@@ -251,7 +285,7 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the default testnet configuration.
     ///
     /// Please note that this will sign the transaction with the testnet's nonce and block hash if it's not presigned yet.
-    pub async fn send_to_testnet(self) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+    pub async fn send_to_testnet(self) -> Result<TransactionResult, ExecuteTransactionError> {
         let network = NetworkConfig::testnet();
         self.send_to(&network).await
     }
@@ -260,7 +294,7 @@ impl ExecuteSignedTransaction {
         network: &NetworkConfig,
         signed_tr: SignedTransaction,
         wait_until: TxExecutionStatus,
-    ) -> Result<ExecutionFinalResult, ExecuteTransactionError> {
+    ) -> Result<TransactionResult, ExecuteTransactionError> {
         let hash = signed_tr.get_hash();
         let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
         let result = retry(network.clone(), |client| {
@@ -285,7 +319,7 @@ impl ExecuteSignedTransaction {
                             result,
                             ..
                         },
-                    ) => RetryResponse::Ok(result),
+                    ) => RetryResponse::Ok(SendImplResponse::Full(result)),
                     Ok(
                         JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant1 {
                             error,
@@ -296,7 +330,26 @@ impl ExecuteSignedTransaction {
                             SendRequestError::from(error);
                         to_retry_error(error, is_critical_transaction_error)
                     }
-                    Err(err) => to_retry_error(err, is_critical_transaction_error),
+                    Err(err) => {
+                        // When wait_until is NONE or INCLUDED, the RPC returns a minimal
+                        // response with only `final_execution_status`. The openapi client
+                        // fails to deserialize this into RpcTransactionResponse (which
+                        // expects full execution data) and returns InvalidResponsePayload.
+                        // We intercept this case and parse the minimal response ourselves.
+                        if let SendRequestError::TransportError(
+                            near_openapi_client::Error::InvalidResponsePayload(ref bytes, _),
+                        ) = err
+                        {
+                            if let Ok(minimal) =
+                                serde_json::from_slice::<MinimalTransactionResponse>(bytes)
+                            {
+                                return RetryResponse::Ok(SendImplResponse::Pending(
+                                    minimal.result.final_execution_status,
+                                ));
+                            }
+                        }
+                        to_retry_error(err, is_critical_transaction_error)
+                    }
                 };
 
                 tracing::debug!(
@@ -312,39 +365,43 @@ impl ExecuteSignedTransaction {
         .await
         .map_err(ExecuteTransactionError::TransactionError)?;
 
-        // TODO: check if we need to add support for that final_execution_status
-        let final_execution_outcome_view = match result {
-            // We don't use `experimental_tx`, so we can ignore that, but just to be safe
-            RpcTransactionResponse::Variant0 {
-                final_execution_status: _,
-                receipts: _,
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            } => FinalExecutionOutcomeView {
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            },
-            RpcTransactionResponse::Variant1 {
-                final_execution_status: _,
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            } => FinalExecutionOutcomeView {
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            },
-        };
+        match result {
+            SendImplResponse::Pending(status) => Ok(TransactionResult::Pending { status }),
+            SendImplResponse::Full(rpc_response) => {
+                let final_execution_outcome_view = match rpc_response {
+                    // We don't use `experimental_tx`, so we can ignore that, but just to be safe
+                    RpcTransactionResponse::Variant0 {
+                        final_execution_status: _,
+                        receipts: _,
+                        receipts_outcome,
+                        status,
+                        transaction,
+                        transaction_outcome,
+                    } => FinalExecutionOutcomeView {
+                        receipts_outcome,
+                        status,
+                        transaction,
+                        transaction_outcome,
+                    },
+                    RpcTransactionResponse::Variant1 {
+                        final_execution_status: _,
+                        receipts_outcome,
+                        status,
+                        transaction,
+                        transaction_outcome,
+                    } => FinalExecutionOutcomeView {
+                        receipts_outcome,
+                        status,
+                        transaction,
+                        transaction_outcome,
+                    },
+                };
 
-        Ok(ExecutionFinalResult::try_from(
-            final_execution_outcome_view,
-        )?)
+                Ok(TransactionResult::Final(
+                    ExecutionFinalResult::try_from(final_execution_outcome_view)?,
+                ))
+            }
+        }
     }
 }
 
