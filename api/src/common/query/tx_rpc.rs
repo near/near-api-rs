@@ -19,7 +19,7 @@ use crate::{
     advanced::RpcType,
     common::utils::{
         is_critical_light_client_proof_error, is_critical_receipt_error,
-        is_critical_transaction_error,
+        is_critical_transaction_status_error,
     },
     config::RetryResponse,
     errors::SendRequestError,
@@ -78,9 +78,9 @@ impl RpcType for TransactionStatusRpc {
                 ..
             }) => {
                 let error = SendRequestError::from(error);
-                to_retry_error(error, is_critical_transaction_error)
+                to_retry_error(error, is_critical_transaction_status_error)
             }
-            Err(err) => to_retry_error(err, is_critical_transaction_error),
+            Err(err) => to_retry_error(err, is_critical_transaction_status_error),
         }
     }
 }

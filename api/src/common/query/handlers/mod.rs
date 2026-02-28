@@ -3,9 +3,7 @@ use near_api_types::{
     AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
     RpcValidatorResponse, ViewStateResult, json::U64, transaction::result::ExecutionFinalResult,
 };
-use near_openapi_client::types::{
-    FinalExecutionOutcomeView, RpcQueryResponse, RpcReceiptResponse, RpcTransactionResponse,
-};
+use near_openapi_client::types::{RpcQueryResponse, RpcReceiptResponse, RpcTransactionResponse};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 use tracing::{info, trace, warn};
@@ -15,7 +13,10 @@ use crate::{
         RpcType, block_rpc::SimpleBlockRpc, query_rpc::SimpleQueryRpc,
         tx_rpc::TransactionStatusRpc, validator_rpc::SimpleValidatorRpc,
     },
-    common::query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
+    common::{
+        query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
+        send::to_final_execution_outcome,
+    },
     errors::QueryError,
 };
 pub mod transformers;
@@ -519,33 +520,7 @@ impl ResponseHandler for TransactionStatusHandler {
             .next()
             .ok_or(QueryError::InternalErrorNoResponse)?;
 
-        let final_execution_outcome_view = match response {
-            RpcTransactionResponse::Variant0 {
-                final_execution_status: _,
-                receipts: _,
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            } => FinalExecutionOutcomeView {
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            },
-            RpcTransactionResponse::Variant1 {
-                final_execution_status: _,
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            } => FinalExecutionOutcomeView {
-                receipts_outcome,
-                status,
-                transaction,
-                transaction_outcome,
-            },
-        };
+        let final_execution_outcome_view = to_final_execution_outcome(response);
 
         info!(
             target: QUERY_EXECUTOR_TARGET,

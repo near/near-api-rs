@@ -85,6 +85,20 @@ pub fn is_critical_transaction_error(err: &SendRequestError<RpcTransactionError>
     })
 }
 
+pub fn is_critical_transaction_status_error(err: &SendRequestError<RpcTransactionError>) -> bool {
+    is_critical_json_rpc_error(err, |err| match err {
+        RpcTransactionError::TimeoutError
+        | RpcTransactionError::RequestRouted { .. }
+        | RpcTransactionError::UnknownTransaction { .. }
+        | RpcTransactionError::DoesNotTrackShard
+        | RpcTransactionError::InternalError { .. } => false,
+
+        RpcTransactionError::InvalidTransaction { .. } => true,
+
+        _ => false,
+    })
+}
+
 pub fn is_critical_receipt_error(err: &SendRequestError<RpcReceiptError>) -> bool {
     is_critical_json_rpc_error(err, |err| match err {
         RpcReceiptError::InternalError { .. } => false,
