@@ -419,7 +419,7 @@ impl TransactionResult {
     }
 
     /// Returns the pending status, if the transaction is still pending.
-    pub const fn pending_status(&self) -> Option<&TxExecutionStatus> {
+    pub fn pending_status(self) -> Option<TxExecutionStatus> {
         match self {
             Self::Pending { status } => Some(status),
             Self::Full(_) => None,
