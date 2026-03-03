@@ -224,7 +224,7 @@ impl ExecuteSignedTransaction {
     ///
     /// Returns a [`TransactionResult`] which is either:
     /// - [`TransactionResult::Pending`] if `wait_until` is `None` or `Included` (no execution data available yet)
-    /// - [`TransactionResult::Final`] for higher finality levels with full execution results
+    /// - [`TransactionResult::Full`] for higher finality levels with full execution results
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
@@ -406,7 +406,7 @@ impl ExecuteSignedTransaction {
                     },
                 };
 
-                Ok(TransactionResult::Final(Box::new(
+                Ok(TransactionResult::Full(Box::new(
                     ExecutionFinalResult::try_from(final_execution_outcome_view)?,
                 )))
             }

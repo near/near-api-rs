@@ -363,7 +363,7 @@ impl ExecutionFinalResult {
 /// - `wait_until(TxExecutionStatus::None)` or `wait_until(TxExecutionStatus::Included)` will
 ///   return [`TransactionResult::Pending`] since the transaction hasn't been executed yet.
 /// - Higher finality levels (`ExecutedOptimistic`, `Final`, etc.) will return
-///   [`TransactionResult::Final`] with the full execution outcome.
+///   [`TransactionResult::Full`] with the full execution outcome.
 #[derive(Clone, Debug)]
 #[must_use = "use `into_result()` to handle potential execution errors and cases when transaction is pending"]
 pub enum TransactionResult {
@@ -373,7 +373,7 @@ pub enum TransactionResult {
     /// The `status` field indicates how far the transaction has progressed.
     Pending { status: TxExecutionStatus },
     /// Full execution result is available.
-    Final(Box<ExecutionFinalResult>),
+    Full(Box<ExecutionFinalResult>),
 }
 
 impl TransactionResult {
@@ -381,7 +381,7 @@ impl TransactionResult {
     #[allow(clippy::result_large_err)]
     pub fn into_result(self) -> Result<ExecutionSuccess, TransactionResultError> {
         match self {
-            Self::Final(result) => result
+            Self::Full(result) => result
                 .into_result()
                 .map_err(|e| TransactionResultError::Failure(Box::new(e))),
             Self::Pending { status } => Err(TransactionResultError::Pending(status)),
@@ -392,7 +392,7 @@ impl TransactionResult {
     #[track_caller]
     pub fn assert_success(self) -> ExecutionSuccess {
         match self {
-            Self::Final(result) => result.assert_success(),
+            Self::Full(result) => result.assert_success(),
             Self::Pending { status } => panic!(
                 "called `assert_success()` on a pending transaction (status: {status:?}). \
                  Use wait_until(TxExecutionStatus::Final) or handle the pending case."
@@ -400,9 +400,9 @@ impl TransactionResult {
         }
     }
 
-    /// Returns `true` if the transaction has a final execution result.
-    pub const fn is_final(&self) -> bool {
-        matches!(self, Self::Final(_))
+    /// Returns `true` if the transaction has a full execution result.
+    pub const fn is_full(&self) -> bool {
+        matches!(self, Self::Full(_))
     }
 
     /// Returns `true` if the transaction is still pending.
@@ -410,10 +410,10 @@ impl TransactionResult {
         matches!(self, Self::Pending { .. })
     }
 
-    /// Returns the final execution result, if available.
-    pub fn into_final(self) -> Option<ExecutionFinalResult> {
+    /// Returns the full execution result, if available.
+    pub fn into_full(self) -> Option<ExecutionFinalResult> {
         match self {
-            Self::Final(result) => Some(*result),
+            Self::Full(result) => Some(*result),
             Self::Pending { .. } => None,
         }
     }
@@ -422,7 +422,7 @@ impl TransactionResult {
     pub const fn pending_status(&self) -> Option<&TxExecutionStatus> {
         match self {
             Self::Pending { status } => Some(status),
-            Self::Final(_) => None,
+            Self::Full(_) => None,
         }
     }
 
@@ -430,7 +430,7 @@ impl TransactionResult {
     #[track_caller]
     pub fn assert_failure(self) -> ExecutionResult<TxExecutionError> {
         match self {
-            Self::Final(result) => result.assert_failure(),
+            Self::Full(result) => result.assert_failure(),
             Self::Pending { status } => panic!(
                 "called `assert_failure()` on a pending transaction (status: {status:?}). \
                  Use wait_until(TxExecutionStatus::Final) or handle the pending case."
@@ -442,7 +442,7 @@ impl TransactionResult {
     /// is still pending or succeeded.
     pub const fn is_failure(&self) -> bool {
         match self {
-            Self::Final(result) => result.is_failure(),
+            Self::Full(result) => result.is_failure(),
             Self::Pending { .. } => false,
         }
     }
@@ -451,7 +451,7 @@ impl TransactionResult {
     /// is still pending or failed.
     pub const fn is_success(&self) -> bool {
         match self {
-            Self::Final(result) => result.is_success(),
+            Self::Full(result) => result.is_success(),
             Self::Pending { .. } => false,
         }
     }
@@ -464,7 +464,7 @@ impl TransactionResult {
     #[track_caller]
     pub fn transaction(&self) -> &Transaction {
         match self {
-            Self::Final(result) => result.transaction(),
+            Self::Full(result) => result.transaction(),
             Self::Pending { status } => panic!(
                 "called `transaction()` on a pending transaction (status: {status:?}). \
                  Use wait_until(TxExecutionStatus::Final) or handle the pending case."
@@ -480,7 +480,7 @@ impl TransactionResult {
     #[track_caller]
     pub fn logs(&self) -> Vec<&str> {
         match self {
-            Self::Final(result) => result.logs(),
+            Self::Full(result) => result.logs(),
             Self::Pending { status } => panic!(
                 "called `logs()` on a pending transaction (status: {status:?}). \
                  Use wait_until(TxExecutionStatus::Final) or handle the pending case."
