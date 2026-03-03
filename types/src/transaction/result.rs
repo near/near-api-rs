@@ -365,7 +365,7 @@ impl ExecutionFinalResult {
 /// - Higher finality levels (`ExecutedOptimistic`, `Final`, etc.) will return
 ///   [`TransactionResult::Final`] with the full execution outcome.
 #[derive(Clone, Debug)]
-#[must_use]
+#[must_use = "use `into_result()` to handle potential execution errors and cases when transaction is pending"]
 pub enum TransactionResult {
     /// Transaction was submitted but execution results are not yet available.
     ///
