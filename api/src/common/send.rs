@@ -308,15 +308,8 @@ impl ExecuteSignedTransaction {
                             status,
                             transaction,
                             transaction_outcome,
-                        } => RetryResponse::Ok(SendImplResponse::Full(Box::new(
-                            FinalExecutionOutcomeView {
-                                receipts_outcome,
-                                status,
-                                transaction,
-                                transaction_outcome,
-                            },
-                        ))),
-                        RpcTransactionResponse::FinalExecutionOutcomeWithReceiptView {
+                        }
+                        | RpcTransactionResponse::FinalExecutionOutcomeWithReceiptView {
                             final_execution_status: _,
                             receipts: _,
                             receipts_outcome,

@@ -14,12 +14,6 @@ pub enum QueryCreationError {
 pub enum QueryError {
     #[error(transparent)]
     QueryCreationError(#[from] QueryCreationError),
-    #[error("Unexpected response kind: expected {expected} type, but got {got:?}")]
-    UnexpectedResponse {
-        expected: &'static str,
-        // Boxed to avoid large error type
-        got: &'static str,
-    },
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
     #[error("Query error: {0:?}")]
@@ -288,6 +282,8 @@ pub enum SendRequestError {
     TransportError(RpcCallError),
     #[error("Server error: {0}")]
     ServerError(RpcError),
+    #[error("Contract execution error: {0}")]
+    ContractExecutionError(String),
 }
 
 impl SendRequestError {

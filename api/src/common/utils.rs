@@ -32,19 +32,16 @@ pub fn to_retry_error<T>(
     }
 }
 
-/// Blocks errors: all known causes are retryable (UNKNOWN_BLOCK, NOT_SYNCED_YET, INTERNAL_ERROR).
-pub fn is_critical_blocks_error(err: &SendRequestError) -> bool {
-    is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
-}
-
-/// Validator errors: all known causes are retryable (UNKNOWN_EPOCH, VALIDATOR_INFO_UNAVAILABLE, INTERNAL_ERROR).
-pub fn is_critical_validator_error(err: &SendRequestError) -> bool {
+/// Generic RPC error criticality check: an error is critical unless `is_retryable()` says otherwise.
+/// Used for blocks, validators, and other RPC methods where all known causes are retryable.
+pub fn is_critical_rpc_error(err: &SendRequestError) -> bool {
     is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
 }
 
 /// Query errors: retryable causes (NO_SYNCED_BLOCKS, UNAVAILABLE_SHARD, UNKNOWN_BLOCK, INTERNAL_ERROR)
 /// are not critical, but permanent errors (INVALID_ACCOUNT, UNKNOWN_ACCOUNT, etc.) are.
 /// NO_GLOBAL_CONTRACT_CODE is treated as retryable since it may not have propagated yet.
+/// ContractExecutionError is always critical (handled by `is_critical_json_rpc_error`).
 pub fn is_critical_query_error(err: &SendRequestError) -> bool {
     is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
 }
@@ -68,6 +65,7 @@ fn is_critical_json_rpc_error(
     match err {
         SendRequestError::ServerError(rpc_error) => is_critical_handler(rpc_error),
         SendRequestError::RequestCreationError(_) => true,
+        SendRequestError::ContractExecutionError(_) => true,
         SendRequestError::TransportError(err) => match err {
             RpcCallError::Http(e) => {
                 use reqwest::StatusCode;

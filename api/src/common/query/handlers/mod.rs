@@ -21,6 +21,20 @@ use crate::{
 pub mod transformers;
 pub use transformers::*;
 
+fn take_single<T>(responses: Vec<T>) -> Result<T, QueryError> {
+    responses
+        .into_iter()
+        .next()
+        .ok_or(QueryError::InternalErrorNoResponse)
+}
+
+fn convert_block_hash(
+    hash: near_openrpc_client::CryptoHash,
+) -> Result<near_api_types::CryptoHash, QueryError> {
+    hash.try_into()
+        .map_err(|e| QueryError::ConversionError(Box::new(e)))
+}
+
 pub trait ResponseHandler {
     type Response;
     type Query: RpcType;
@@ -55,23 +69,14 @@ where
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let call_result: RpcCallFunctionResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let call_result: RpcCallFunctionResponse = serde_json::from_value(take_single(response)?)?;
 
         trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult, result size: {} bytes", call_result.result.len());
         let data: Response = serde_json::from_slice(&call_result.result)?;
         Ok(Data {
             data,
             block_height: call_result.block_height,
-            block_hash: call_result
-                .block_hash
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(call_result.block_hash)?,
         })
     }
 }
@@ -93,22 +98,13 @@ impl ResponseHandler for CallResultRawHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let call_result: RpcCallFunctionResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let call_result: RpcCallFunctionResponse = serde_json::from_value(take_single(response)?)?;
 
         trace!(target: QUERY_EXECUTOR_TARGET, "Returning CallResult raw bytes, result size: {} bytes", call_result.result.len());
         Ok(Data {
             data: call_result.result,
             block_height: call_result.block_height,
-            block_hash: call_result
-                .block_hash
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(call_result.block_hash)?,
         })
     }
 }
@@ -133,13 +129,7 @@ where
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let call_result: RpcCallFunctionResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let call_result: RpcCallFunctionResponse = serde_json::from_value(take_single(response)?)?;
 
         trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult using Borsh, result size: {} bytes", call_result.result.len());
         let data: Response = Response::try_from_slice(&call_result.result)
@@ -147,10 +137,7 @@ where
         Ok(Data {
             data,
             block_height: call_result.block_height,
-            block_hash: call_result
-                .block_hash
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(call_result.block_hash)?,
         })
     }
 }
@@ -166,13 +153,7 @@ impl ResponseHandler for AccountViewHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let account_view: RpcViewAccountResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let account_view: RpcViewAccountResponse = serde_json::from_value(take_single(response)?)?;
 
         info!(
             target: QUERY_EXECUTOR_TARGET,
@@ -181,11 +162,7 @@ impl ResponseHandler for AccountViewHandler {
         );
 
         let block_height = account_view.block_height;
-        let block_hash = account_view
-            .block_hash
-            .clone()
-            .try_into()
-            .map_err(|e| QueryError::ConversionError(Box::new(e)))?;
+        let block_hash = convert_block_hash(account_view.block_hash.clone())?;
 
         Ok(Data {
             data: Account::try_from(account_view)
@@ -211,13 +188,7 @@ impl ResponseHandler for AccessKeyListHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let key_list: RpcViewAccessKeyListResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let key_list: RpcViewAccessKeyListResponse = serde_json::from_value(take_single(response)?)?;
 
         info!(
             target: QUERY_EXECUTOR_TARGET,
@@ -235,10 +206,7 @@ impl ResponseHandler for AccessKeyListHandler {
                 })
                 .collect(),
             block_height: key_list.block_height,
-            block_hash: key_list
-                .block_hash
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(key_list.block_hash)?,
         })
     }
 
@@ -258,13 +226,7 @@ impl ResponseHandler for AccessKeyHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let ak: RpcViewAccessKeyResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let ak: RpcViewAccessKeyResponse = serde_json::from_value(take_single(response)?)?;
 
         info!(
             target: QUERY_EXECUTOR_TARGET,
@@ -281,10 +243,7 @@ impl ResponseHandler for AccessKeyHandler {
                     .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
             },
             block_height: ak.block_height,
-            block_hash: ak
-                .block_hash
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(ak.block_hash)?,
         })
     }
 }
@@ -300,13 +259,7 @@ impl ResponseHandler for ViewStateHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let state: RpcViewStateResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let state: RpcViewStateResponse = serde_json::from_value(take_single(response)?)?;
 
         info!(
             target: QUERY_EXECUTOR_TARGET,
@@ -316,11 +269,7 @@ impl ResponseHandler for ViewStateHandler {
         );
         Ok(Data {
             block_height: state.block_height,
-            block_hash: state
-                .block_hash
-                .clone()
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(state.block_hash.clone())?,
             data: state,
         })
     }
@@ -337,13 +286,7 @@ impl ResponseHandler for ViewCodeHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
-        let code: RpcViewCodeResponse = serde_json::from_value(response)
-            .map_err(|e| QueryError::DeserializeError(e))?;
+        let code: RpcViewCodeResponse = serde_json::from_value(take_single(response)?)?;
 
         info!(
             target: QUERY_EXECUTOR_TARGET,
@@ -353,11 +296,7 @@ impl ResponseHandler for ViewCodeHandler {
         );
         Ok(Data {
             block_height: code.block_height,
-            block_hash: code
-                .block_hash
-                .clone()
-                .try_into()
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            block_hash: convert_block_hash(code.block_hash.clone())?,
             data: code,
         })
     }
@@ -374,11 +313,7 @@ impl ResponseHandler for RpcValidatorHandler {
         &self,
         response: Vec<RpcValidatorResponse>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
+        let response = take_single(response)?;
         info!(
             target: QUERY_EXECUTOR_TARGET,
             "Processed EpochValidatorInfo response, epoch height: {}, validators count: {}",
@@ -400,11 +335,7 @@ impl ResponseHandler for RpcBlockHandler {
         &self,
         response: Vec<RpcBlockResponse>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
+        let response = take_single(response)?;
         info!(
             target: QUERY_EXECUTOR_TARGET,
             "Processed Block response, height: {}, hash: {:?}",
@@ -427,13 +358,8 @@ impl<T: RpcType> ResponseHandler for T {
         &self,
         response: Vec<<Self::Query as RpcType>::Response>,
     ) -> ResultWithMethod<Self::Response> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
+        let response = take_single(response)?;
         trace!(target: QUERY_EXECUTOR_TARGET, "Processed empty response handler");
-
         Ok(response)
     }
 }
