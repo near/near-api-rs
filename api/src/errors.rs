@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::rpc_client::{RpcCallError, RpcError};
+use crate::rpc_client::RpcCallError;
+use near_openrpc_client::RpcError;
+use serde::Deserialize;
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -286,6 +288,39 @@ pub enum SendRequestError {
     TransportError(RpcCallError),
     #[error("Server error: {0}")]
     ServerError(RpcError),
+}
+
+impl SendRequestError {
+    /// Returns the underlying [`RpcError`] if this is a server error.
+    pub fn as_rpc_error(&self) -> Option<&RpcError> {
+        match self {
+            Self::ServerError(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Attempts to deserialize the RPC error cause into a typed per-method error enum.
+    ///
+    /// Convenience wrapper around [`RpcError::try_cause_as`]. Returns `None` if
+    /// this isn't a server error or if the server error has no cause.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use near_openrpc_client::errors::RpcQueryError;
+    ///
+    /// match send_err.try_cause_as::<RpcQueryError>() {
+    ///     Some(Ok(RpcQueryError::UnknownAccount { requested_account_id, .. })) => {
+    ///         println!("Account {requested_account_id} not found");
+    ///     }
+    ///     _ => {}
+    /// }
+    /// ```
+    pub fn try_cause_as<T: for<'de> Deserialize<'de>>(
+        &self,
+    ) -> Option<Result<T, serde_json::Error>> {
+        self.as_rpc_error()?.try_cause_as()
+    }
 }
 
 impl From<RpcCallError> for SendRequestError {

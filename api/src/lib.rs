@@ -66,6 +66,8 @@ pub mod rpc_client;
 
 pub use near_api_types as types;
 pub mod errors;
+/// Re-export per-method RPC error enums for typed error matching via [`errors::SendRequestError::try_cause_as`].
+pub use near_openrpc_client::errors as rpc_errors;
 pub mod signer;
 
 pub use crate::{

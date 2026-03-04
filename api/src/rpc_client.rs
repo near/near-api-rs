@@ -1,4 +1,7 @@
+use near_openrpc_client::RpcError;
 use serde::{Deserialize, Serialize};
+
+pub use near_openrpc_client::errors;
 
 /// Thin JSON-RPC 2.0 client wrapping `reqwest::Client`.
 ///
@@ -29,61 +32,6 @@ struct RpcResponse {
     #[serde(default)]
     error: Option<RpcError>,
 }
-
-/// Error from a JSON-RPC call.
-///
-/// NEAR's RPC extends standard JSON-RPC errors with `name` and `cause` fields
-/// that carry structured, typed error information.
-#[derive(Debug, Clone, Deserialize)]
-pub struct RpcError {
-    pub code: i64,
-    pub message: String,
-    /// Deprecated by nearcore. Prefer `cause` for structured error data.
-    #[serde(default)]
-    pub data: Option<serde_json::Value>,
-    /// Error category: `HANDLER_ERROR`, `REQUEST_VALIDATION_ERROR`, or `INTERNAL_ERROR`.
-    #[serde(default)]
-    pub name: Option<String>,
-    /// Structured error detail with per-method error variant name and info.
-    #[serde(default)]
-    pub cause: Option<RpcErrorCause>,
-}
-
-/// Structured cause of an RPC error.
-#[derive(Debug, Clone, Deserialize)]
-pub struct RpcErrorCause {
-    /// The error variant name (e.g., `UNKNOWN_BLOCK`, `INVALID_ACCOUNT`).
-    pub name: String,
-    /// Additional structured information about the error.
-    #[serde(default)]
-    pub info: Option<serde_json::Value>,
-}
-
-impl RpcError {
-    pub fn is_handler_error(&self) -> bool {
-        self.name.as_deref() == Some("HANDLER_ERROR")
-    }
-
-    pub fn is_request_validation_error(&self) -> bool {
-        self.name.as_deref() == Some("REQUEST_VALIDATION_ERROR")
-    }
-
-    pub fn is_internal_error(&self) -> bool {
-        self.name.as_deref() == Some("INTERNAL_ERROR")
-    }
-
-    pub fn cause_name(&self) -> Option<&str> {
-        self.cause.as_ref().map(|c| c.name.as_str())
-    }
-}
-
-impl std::fmt::Display for RpcError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RPC error {}: {}", self.code, self.message)
-    }
-}
-
-impl std::error::Error for RpcError {}
 
 /// Errors that can occur when making a JSON-RPC call.
 #[derive(Debug, thiserror::Error)]

@@ -1,13 +1,11 @@
-// New errors can be added to the codebase, so we want to handle them gracefully
-#![allow(unreachable_patterns)]
-
 use base64::{Engine, prelude::BASE64_STANDARD};
 use near_api_types::NearToken;
+use near_openrpc_client::{RpcError, RpcTransactionError};
 
 use crate::{
     config::RetryResponse,
     errors::SendRequestError,
-    rpc_client::{RpcCallError, RpcError},
+    rpc_client::RpcCallError,
 };
 
 pub fn to_base64(input: &[u8]) -> String {
@@ -34,57 +32,31 @@ pub fn to_retry_error<T>(
     }
 }
 
+/// Blocks errors: all known causes are retryable (UNKNOWN_BLOCK, NOT_SYNCED_YET, INTERNAL_ERROR).
 pub fn is_critical_blocks_error(err: &SendRequestError) -> bool {
-    is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.cause_name() {
-            Some("UNKNOWN_BLOCK") | Some("NOT_SYNCED_YET") | Some("INTERNAL_ERROR") => false,
-            _ => false,
-        }
-    })
+    is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
 }
 
+/// Validator errors: all known causes are retryable (UNKNOWN_EPOCH, VALIDATOR_INFO_UNAVAILABLE, INTERNAL_ERROR).
 pub fn is_critical_validator_error(err: &SendRequestError) -> bool {
-    is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.cause_name() {
-            Some("UNKNOWN_EPOCH") | Some("VALIDATOR_INFO_UNAVAILABLE") | Some("INTERNAL_ERROR") => {
-                false
-            }
-            _ => false,
-        }
-    })
+    is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
 }
 
+/// Query errors: retryable causes (NO_SYNCED_BLOCKS, UNAVAILABLE_SHARD, UNKNOWN_BLOCK, INTERNAL_ERROR)
+/// are not critical, but permanent errors (INVALID_ACCOUNT, UNKNOWN_ACCOUNT, etc.) are.
+/// NO_GLOBAL_CONTRACT_CODE is treated as retryable since it may not have propagated yet.
 pub fn is_critical_query_error(err: &SendRequestError) -> bool {
-    is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.cause_name() {
-            Some("NO_SYNCED_BLOCKS") | Some("UNAVAILABLE_SHARD") | Some("UNKNOWN_BLOCK")
-            | Some("INTERNAL_ERROR") => false,
-
-            Some("GARBAGE_COLLECTED_BLOCK")
-            | Some("INVALID_ACCOUNT")
-            | Some("UNKNOWN_ACCOUNT")
-            | Some("NO_CONTRACT_CODE")
-            | Some("TOO_LARGE_CONTRACT_STATE")
-            | Some("UNKNOWN_ACCESS_KEY")
-            | Some("CONTRACT_EXECUTION_ERROR")
-            | Some("UNKNOWN_GAS_KEY") => true,
-
-            // Might be critical, but also might not yet propagated across the network, so we will retry
-            Some("NO_GLOBAL_CONTRACT_CODE") => false,
-            _ => false,
-        }
-    })
+    is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
 }
 
+/// Transaction errors: TIMEOUT_ERROR and REQUEST_ROUTED are retryable.
+/// INVALID_TRANSACTION, DOES_NOT_TRACK_SHARD, UNKNOWN_TRANSACTION are critical.
+/// INTERNAL_ERROR is treated as critical for transactions (different from queries).
 pub fn is_critical_transaction_error(err: &SendRequestError) -> bool {
     is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.cause_name() {
-            Some("TIMEOUT_ERROR") | Some("REQUEST_ROUTED") => false,
-            Some("INVALID_TRANSACTION")
-            | Some("DOES_NOT_TRACK_SHARD")
-            | Some("UNKNOWN_TRANSACTION")
-            | Some("INTERNAL_ERROR") => true,
-            _ => false,
+        match rpc_err.try_cause_as::<RpcTransactionError>() {
+            Some(Ok(RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. })) => false,
+            _ => true,
         }
     })
 }
@@ -99,7 +71,6 @@ fn is_critical_json_rpc_error(
         SendRequestError::TransportError(err) => match err {
             RpcCallError::Http(e) => {
                 use reqwest::StatusCode;
-                // Check HTTP status for retryable errors
                 e.status().map_or(false, |s| {
                     !matches!(
                         s,
