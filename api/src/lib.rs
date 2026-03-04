@@ -62,6 +62,7 @@ mod transactions;
 // mod fastnear;
 
 mod common;
+pub mod rpc_client;
 
 pub use near_api_types as types;
 pub mod errors;

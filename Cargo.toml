@@ -1,10 +1,10 @@
 [workspace]
 resolver = "3"
 members = ["api", "types"]
-rust-version = "1.86"
 
 [workspace.package]
 edition = "2024"
+rust-version = "1.88"
 version = "0.8.4"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
@@ -55,8 +55,7 @@ near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
 near-ledger = "0.9.1"
-near-openapi-client = "0.7"
-near-openapi-types = "0.7"
+near-openrpc-client = { git = "https://github.com/near/near-openrpc-client-rs.git", default-features = false }
 
 # Dev-dependencies
 near-primitives = { version = "0.34" }

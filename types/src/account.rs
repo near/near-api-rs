@@ -38,12 +38,14 @@ pub struct Account {
     pub storage_usage: StorageUsage,
 }
 
-impl TryFrom<near_openapi_types::AccountView> for Account {
+impl TryFrom<near_openrpc_client::RpcViewAccountResponse> for Account {
     type Error = DataConversionError;
 
-    fn try_from(value: near_openapi_types::AccountView) -> Result<Self, Self::Error> {
-        let near_openapi_types::AccountView {
+    fn try_from(value: near_openrpc_client::RpcViewAccountResponse) -> Result<Self, Self::Error> {
+        let near_openrpc_client::RpcViewAccountResponse {
             amount,
+            block_hash: _,
+            block_height: _,
             code_hash,
             global_contract_account_id,
             global_contract_hash,
@@ -52,10 +54,19 @@ impl TryFrom<near_openapi_types::AccountView> for Account {
             storage_usage,
         } = value;
 
-        let code_hash = CryptoHash::from(code_hash);
+        let amount = NearToken::from_yoctonear(amount.parse::<u128>()?);
+        let locked = NearToken::from_yoctonear(locked.parse::<u128>()?);
+        let code_hash = CryptoHash::try_from(code_hash)?;
+
+        let global_contract_hash = global_contract_hash
+            .map(CryptoHash::try_from)
+            .transpose()?;
+        let global_contract_account_id: Option<AccountId> = global_contract_account_id
+            .map(|id| id.parse::<AccountId>())
+            .transpose()?;
 
         let contract_state = match (code_hash, global_contract_account_id, global_contract_hash) {
-            (_, _, Some(hash)) => ContractState::from_global_contract_hash(hash.into()),
+            (_, _, Some(hash)) => ContractState::from_global_contract_hash(hash),
             (_, Some(account_id), _) => account_id.into(),
             (hash, _, _) if hash == CryptoHash::default() => ContractState::None,
             (hash, _, _) => ContractState::from_local_hash(hash),

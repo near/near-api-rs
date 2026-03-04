@@ -14,6 +14,10 @@ use crate::transaction::delegate_action::SignedDelegateAction;
 use crate::utils::near_gas_as_u64;
 use crate::{CryptoHash, NearGas, NearToken, PublicKey, Signature};
 
+pub(crate) fn parse_near_token(s: &str) -> Result<NearToken, DataConversionError> {
+    Ok(NearToken::from_yoctonear(s.parse::<u128>()?))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub enum Action {
     /// Create an (sub)account using a transaction `receiver_id` as an ID for
@@ -81,20 +85,22 @@ pub struct DeterministicAccountStateInitV1 {
     pub data: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 
-impl TryFrom<near_openapi_types::DeterministicStateInitAction> for DeterministicStateInitAction {
+impl TryFrom<near_openrpc_client::DeterministicStateInitAction> for DeterministicStateInitAction {
     type Error = DataConversionError;
     fn try_from(
-        val: near_openapi_types::DeterministicStateInitAction,
+        val: near_openrpc_client::DeterministicStateInitAction,
     ) -> Result<Self, Self::Error> {
-        let near_openapi_types::DeterministicStateInitAction {
+        let near_openrpc_client::DeterministicStateInitAction {
             state_init,
             deposit,
         } = val;
 
+        let deposit = parse_near_token(&deposit)?;
+
         match state_init {
-            near_openapi_types::DeterministicAccountStateInit::V1(v1) => Ok(Self {
+            near_openrpc_client::DeterministicAccountStateInit::V1(v1) => Ok(Self {
                 state_init: DeterministicAccountStateInit::V1(DeterministicAccountStateInitV1 {
-                    code: v1.code.into(),
+                    code: v1.code.try_into()?,
                     data: v1
                         .data
                         .into_iter()
@@ -120,10 +126,10 @@ pub struct DeployGlobalContractAction {
     pub deploy_mode: GlobalContractDeployMode,
 }
 
-impl TryFrom<near_openapi_types::DeployGlobalContractAction> for DeployGlobalContractAction {
+impl TryFrom<near_openrpc_client::DeployGlobalContractAction> for DeployGlobalContractAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::DeployGlobalContractAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::DeployGlobalContractAction { code, deploy_mode } = val;
+    fn try_from(val: near_openrpc_client::DeployGlobalContractAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::DeployGlobalContractAction { code, deploy_mode } = val;
         Ok(Self {
             code: BASE64_STANDARD.decode(code)?,
             deploy_mode: deploy_mode.into(),
@@ -135,22 +141,23 @@ pub struct UseGlobalContractAction {
     pub contract_identifier: GlobalContractIdentifier,
 }
 
-impl From<near_openapi_types::UseGlobalContractAction> for UseGlobalContractAction {
-    fn from(val: near_openapi_types::UseGlobalContractAction) -> Self {
-        let near_openapi_types::UseGlobalContractAction {
+impl TryFrom<near_openrpc_client::UseGlobalContractAction> for UseGlobalContractAction {
+    type Error = DataConversionError;
+    fn try_from(val: near_openrpc_client::UseGlobalContractAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::UseGlobalContractAction {
             contract_identifier,
         } = val;
-        Self {
-            contract_identifier: contract_identifier.into(),
-        }
+        Ok(Self {
+            contract_identifier: contract_identifier.try_into()?,
+        })
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct CreateAccountAction {}
 
-impl From<near_openapi_types::CreateAccountAction> for CreateAccountAction {
-    fn from(_: near_openapi_types::CreateAccountAction) -> Self {
+impl From<near_openrpc_client::CreateAccountAction> for CreateAccountAction {
+    fn from(_val: near_openrpc_client::CreateAccountAction) -> Self {
         Self {}
     }
 }
@@ -162,10 +169,10 @@ pub struct DeployContractAction {
     pub code: Vec<u8>,
 }
 
-impl TryFrom<near_openapi_types::DeployContractAction> for DeployContractAction {
+impl TryFrom<near_openrpc_client::DeployContractAction> for DeployContractAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::DeployContractAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::DeployContractAction { code } = val;
+    fn try_from(val: near_openrpc_client::DeployContractAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::DeployContractAction { code } = val;
         Ok(Self {
             code: BASE64_STANDARD.decode(code)?,
         })
@@ -183,10 +190,10 @@ pub struct FunctionCallAction {
     pub deposit: NearToken,
 }
 
-impl TryFrom<near_openapi_types::FunctionCallAction> for FunctionCallAction {
+impl TryFrom<near_openrpc_client::FunctionCallAction> for FunctionCallAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::FunctionCallAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::FunctionCallAction {
+    fn try_from(val: near_openrpc_client::FunctionCallAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::FunctionCallAction {
             method_name,
             args,
             gas,
@@ -194,9 +201,9 @@ impl TryFrom<near_openapi_types::FunctionCallAction> for FunctionCallAction {
         } = val;
         Ok(Self {
             method_name,
-            args: BASE64_STANDARD.decode(args)?,
-            gas,
-            deposit,
+            args: BASE64_STANDARD.decode(&*args)?,
+            gas: NearGas::from_gas(*gas),
+            deposit: parse_near_token(&deposit)?,
         })
     }
 }
@@ -206,11 +213,13 @@ pub struct TransferAction {
     pub deposit: NearToken,
 }
 
-impl TryFrom<near_openapi_types::TransferAction> for TransferAction {
+impl TryFrom<near_openrpc_client::TransferAction> for TransferAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::TransferAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::TransferAction { deposit } = val;
-        Ok(Self { deposit })
+    fn try_from(val: near_openrpc_client::TransferAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::TransferAction { deposit } = val;
+        Ok(Self {
+            deposit: parse_near_token(&deposit)?,
+        })
     }
 }
 
@@ -222,13 +231,13 @@ pub struct StakeAction {
     pub public_key: PublicKey,
 }
 
-impl TryFrom<near_openapi_types::StakeAction> for StakeAction {
+impl TryFrom<near_openrpc_client::StakeAction> for StakeAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::StakeAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::StakeAction { public_key, stake } = val;
+    fn try_from(val: near_openrpc_client::StakeAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::StakeAction { public_key, stake } = val;
         Ok(Self {
             public_key: public_key.try_into()?,
-            stake,
+            stake: parse_near_token(&stake)?,
         })
     }
 }
@@ -240,36 +249,12 @@ pub struct AddGasKeyAction {
     pub permission: AccessKeyPermission,
 }
 
-impl TryFrom<near_openapi_types::AddGasKeyAction> for AddGasKeyAction {
-    type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AddGasKeyAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::AddGasKeyAction {
-            public_key,
-            num_nonces,
-            permission,
-        } = val;
-        Ok(Self {
-            public_key: public_key.try_into()?,
-            num_nonces,
-            permission: permission.try_into()?,
-        })
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeleteGasKeyAction {
     pub public_key: PublicKey,
 }
 
-impl TryFrom<near_openapi_types::DeleteGasKeyAction> for DeleteGasKeyAction {
-    type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::DeleteGasKeyAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::DeleteGasKeyAction { public_key } = val;
-        Ok(Self {
-            public_key: public_key.try_into()?,
-        })
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct TransferToGasKeyAction {
@@ -277,16 +262,16 @@ pub struct TransferToGasKeyAction {
     pub deposit: NearToken,
 }
 
-impl TryFrom<near_openapi_types::TransferToGasKeyAction> for TransferToGasKeyAction {
+impl TryFrom<near_openrpc_client::TransferToGasKeyAction> for TransferToGasKeyAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::TransferToGasKeyAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::TransferToGasKeyAction {
+    fn try_from(val: near_openrpc_client::TransferToGasKeyAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::TransferToGasKeyAction {
             public_key,
             deposit,
         } = val;
         Ok(Self {
             public_key: public_key.try_into()?,
-            deposit,
+            deposit: parse_near_token(&deposit)?,
         })
     }
 }
@@ -299,10 +284,10 @@ pub struct AddKeyAction {
     pub access_key: AccessKey,
 }
 
-impl TryFrom<near_openapi_types::AddKeyAction> for AddKeyAction {
+impl TryFrom<near_openrpc_client::AddKeyAction> for AddKeyAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AddKeyAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::AddKeyAction {
+    fn try_from(val: near_openrpc_client::AddKeyAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::AddKeyAction {
             public_key,
             access_key,
         } = val;
@@ -323,10 +308,10 @@ pub struct AccessKey {
     pub permission: AccessKeyPermission,
 }
 
-impl TryFrom<near_openapi_types::AccessKeyView> for AccessKey {
+impl TryFrom<near_openrpc_client::AccessKeyView> for AccessKey {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AccessKeyView) -> Result<Self, Self::Error> {
-        let near_openapi_types::AccessKeyView { nonce, permission } = val;
+    fn try_from(val: near_openrpc_client::AccessKeyView) -> Result<Self, Self::Error> {
+        let near_openrpc_client::AccessKeyView { nonce, permission } = val;
         Ok(Self {
             nonce: U64(nonce),
             permission: permission.try_into()?,
@@ -334,10 +319,10 @@ impl TryFrom<near_openapi_types::AccessKeyView> for AccessKey {
     }
 }
 
-impl TryFrom<near_openapi_types::AccessKey> for AccessKey {
+impl TryFrom<near_openrpc_client::AccessKey> for AccessKey {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AccessKey) -> Result<Self, Self::Error> {
-        let near_openapi_types::AccessKey { nonce, permission } = val;
+    fn try_from(val: near_openrpc_client::AccessKey) -> Result<Self, Self::Error> {
+        let near_openrpc_client::AccessKey { nonce, permission } = val;
         Ok(Self {
             nonce: U64(nonce),
             permission: permission.try_into()?,
@@ -353,32 +338,40 @@ pub enum AccessKeyPermission {
     FullAccess,
 }
 
-impl TryFrom<near_openapi_types::AccessKeyPermissionView> for AccessKeyPermission {
+impl TryFrom<near_openrpc_client::AccessKeyPermissionView> for AccessKeyPermission {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AccessKeyPermissionView) -> Result<Self, Self::Error> {
+    fn try_from(val: near_openrpc_client::AccessKeyPermissionView) -> Result<Self, Self::Error> {
         match val {
-            near_openapi_types::AccessKeyPermissionView::FunctionCall {
+            near_openrpc_client::AccessKeyPermissionView::FunctionCall {
                 allowance,
                 method_names,
                 receiver_id,
             } => Ok(Self::FunctionCall(FunctionCallPermission {
-                allowance,
+                allowance: allowance.map(|a| parse_near_token(&a)).transpose()?,
                 receiver_id,
                 method_names,
             })),
-            near_openapi_types::AccessKeyPermissionView::FullAccess => Ok(Self::FullAccess),
+            near_openrpc_client::AccessKeyPermissionView::FullAccess => Ok(Self::FullAccess),
+            near_openrpc_client::AccessKeyPermissionView::GasKeyFunctionCall { .. }
+            | near_openrpc_client::AccessKeyPermissionView::GasKeyFullAccess { .. } => {
+                Ok(Self::FullAccess)
+            }
         }
     }
 }
 
-impl TryFrom<near_openapi_types::AccessKeyPermission> for AccessKeyPermission {
+impl TryFrom<near_openrpc_client::AccessKeyPermission> for AccessKeyPermission {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::AccessKeyPermission) -> Result<Self, Self::Error> {
+    fn try_from(val: near_openrpc_client::AccessKeyPermission) -> Result<Self, Self::Error> {
         match val {
-            near_openapi_types::AccessKeyPermission::FunctionCall(function_call_permission) => {
+            near_openrpc_client::AccessKeyPermission::FunctionCall(function_call_permission) => {
                 Ok(Self::FunctionCall(function_call_permission.try_into()?))
             }
-            near_openapi_types::AccessKeyPermission::FullAccess => Ok(Self::FullAccess),
+            near_openrpc_client::AccessKeyPermission::FullAccess => Ok(Self::FullAccess),
+            near_openrpc_client::AccessKeyPermission::GasKeyFunctionCall(_, function_call_permission) => {
+                Ok(Self::FunctionCall(function_call_permission.try_into()?))
+            }
+            near_openrpc_client::AccessKeyPermission::GasKeyFullAccess(_) => Ok(Self::FullAccess),
         }
     }
 }
@@ -390,16 +383,16 @@ pub struct FunctionCallPermission {
     pub method_names: Vec<String>,
 }
 
-impl TryFrom<near_openapi_types::FunctionCallPermission> for FunctionCallPermission {
+impl TryFrom<near_openrpc_client::FunctionCallPermission> for FunctionCallPermission {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::FunctionCallPermission) -> Result<Self, Self::Error> {
-        let near_openapi_types::FunctionCallPermission {
+    fn try_from(val: near_openrpc_client::FunctionCallPermission) -> Result<Self, Self::Error> {
+        let near_openrpc_client::FunctionCallPermission {
             allowance,
             receiver_id,
             method_names,
         } = val;
         Ok(Self {
-            allowance,
+            allowance: allowance.map(|a| parse_near_token(&a)).transpose()?,
             receiver_id,
             method_names,
         })
@@ -412,10 +405,10 @@ pub struct DeleteKeyAction {
     pub public_key: PublicKey,
 }
 
-impl TryFrom<near_openapi_types::DeleteKeyAction> for DeleteKeyAction {
+impl TryFrom<near_openrpc_client::DeleteKeyAction> for DeleteKeyAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::DeleteKeyAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::DeleteKeyAction { public_key } = val;
+    fn try_from(val: near_openrpc_client::DeleteKeyAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::DeleteKeyAction { public_key } = val;
         Ok(Self {
             public_key: public_key.try_into()?,
         })
@@ -427,10 +420,13 @@ pub struct DeleteAccountAction {
     pub beneficiary_id: AccountId,
 }
 
-impl From<near_openapi_types::DeleteAccountAction> for DeleteAccountAction {
-    fn from(val: near_openapi_types::DeleteAccountAction) -> Self {
-        let near_openapi_types::DeleteAccountAction { beneficiary_id } = val;
-        Self { beneficiary_id }
+impl TryFrom<near_openrpc_client::DeleteAccountAction> for DeleteAccountAction {
+    type Error = DataConversionError;
+    fn try_from(val: near_openrpc_client::DeleteAccountAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::DeleteAccountAction { beneficiary_id } = val;
+        Ok(Self {
+            beneficiary_id: beneficiary_id.parse()?,
+        })
     }
 }
 
@@ -456,11 +452,11 @@ pub enum GlobalContractDeployMode {
     AccountId,
 }
 
-impl From<near_openapi_types::GlobalContractDeployMode> for GlobalContractDeployMode {
-    fn from(val: near_openapi_types::GlobalContractDeployMode) -> Self {
+impl From<near_openrpc_client::GlobalContractDeployMode> for GlobalContractDeployMode {
+    fn from(val: near_openrpc_client::GlobalContractDeployMode) -> Self {
         match val {
-            near_openapi_types::GlobalContractDeployMode::CodeHash => Self::CodeHash,
-            near_openapi_types::GlobalContractDeployMode::AccountId => Self::AccountId,
+            near_openrpc_client::GlobalContractDeployMode::CodeHash => Self::CodeHash,
+            near_openrpc_client::GlobalContractDeployMode::AccountId => Self::AccountId,
         }
     }
 }
@@ -470,37 +466,39 @@ pub enum GlobalContractIdentifier {
     AccountId(AccountId),
 }
 
-impl From<near_openapi_types::GlobalContractIdentifier> for GlobalContractIdentifier {
-    fn from(val: near_openapi_types::GlobalContractIdentifier) -> Self {
-        match val {
-            near_openapi_types::GlobalContractIdentifier::CodeHash(code_hash) => {
-                Self::CodeHash(code_hash.into())
-            }
-            near_openapi_types::GlobalContractIdentifier::AccountId(account_id) => {
-                Self::AccountId(account_id)
-            }
-        }
-    }
-}
-
-impl From<near_openapi_types::GlobalContractIdentifierView> for GlobalContractIdentifier {
-    fn from(val: near_openapi_types::GlobalContractIdentifierView) -> Self {
-        match val {
-            near_openapi_types::GlobalContractIdentifierView::CryptoHash(code_hash) => {
-                Self::CodeHash(code_hash.into())
-            }
-            near_openapi_types::GlobalContractIdentifierView::AccountId(account_id) => {
-                Self::AccountId(account_id)
-            }
-        }
-    }
-}
-
-impl TryFrom<near_openapi_types::ActionView> for Action {
+impl TryFrom<near_openrpc_client::GlobalContractIdentifier> for GlobalContractIdentifier {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::ActionView) -> Result<Self, Self::Error> {
+    fn try_from(val: near_openrpc_client::GlobalContractIdentifier) -> Result<Self, Self::Error> {
         match val {
-            near_openapi_types::ActionView::DeterministicStateInit {
+            near_openrpc_client::GlobalContractIdentifier::CodeHash(code_hash) => {
+                Ok(Self::CodeHash(code_hash.try_into()?))
+            }
+            near_openrpc_client::GlobalContractIdentifier::AccountId(account_id) => {
+                Ok(Self::AccountId(account_id.parse()?))
+            }
+        }
+    }
+}
+
+impl TryFrom<near_openrpc_client::GlobalContractIdentifierView> for GlobalContractIdentifier {
+    type Error = DataConversionError;
+    fn try_from(val: near_openrpc_client::GlobalContractIdentifierView) -> Result<Self, Self::Error> {
+        match val {
+            near_openrpc_client::GlobalContractIdentifierView::Hash(code_hash) => {
+                Ok(Self::CodeHash(code_hash.try_into()?))
+            }
+            near_openrpc_client::GlobalContractIdentifierView::AccountId(account_id) => {
+                Ok(Self::AccountId(account_id.parse()?))
+            }
+        }
+    }
+}
+
+impl TryFrom<near_openrpc_client::ActionView> for Action {
+    type Error = DataConversionError;
+    fn try_from(val: near_openrpc_client::ActionView) -> Result<Self, Self::Error> {
+        match val {
+            near_openrpc_client::ActionView::DeterministicStateInit {
                 code,
                 data,
                 deposit,
@@ -508,7 +506,7 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
                 DeterministicStateInitAction {
                     state_init: DeterministicAccountStateInit::V1(
                         DeterministicAccountStateInitV1 {
-                            code: code.into(),
+                            code: code.try_into()?,
                             data: data
                                 .into_iter()
                                 .map(|(k, v)| {
@@ -520,101 +518,98 @@ impl TryFrom<near_openapi_types::ActionView> for Action {
                                 .collect::<Result<BTreeMap<Vec<u8>, Vec<u8>>, _>>()?,
                         },
                     ),
-                    deposit,
+                    deposit: parse_near_token(&deposit)?,
                 },
             ))),
-            near_openapi_types::ActionView::CreateAccount => {
+            near_openrpc_client::ActionView::CreateAccount => {
                 Ok(Self::CreateAccount(CreateAccountAction {}))
             }
-            near_openapi_types::ActionView::DeployContract { code } => {
+            near_openrpc_client::ActionView::DeployContract { code } => {
                 Ok(Self::DeployContract(DeployContractAction {
                     code: BASE64_STANDARD.decode(code)?,
                 }))
             }
-            near_openapi_types::ActionView::FunctionCall {
+            near_openrpc_client::ActionView::FunctionCall {
                 method_name,
                 args,
                 gas,
                 deposit,
             } => Ok(Self::FunctionCall(Box::new(FunctionCallAction {
                 method_name,
-                args: BASE64_STANDARD.decode(args.0)?,
-                gas,
-                deposit,
+                args: BASE64_STANDARD.decode(&*args)?,
+                gas: NearGas::from_gas(*gas),
+                deposit: parse_near_token(&deposit)?,
             }))),
-            near_openapi_types::ActionView::Transfer { deposit } => {
-                Ok(Self::Transfer(TransferAction { deposit }))
+            near_openrpc_client::ActionView::Transfer { deposit } => {
+                Ok(Self::Transfer(TransferAction {
+                    deposit: parse_near_token(&deposit)?,
+                }))
             }
-            near_openapi_types::ActionView::Stake { public_key, stake } => {
+            near_openrpc_client::ActionView::Stake { public_key, stake } => {
                 Ok(Self::Stake(Box::new(StakeAction {
                     public_key: public_key.try_into()?,
-                    stake,
+                    stake: parse_near_token(&stake)?,
                 })))
             }
-            near_openapi_types::ActionView::AddKey {
+            near_openrpc_client::ActionView::AddKey {
                 access_key,
                 public_key,
             } => Ok(Self::AddKey(Box::new(AddKeyAction {
                 public_key: public_key.try_into()?,
                 access_key: access_key.try_into()?,
             }))),
-            near_openapi_types::ActionView::DeleteKey { public_key } => {
+            near_openrpc_client::ActionView::DeleteKey { public_key } => {
                 Ok(Self::DeleteKey(Box::new(DeleteKeyAction {
                     public_key: public_key.try_into()?,
                 })))
             }
-            near_openapi_types::ActionView::DeleteAccount { beneficiary_id } => {
-                Ok(Self::DeleteAccount(DeleteAccountAction { beneficiary_id }))
+            near_openrpc_client::ActionView::DeleteAccount { beneficiary_id } => {
+                Ok(Self::DeleteAccount(DeleteAccountAction {
+                    beneficiary_id: beneficiary_id.parse()?,
+                }))
             }
-            near_openapi_types::ActionView::Delegate {
+            near_openrpc_client::ActionView::Delegate {
                 delegate_action,
                 signature,
             } => Ok(Self::Delegate(Box::new(SignedDelegateAction {
                 delegate_action: delegate_action.try_into()?,
                 signature: Signature::from_str(&signature)?,
             }))),
-            near_openapi_types::ActionView::DeployGlobalContract { code } => {
+            near_openrpc_client::ActionView::DeployGlobalContract { code } => {
                 Ok(Self::DeployGlobalContract(DeployGlobalContractAction {
                     code: BASE64_STANDARD.decode(code)?,
                     deploy_mode: GlobalContractDeployMode::CodeHash,
                 }))
             }
-            near_openapi_types::ActionView::DeployGlobalContractByAccountId { code } => {
+            near_openrpc_client::ActionView::DeployGlobalContractByAccountId { code } => {
                 Ok(Self::DeployGlobalContract(DeployGlobalContractAction {
                     code: BASE64_STANDARD.decode(code)?,
                     deploy_mode: GlobalContractDeployMode::AccountId,
                 }))
             }
-            near_openapi_types::ActionView::UseGlobalContract { code_hash } => {
+            near_openrpc_client::ActionView::UseGlobalContract { code_hash } => {
                 Ok(Self::UseGlobalContract(Box::new(UseGlobalContractAction {
-                    contract_identifier: GlobalContractIdentifier::CodeHash(code_hash.into()),
+                    contract_identifier: GlobalContractIdentifier::CodeHash(code_hash.try_into()?),
                 })))
             }
-            near_openapi_types::ActionView::UseGlobalContractByAccountId { account_id } => {
+            near_openrpc_client::ActionView::UseGlobalContractByAccountId { account_id } => {
                 Ok(Self::UseGlobalContract(Box::new(UseGlobalContractAction {
-                    contract_identifier: GlobalContractIdentifier::AccountId(account_id),
+                    contract_identifier: GlobalContractIdentifier::AccountId(account_id.parse()?),
                 })))
             }
-            near_openapi_types::ActionView::AddGasKey {
-                num_nonces,
-                permission,
-                public_key,
-            } => Ok(Self::AddGasKey(Box::new(AddGasKeyAction {
-                public_key: public_key.try_into()?,
-                num_nonces,
-                permission: permission.try_into()?,
-            }))),
-            near_openapi_types::ActionView::DeleteGasKey { public_key } => {
-                Ok(Self::DeleteGasKey(Box::new(DeleteGasKeyAction {
-                    public_key: public_key.try_into()?,
-                })))
-            }
-            near_openapi_types::ActionView::TransferToGasKey {
-                amount: deposit,
+            near_openrpc_client::ActionView::TransferToGasKey {
+                deposit,
                 public_key,
             } => Ok(Self::TransferToGasKey(Box::new(TransferToGasKeyAction {
                 public_key: public_key.try_into()?,
-                deposit,
+                deposit: parse_near_token(&deposit)?,
+            }))),
+            near_openrpc_client::ActionView::WithdrawFromGasKey {
+                amount,
+                public_key,
+            } => Ok(Self::TransferToGasKey(Box::new(TransferToGasKeyAction {
+                public_key: public_key.try_into()?,
+                deposit: parse_near_token(&amount)?,
             }))),
         }
     }

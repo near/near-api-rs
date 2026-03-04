@@ -1,8 +1,4 @@
 use async_trait::async_trait;
-use near_openapi_client::types::{
-    ErrorWrapperForRpcQueryError, JsonRpcRequestForQuery, JsonRpcRequestForQueryMethod,
-    JsonRpcResponseForRpcQueryResponseAndRpcQueryError, RpcQueryError, RpcQueryResponse,
-};
 
 use crate::{
     NetworkConfig,
@@ -10,6 +6,7 @@ use crate::{
     common::utils::{is_critical_query_error, to_retry_error},
     config::RetryResponse,
     errors::SendRequestError,
+    rpc_client::{RpcCallError, RpcClient, RpcError, RpcErrorCause},
 };
 use near_api_types::Reference;
 
@@ -21,50 +18,50 @@ pub struct SimpleQueryRpc {
 #[async_trait]
 impl RpcType for SimpleQueryRpc {
     type RpcReference = Reference;
-    type Response = RpcQueryResponse;
-    type Error = RpcQueryError;
+    type Response = serde_json::Value;
     async fn send_query(
         &self,
-        client: &near_openapi_client::Client,
+        client: &RpcClient,
         _network: &NetworkConfig,
         reference: &Reference,
-    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcQueryError>> {
+    ) -> RetryResponse<serde_json::Value, SendRequestError> {
         let request = self.request.clone().to_rpc_query_request(reference.clone());
-        let response = client
-            .query(&JsonRpcRequestForQuery {
-                id: "0".to_string(),
-                jsonrpc: "2.0".to_string(),
-                method: JsonRpcRequestForQueryMethod::Query,
-                params: request,
-            })
-            .await
-            .map(|r| r.into_inner())
-            .map_err(SendRequestError::from);
+        match client.call::<_, serde_json::Value>("query", request).await {
+            Ok(value) => {
+                // NEAR's query method returns a successful JSON-RPC response even for
+                // WASM execution errors. The error is embedded as an "error" string field
+                // in the result body (e.g., {"error": "wasm execution failed...", "logs": []}).
+                // We need to detect this and convert it to a proper RPC error.
+                if let Some(error_msg) = value.get("error").and_then(|e| e.as_str()) {
+                    let cause_name = if error_msg.contains("CodeDoesNotExist") {
+                        "CONTRACT_EXECUTION_ERROR"
+                    } else if error_msg.contains("MethodNotFound")
+                        || error_msg.contains("MethodResolveError")
+                    {
+                        "CONTRACT_EXECUTION_ERROR"
+                    } else {
+                        "CONTRACT_EXECUTION_ERROR"
+                    };
 
-        match response {
-            Ok(JsonRpcResponseForRpcQueryResponseAndRpcQueryError::Variant0 { result, .. }) => {
-                RetryResponse::Ok(result)
+                    let err = SendRequestError::from(RpcCallError::Rpc(RpcError {
+                        code: -32000,
+                        message: "Server error".to_string(),
+                        data: Some(serde_json::Value::String(error_msg.to_string())),
+                        name: Some("HANDLER_ERROR".to_string()),
+                        cause: Some(RpcErrorCause {
+                            name: cause_name.to_string(),
+                            info: Some(serde_json::json!({
+                                "error_message": error_msg,
+                            })),
+                        }),
+                    }));
+                    return to_retry_error(err, is_critical_query_error);
+                }
+                RetryResponse::Ok(value)
             }
-            Ok(JsonRpcResponseForRpcQueryResponseAndRpcQueryError::Variant1 { error, .. }) => {
-                let error = SendRequestError::from(error);
-                to_retry_error(error, is_critical_query_error)
-            }
-            Err(err) => to_retry_error(err, is_critical_query_error),
-        }
-    }
-}
-
-impl From<ErrorWrapperForRpcQueryError> for SendRequestError<RpcQueryError> {
-    fn from(err: ErrorWrapperForRpcQueryError) -> Self {
-        match err {
-            ErrorWrapperForRpcQueryError::InternalError(internal_error) => {
-                Self::InternalError(internal_error)
-            }
-            ErrorWrapperForRpcQueryError::RequestValidationError(
-                rpc_request_validation_error_kind,
-            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
-            ErrorWrapperForRpcQueryError::HandlerError(server_error) => {
-                Self::ServerError(server_error)
+            Err(err) => {
+                let err = SendRequestError::from(err);
+                to_retry_error(err, is_critical_query_error)
             }
         }
     }

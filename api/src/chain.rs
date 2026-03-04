@@ -2,7 +2,7 @@ use near_api_types::{BlockHeight, CryptoHash, Reference};
 
 use crate::{
     advanced::block_rpc::SimpleBlockRpc,
-    common::query::{PostprocessHandler, RequestBuilder, RpcBlockHandler},
+    common::query::{AndThenHandler, PostprocessHandler, RequestBuilder, RpcBlockHandler},
 };
 
 /// Chain-related interactions with the NEAR Protocol
@@ -79,9 +79,9 @@ impl Chain {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn block_hash() -> RequestBuilder<PostprocessHandler<CryptoHash, RpcBlockHandler>> {
+    pub fn block_hash() -> RequestBuilder<AndThenHandler<CryptoHash, RpcBlockHandler>> {
         RequestBuilder::new(SimpleBlockRpc, Reference::Optimistic, RpcBlockHandler)
-            .map(|data| CryptoHash::from(data.header.hash))
+            .and_then(|data| Ok(CryptoHash::try_from(data.header.hash)?))
     }
 
     /// Set ups a query to fetch the [RpcBlockResponse][near_api_types::RpcBlockResponse]

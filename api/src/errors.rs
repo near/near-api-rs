@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use near_api_types::errors::DataConversionError;
-use near_openapi_client::types::{
-    FunctionCallError, InternalError, RpcQueryError, RpcRequestValidationErrorKind,
-    RpcTransactionError,
-};
+use crate::rpc_client::{RpcCallError, RpcError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum QueryCreationError {
@@ -13,7 +9,7 @@ pub enum QueryCreationError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
+pub enum QueryError {
     #[error(transparent)]
     QueryCreationError(#[from] QueryCreationError),
     #[error("Unexpected response kind: expected {expected} type, but got {got:?}")]
@@ -25,7 +21,7 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     #[error("Failed to deserialize response: {0}")]
     DeserializeError(#[from] serde_json::Error),
     #[error("Query error: {0:?}")]
-    QueryError(Box<RetryError<SendRequestError<RpcError>>>),
+    QueryError(Box<RetryError<SendRequestError>>),
     #[error("Internal error: failed to get response. Please submit a bug ticket")]
     InternalErrorNoResponse,
     #[error("Argument serialization error: {0}")]
@@ -34,10 +30,8 @@ pub enum QueryError<RpcError: std::fmt::Debug + Send + Sync> {
     ConversionError(Box<dyn std::error::Error + Send + Sync>),
 }
 
-impl<RpcError: std::fmt::Debug + Send + Sync> From<RetryError<SendRequestError<RpcError>>>
-    for QueryError<RpcError>
-{
-    fn from(err: RetryError<SendRequestError<RpcError>>) -> Self {
+impl From<RetryError<SendRequestError>> for QueryError {
+    fn from(err: RetryError<SendRequestError>) -> Self {
         Self::QueryError(Box::new(err))
     }
 }
@@ -67,7 +61,7 @@ pub enum SignerError {
     #[error("Secret key is not available")]
     SecretKeyIsNotAvailable,
     #[error("Failed to fetch nonce: {0:?}")]
-    FetchNonceError(Box<QueryError<RpcQueryError>>),
+    FetchNonceError(Box<QueryError>),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
 
@@ -106,7 +100,7 @@ pub enum KeyStoreError {
     #[error(transparent)]
     Keystore(#[from] keyring::Error),
     #[error("Failed to query account keys: {0:?}")]
-    QueryError(QueryError<RpcQueryError>),
+    QueryError(QueryError),
     #[error("Failed to parse access key file: {0}")]
     ParseError(#[from] serde_json::Error),
     #[error(transparent)]
@@ -221,7 +215,7 @@ pub enum ExecuteTransactionError {
     ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("Pre-query error: {0:?}")]
-    PreQueryError(QueryError<RpcQueryError>),
+    PreQueryError(QueryError),
     #[error("Transaction validation error: {0}")]
     ValidationError(#[from] ValidationError),
     #[error("Meta-signing error: {0}")]
@@ -230,9 +224,9 @@ pub enum ExecuteTransactionError {
     SignerError(#[from] SignerError),
 
     #[error("Transaction error: {0:?}")]
-    TransactionError(RetryError<SendRequestError<RpcTransactionError>>),
+    TransactionError(RetryError<SendRequestError>),
     #[error("Data conversion error: {0}")]
-    DataConversionError(#[from] DataConversionError),
+    DataConversionError(#[from] near_api_types::errors::DataConversionError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -241,7 +235,7 @@ pub enum ExecuteMetaTransactionsError {
     ArgumentValidationError(#[from] ArgumentValidationError),
 
     #[error("Pre-query error: {0:?}")]
-    PreQueryError(QueryError<RpcQueryError>),
+    PreQueryError(QueryError),
     #[error("Transaction validation error: {0}")]
     ValidationError(#[from] ValidationError),
     #[error("Relayer is not defined in the network config")]
@@ -272,7 +266,7 @@ pub enum FTValidatorError {
 #[derive(thiserror::Error, Debug)]
 pub enum ValidationError {
     #[error("Query error: {0:?}")]
-    QueryError(QueryError<RpcQueryError>),
+    QueryError(QueryError),
 
     #[error(transparent)]
     ArgumentValidationError(#[from] ArgumentValidationError),
@@ -285,47 +279,20 @@ pub enum ValidationError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SendRequestError<RpcError: std::fmt::Debug + Send + Sync> {
+pub enum SendRequestError {
     #[error("Query creation error: {0}")]
     RequestCreationError(#[from] QueryCreationError),
     #[error("Transport error: {0}")]
-    TransportError(near_openapi_client::Error<()>),
-    // This is a hack to support the old error handling in the RPC API.
-    #[error("Wasm execution failed with error: {0}")]
-    WasmExecutionError(#[from] FunctionCallError),
-    #[error("Internal error: {0:?}")]
-    InternalError(#[from] InternalError),
-    #[error("Request validation error: {0:?}")]
-    RequestValidationError(#[from] RpcRequestValidationErrorKind),
+    TransportError(RpcCallError),
     #[error("Server error: {0}")]
     ServerError(RpcError),
 }
 
-// That's a BIG BIG HACK to handle inconsistent RPC errors
-//
-// Node responds as a message instead of an error object, so we need to parse the message and return the error.
-// https://github.com/near/nearcore/blob/ae6fd841eaad76a090a02e9dcf7406bc79b81dbb/chain/jsonrpc/src/lib.rs#L204
-//
-// TODO: remove this once we have a proper error handling in the RPC API.
-// - https://github.com/near/near-sdk-rs/pull/1165
-// - nearcore PR
-impl<RpcError: std::fmt::Debug + Send + Sync> From<near_openapi_client::Error<()>>
-    for SendRequestError<RpcError>
-{
-    fn from(err: near_openapi_client::Error<()>) -> Self {
-        if let near_openapi_client::Error::InvalidResponsePayload(bytes, _error) = &err {
-            let error = serde_json::from_slice::<serde_json::Value>(bytes)
-                .unwrap_or_default()
-                .get("result")
-                .and_then(|result| result.get("error"))
-                .and_then(|message| message.as_str())
-                .and_then(|message| message.strip_prefix("wasm execution failed with error: "))
-                .and_then(|message| serde_dbgfmt::from_str::<FunctionCallError>(message).ok());
-            if let Some(error) = error {
-                return Self::WasmExecutionError(error);
-            }
+impl From<RpcCallError> for SendRequestError {
+    fn from(err: RpcCallError) -> Self {
+        match err {
+            RpcCallError::Rpc(rpc_err) => Self::ServerError(rpc_err),
+            other => Self::TransportError(other),
         }
-
-        Self::TransportError(err)
     }
 }

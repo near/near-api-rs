@@ -71,14 +71,14 @@ impl PublicKey {
     }
 }
 
-impl TryFrom<near_openapi_types::PublicKey> for PublicKey {
+impl TryFrom<near_openrpc_client::PublicKey> for PublicKey {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::PublicKey) -> Result<Self, Self::Error> {
-        Self::from_str(&val.0)
+    fn try_from(val: near_openrpc_client::PublicKey) -> Result<Self, Self::Error> {
+        Self::from_str(&val)
     }
 }
 
-impl From<PublicKey> for near_openapi_types::PublicKey {
+impl From<PublicKey> for near_openrpc_client::PublicKey {
     fn from(val: PublicKey) -> Self {
         Self(val.to_string())
     }
