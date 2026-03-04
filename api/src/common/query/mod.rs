@@ -1,13 +1,13 @@
 // TODO: root level doc might be needed here. It's pretty complicated.
 use async_trait::async_trait;
 use futures::future::join_all;
-use near_openapi_client::Client;
 use std::sync::Arc;
 use tracing::{debug, error, info, instrument};
 
 use crate::{
     config::{NetworkConfig, RetryResponse, retry},
     errors::{ArgumentValidationError, QueryError, SendRequestError},
+    rpc_client::RpcClient,
 };
 
 pub mod block_rpc;
@@ -20,19 +20,18 @@ pub use handlers::*;
 
 const QUERY_EXECUTOR_TARGET: &str = "near_api::query::executor";
 
-type ResultWithMethod<T, E> = core::result::Result<T, QueryError<E>>;
+type ResultWithMethod<T> = core::result::Result<T, QueryError>;
 
 #[async_trait]
 pub trait RpcType: Send + Sync + std::fmt::Debug {
     type RpcReference: Send + Sync + Clone;
     type Response;
-    type Error: std::fmt::Debug + Send + Sync;
     async fn send_query(
         &self,
-        client: &Client,
+        client: &RpcClient,
         network: &NetworkConfig,
         reference: &Self::RpcReference,
-    ) -> RetryResponse<Self::Response, SendRequestError<Self::Error>>;
+    ) -> RetryResponse<Self::Response, SendRequestError>;
 }
 
 pub type RequestBuilder<T> = RpcBuilder<<T as ResponseHandler>::Query, T>;
@@ -53,7 +52,6 @@ pub struct MultiRpcBuilder<Query, Handler>
 where
     Query: RpcType,
     Query::Response: std::fmt::Debug + Send + Sync,
-    Query::Error: std::fmt::Debug + Send + Sync,
     Handler: Send + Sync,
 {
     reference: Query::RpcReference,
@@ -64,7 +62,6 @@ where
                 dyn RpcType<
                         Response = Query::Response,
                         RpcReference = Query::RpcReference,
-                        Error = Query::Error,
                     > + Send
                     + Sync,
             >,
@@ -79,7 +76,6 @@ where
     Handler: Default + Send + Sync,
     Query: RpcType,
     Query::Response: std::fmt::Debug + Send + Sync,
-    Query::Error: std::fmt::Debug + Send + Sync,
 {
     pub fn with_reference(reference: impl Into<Query::RpcReference>) -> Self {
         Self {
@@ -95,7 +91,6 @@ where
     Handler: ResponseHandler<Query = Query> + Send + Sync,
     Query: RpcType,
     Query::Response: std::fmt::Debug + Send + Sync,
-    Query::Error: std::fmt::Debug + Send + Sync,
 {
     pub fn new(handler: Handler, reference: impl Into<Query::RpcReference>) -> Self {
         Self {
@@ -191,7 +186,6 @@ where
             dyn RpcType<
                     Response = Query::Response,
                     RpcReference = Query::RpcReference,
-                    Error = Query::Error,
                 > + Send
                 + Sync,
         >,
@@ -222,7 +216,7 @@ where
     pub async fn fetch_from(
         self,
         network: &NetworkConfig,
-    ) -> ResultWithMethod<Handler::Response, Query::Error> {
+    ) -> ResultWithMethod<Handler::Response> {
         let (requests, errors) =
             self.requests
                 .into_iter()
@@ -263,6 +257,7 @@ where
             }
         });
 
+
         let requests: Vec<_> = join_all(requests)
             .await
             .into_iter()
@@ -277,13 +272,13 @@ where
     }
 
     /// Fetch the queries from the default mainnet network configuration.
-    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Query::Error> {
+    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
     }
 
     /// Fetch the queries from the default testnet network configuration.
-    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Query::Error> {
+    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
     }
@@ -293,7 +288,6 @@ pub struct RpcBuilder<Query, Handler>
 where
     Query: RpcType,
     Query::Response: std::fmt::Debug + Send + Sync,
-    Query::Error: std::fmt::Debug + Send + Sync,
     Handler: Send + Sync,
 {
     reference: Query::RpcReference,
@@ -303,7 +297,6 @@ where
             dyn RpcType<
                     Response = Query::Response,
                     RpcReference = Query::RpcReference,
-                    Error = Query::Error,
                 > + Send
                 + Sync,
         >,
@@ -317,7 +310,6 @@ where
     Handler: ResponseHandler<Query = Query> + Send + Sync,
     Query: RpcType + 'static,
     Query::Response: std::fmt::Debug + Send + Sync,
-    Query::Error: std::fmt::Debug + Send + Sync,
 {
     pub fn new(
         request: Query,
@@ -414,7 +406,7 @@ where
     pub async fn fetch_from(
         self,
         network: &NetworkConfig,
-    ) -> ResultWithMethod<Handler::Response, Query::Error> {
+    ) -> ResultWithMethod<Handler::Response> {
         let request = self.request?;
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
@@ -440,13 +432,13 @@ where
     }
 
     /// Fetch the query from the default mainnet network configuration.
-    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response, Query::Error> {
+    pub async fn fetch_from_mainnet(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::mainnet();
         self.fetch_from(&network).await
     }
 
     /// Fetch the query from the default testnet network configuration.
-    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Query::Error> {
+    pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::testnet();
         self.fetch_from(&network).await
     }

@@ -23,7 +23,7 @@ where
     fn process_response(
         &self,
         mut responses: Vec<<H1::Query as RpcType>::Response>,
-    ) -> ResultWithMethod<Self::Response, <H1::Query as RpcType>::Error> {
+    ) -> ResultWithMethod<Self::Response> {
         let (h1, h2) = &self.handlers;
 
         let first_response =
@@ -51,7 +51,7 @@ where
     fn process_response(
         &self,
         mut responses: Vec<<Query as RpcType>::Response>,
-    ) -> ResultWithMethod<Self::Response, <Query as RpcType>::Error> {
+    ) -> ResultWithMethod<Self::Response> {
         let (h1, h2, h3) = &self.handlers;
 
         let first_response =
@@ -107,7 +107,7 @@ where
     fn process_response(
         &self,
         response: Vec<<Self::Query as RpcType>::Response>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+    ) -> ResultWithMethod<Self::Response> {
         trace!(target: QUERY_EXECUTOR_TARGET, "Processing response with postprocessing, response count: {}", response.len());
         Handler::process_response(&self.handler, response).map(|data| {
             trace!(target: QUERY_EXECUTOR_TARGET, "Applying postprocessing");
@@ -155,7 +155,7 @@ where
     fn process_response(
         &self,
         response: Vec<<Self::Query as RpcType>::Response>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+    ) -> ResultWithMethod<Self::Response> {
         Handler::process_response(&self.handler, response)
             .map(|data| (self.post_process)(data))?
             .map_err(QueryError::ConversionError)

@@ -18,7 +18,7 @@ base64.workspace = true
 sha2.workspace = true
 serde_with.workspace = true
 
-near-openapi-types.workspace = true
+near-openrpc-client.workspace = true
 near-account-id.workspace = true
 near-gas.workspace = true
 near-token.workspace = true

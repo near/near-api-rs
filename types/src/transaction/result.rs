@@ -4,8 +4,8 @@ use std::fmt;
 
 use base64::{Engine as _, engine::general_purpose};
 use borsh;
-use near_openapi_types::{
-    CallResult, ExecutionStatusView, FinalExecutionOutcomeView, FinalExecutionStatus,
+use near_openrpc_client::{
+    ExecutionStatusView, FinalExecutionOutcomeView, FinalExecutionStatus, RpcCallFunctionResponse,
     TxExecutionError, TxExecutionStatus,
 };
 
@@ -204,17 +204,17 @@ impl TryFrom<FinalExecutionOutcomeView> for ExecutionFinalResult {
             transaction_outcome,
         } = view;
 
-        let total_gas_burnt = transaction_outcome.outcome.gas_burnt.as_gas()
+        let total_gas_burnt = *transaction_outcome.outcome.gas_burnt
             + receipts_outcome
                 .iter()
-                .map(|t| t.outcome.gas_burnt.as_gas())
+                .map(|t| *t.outcome.gas_burnt)
                 .sum::<u64>();
 
-        let transaction_outcome = transaction_outcome.into();
+        let transaction_outcome = ExecutionOutcome::try_from(transaction_outcome)?;
         let receipts = receipts_outcome
             .into_iter()
-            .map(ExecutionOutcome::from)
-            .collect();
+            .map(ExecutionOutcome::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
 
         let total_gas_burnt = NearGas::from_gas(total_gas_burnt);
         Ok(Self {
@@ -610,8 +610,8 @@ impl ViewResultDetails {
     }
 }
 
-impl From<CallResult> for ViewResultDetails {
-    fn from(result: CallResult) -> Self {
+impl From<RpcCallFunctionResponse> for ViewResultDetails {
+    fn from(result: RpcCallFunctionResponse) -> Self {
         Self {
             result: result.result,
             logs: result.logs,
@@ -672,9 +672,9 @@ impl ExecutionOutcome {
             ExecutionStatusView::SuccessValue(value) => {
                 Ok(ValueOrReceiptId::Value(Value::from_string(value)))
             }
-            ExecutionStatusView::SuccessReceiptId(hash) => {
-                Ok(ValueOrReceiptId::ReceiptId(hash.into()))
-            }
+            ExecutionStatusView::SuccessReceiptId(hash) => Ok(ValueOrReceiptId::ReceiptId(
+                CryptoHash::try_from(hash).map_err(DataConversionError::from)?,
+            )),
             ExecutionStatusView::Failure(err) => {
                 Err(ExecutionError::TransactionExecutionFailed(Box::new(err)))
             }
@@ -734,28 +734,29 @@ impl Value {
     }
 }
 
-impl From<near_openapi_types::ExecutionOutcomeWithIdView> for ExecutionOutcome {
-    fn from(view: near_openapi_types::ExecutionOutcomeWithIdView) -> Self {
-        let near_openapi_types::ExecutionOutcomeWithIdView {
+impl TryFrom<near_openrpc_client::ExecutionOutcomeWithIdView> for ExecutionOutcome {
+    type Error = DataConversionError;
+    fn try_from(view: near_openrpc_client::ExecutionOutcomeWithIdView) -> Result<Self, Self::Error> {
+        let near_openrpc_client::ExecutionOutcomeWithIdView {
             id,
             block_hash,
             outcome,
             proof: _, // TODO: research if we need this
         } = view;
 
-        Self {
-            transaction_hash: id.into(),
-            block_hash: block_hash.into(),
+        Ok(Self {
+            transaction_hash: id.try_into()?,
+            block_hash: block_hash.try_into()?,
             logs: outcome.logs,
             receipt_ids: outcome
                 .receipt_ids
                 .into_iter()
-                .map(CryptoHash::from)
-                .collect(),
-            gas_burnt: outcome.gas_burnt,
-            tokens_burnt: outcome.tokens_burnt,
-            executor_id: outcome.executor_id,
+                .map(CryptoHash::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            gas_burnt: NearGas::from_gas(*outcome.gas_burnt),
+            tokens_burnt: NearToken::from_yoctonear(outcome.tokens_burnt.parse::<u128>()?),
+            executor_id: outcome.executor_id.parse()?,
             status: outcome.status,
-        }
+        })
     }
 }

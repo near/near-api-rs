@@ -12,10 +12,10 @@ async fn regression_85() -> testresult::TestResult {
         .await
         .expect_err("Should fail as the contract is not deployed");
 
-    // Should be a WASM execution error rather than TransportError(Invalid Response Payload
+    // Should be a server error (HANDLER_ERROR) rather than TransportError(Invalid Response Payload)
     let query_error = match contract {
         near_api::errors::QueryError::QueryError(query) => query,
-        _ => panic!("Should be a QueryError"),
+        _ => panic!("Should be a QueryError, got: {contract:?}"),
     };
 
     let retry_error = match *query_error {
@@ -23,10 +23,13 @@ async fn regression_85() -> testresult::TestResult {
         _ => panic!("Should be a RetryError"),
     };
 
-    assert!(matches!(
-        retry_error,
-        near_api::errors::SendRequestError::WasmExecutionError(_)
-    ));
+    assert!(
+        matches!(
+            retry_error,
+            near_api::errors::SendRequestError::ServerError(ref err) if err.is_handler_error()
+        ),
+        "Expected ServerError with HANDLER_ERROR, got: {retry_error:?}"
+    );
 
     Ok(())
 }

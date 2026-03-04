@@ -119,11 +119,11 @@ pub struct SignedTransaction {
     hash: OnceLock<CryptoHash>,
 }
 
-impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
+impl TryFrom<near_openrpc_client::SignedTransactionView> for SignedTransaction {
     type Error = DataConversionError;
 
-    fn try_from(value: near_openapi_types::SignedTransactionView) -> Result<Self, Self::Error> {
-        let near_openapi_types::SignedTransactionView {
+    fn try_from(value: near_openrpc_client::SignedTransactionView) -> Result<Self, Self::Error> {
+        let near_openrpc_client::SignedTransactionView {
             signer_id,
             public_key,
             nonce,
@@ -132,7 +132,12 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
             priority_fee,
             hash,
             signature,
+            nonce_index: _,
         } = value;
+
+        let signer_id: AccountId = signer_id.parse()?;
+        let receiver_id: AccountId = receiver_id.parse()?;
+        let block_hash: CryptoHash = hash.try_into()?;
 
         let transaction = if priority_fee > 0 {
             Transaction::V1(TransactionV1 {
@@ -140,7 +145,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                block_hash: hash.into(),
+                block_hash,
                 actions: actions
                     .into_iter()
                     .map(Action::try_from)
@@ -153,7 +158,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                block_hash: hash.into(),
+                block_hash,
                 actions: actions
                     .into_iter()
                     .map(Action::try_from)
@@ -165,7 +170,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
     }
 }
 
-impl From<SignedTransaction> for near_openapi_types::SignedTransaction {
+impl From<SignedTransaction> for near_openrpc_client::SignedTransaction {
     fn from(transaction: SignedTransaction) -> Self {
         #[allow(clippy::expect_used)]
         let bytes = borsh::to_vec(&transaction).expect("Failed to serialize");

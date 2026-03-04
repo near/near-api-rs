@@ -1,9 +1,9 @@
 use near_api_types::AccountId;
-use near_openapi_client::Client;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
 use url::Url;
 
 use crate::errors::RetryError;
+use crate::rpc_client::RpcClient;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// Specifies the retry strategy for RPC endpoint requests.
@@ -91,7 +91,7 @@ impl RPCEndpoint {
         }
     }
 
-    pub(crate) fn client(&self) -> Result<Client, InvalidHeaderValue> {
+    pub(crate) fn client(&self) -> Result<RpcClient, InvalidHeaderValue> {
         let dur = std::time::Duration::from_secs(15);
         let mut client = reqwest::ClientBuilder::new()
             .connect_timeout(dur)
@@ -113,8 +113,8 @@ impl RPCEndpoint {
             );
             client = client.default_headers(headers);
         };
-        Ok(near_openapi_client::Client::new_with_client(
-            self.url.as_ref().trim_end_matches('/'),
+        Ok(RpcClient::new(
+            self.url.as_ref().trim_end_matches('/').to_string(),
             client.build().unwrap(),
         ))
     }
@@ -232,7 +232,7 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
 /// * `task` - The task to retry.
 pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
-    F: FnMut(Client) -> T + Send,
+    F: FnMut(RpcClient) -> T + Send,
     T: core::future::Future<Output = RetryResponse<R, E>> + Send,
     T::Output: Send,
     E: Send,
