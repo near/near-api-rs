@@ -54,19 +54,21 @@ impl Signer {
             return Ok(result);
         }
 
-        let key = (account_id.clone(), public_key, network.network_name.clone());
+        let key = (network.network_name.clone(), account_id.clone(), public_key);
         let lock = self.get_sequential_lock(key);
-        let _guard = lock.lock().await;
 
-        let (signed, result) = self
-            .broadcast_tx(
+        let (signed, result) = {
+            let _guard = lock.lock().await;
+
+            self.broadcast_tx(
                 account_id,
                 public_key,
                 network,
                 transaction,
                 TxExecutionStatus::Included,
             )
-            .await?;
+            .await?
+        };
 
         match wait_until {
             TxExecutionStatus::Included => Ok(result),
@@ -113,7 +115,7 @@ impl Signer {
                 .await;
         }
 
-        let key = (account_id.clone(), public_key, network.network_name.clone());
+        let key = (network.network_name.clone(), account_id.clone(), public_key);
         let lock = self.get_sequential_lock(key);
         let _guard = lock.lock().await;
 
