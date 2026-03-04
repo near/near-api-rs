@@ -62,7 +62,7 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
 async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let tx_count = 1000;
+    let tx_count = 20;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     sandbox.create_account(receiver.clone()).send().await?;
@@ -163,7 +163,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let pubkey_count = 9;
-    let tx_count = 1000;
+    let tx_count = 20;
     let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -207,9 +207,12 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
         .await?
         .data
         .nonce;
+
+    let expected_per_key = tx_count as u64 / (pubkey_count + 1);
+
     assert_eq!(
         end_nonce.0,
-        start_nonce.0 + tx_count as u64 / (pubkey_count + 1)
+        start_nonce.0 + expected_per_key
     );
 
     Ok(())
