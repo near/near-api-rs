@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use near_api_types::{
     AccountId, BlockHeight, PublicKey, TxExecutionStatus,
-    transaction::{PrepopulateTransaction, SignedTransaction, result::ExecutionFinalResult},
+    transaction::{PrepopulateTransaction, SignedTransaction, result::TransactionResult},
 };
 
 use near_openapi_client::types::RpcTransactionStatusRequest;
@@ -129,7 +129,7 @@ impl Signer {
         network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
-    ) -> Result<(SignedTransaction, ExecutionFinalResult), ExecuteTransactionError> {
+    ) -> Result<(SignedTransaction, TransactionResult), ExecuteTransactionError> {
         debug!(target: SIGNER_TARGET, "Broadcasting transaction");
 
         let account_id = account_id.into();

@@ -6,7 +6,7 @@ use base64::{Engine as _, engine::general_purpose};
 use borsh;
 use near_openapi_types::{
     CallResult, ExecutionStatusView, FinalExecutionOutcomeView, FinalExecutionStatus,
-    TxExecutionError,
+    TxExecutionError, TxExecutionStatus,
 };
 
 use crate::{
@@ -354,6 +354,164 @@ impl ExecutionFinalResult {
         self.details.logs()
     }
 }
+
+/// The result of sending a transaction to the network.
+///
+/// Depending on the [`TxExecutionStatus`] used with `wait_until`, the RPC may return
+/// either a full execution result or just a confirmation that the transaction was received.
+///
+/// - `wait_until(TxExecutionStatus::None)` or `wait_until(TxExecutionStatus::Included)` will
+///   return [`TransactionResult::Pending`] since the transaction hasn't been executed yet.
+/// - Higher finality levels (`ExecutedOptimistic`, `Final`, etc.) will return
+///   [`TransactionResult::Full`] with the full execution outcome.
+#[derive(Clone, Debug)]
+#[must_use = "use `into_result()` to handle potential execution errors and cases when transaction is pending"]
+pub enum TransactionResult {
+    /// Transaction was submitted but execution results are not yet available.
+    ///
+    /// This is returned when `wait_until` is set to `None` or `Included`.
+    /// The `status` field indicates how far the transaction has progressed.
+    Pending { status: TxExecutionStatus },
+    /// Full execution result is available.
+    Full(Box<ExecutionFinalResult>),
+}
+
+impl TransactionResult {
+    /// Returns the full execution result if available, or an error if the transaction is still pending.
+    #[allow(clippy::result_large_err)]
+    pub fn into_result(self) -> Result<ExecutionSuccess, TransactionResultError> {
+        match self {
+            Self::Full(result) => result
+                .into_result()
+                .map_err(|e| TransactionResultError::Failure(Box::new(e))),
+            Self::Pending { status } => Err(TransactionResultError::Pending(status)),
+        }
+    }
+
+    /// Unwraps the full execution result, panicking if the transaction is pending or failed.
+    #[track_caller]
+    pub fn assert_success(self) -> ExecutionSuccess {
+        match self {
+            Self::Full(result) => result.assert_success(),
+            Self::Pending { status } => panic!(
+                "called `assert_success()` on a pending transaction (status: {status:?}). \
+                 Use wait_until(TxExecutionStatus::Final) or handle the pending case."
+            ),
+        }
+    }
+
+    /// Returns `true` if the transaction has a full execution result.
+    pub const fn is_full(&self) -> bool {
+        matches!(self, Self::Full(_))
+    }
+
+    /// Returns `true` if the transaction is still pending.
+    pub const fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending { .. })
+    }
+
+    /// Returns the full execution result, if available.
+    pub fn into_full(self) -> Option<ExecutionFinalResult> {
+        match self {
+            Self::Full(result) => Some(*result),
+            Self::Pending { .. } => None,
+        }
+    }
+
+    /// Returns the pending status, if the transaction is still pending.
+    pub fn pending_status(self) -> Option<TxExecutionStatus> {
+        match self {
+            Self::Pending { status } => Some(status),
+            Self::Full(_) => None,
+        }
+    }
+
+    /// Unwraps the execution failure, panicking if the transaction is pending or succeeded.
+    #[track_caller]
+    pub fn assert_failure(self) -> ExecutionResult<TxExecutionError> {
+        match self {
+            Self::Full(result) => result.assert_failure(),
+            Self::Pending { status } => panic!(
+                "called `assert_failure()` on a pending transaction (status: {status:?}). \
+                 Use wait_until(TxExecutionStatus::Final) or handle the pending case."
+            ),
+        }
+    }
+
+    /// Checks whether the transaction has failed. Returns `false` if the transaction
+    /// is still pending or succeeded.
+    pub const fn is_failure(&self) -> bool {
+        match self {
+            Self::Full(result) => result.is_failure(),
+            Self::Pending { .. } => false,
+        }
+    }
+
+    /// Checks whether the transaction was successful. Returns `false` if the transaction
+    /// is still pending or failed.
+    pub const fn is_success(&self) -> bool {
+        match self {
+            Self::Full(result) => result.is_success(),
+            Self::Pending { .. } => false,
+        }
+    }
+
+    /// Returns the transaction that was executed.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the transaction is still pending.
+    #[track_caller]
+    pub fn transaction(&self) -> &Transaction {
+        match self {
+            Self::Full(result) => result.transaction(),
+            Self::Pending { status } => panic!(
+                "called `transaction()` on a pending transaction (status: {status:?}). \
+                 Use wait_until(TxExecutionStatus::Final) or handle the pending case."
+            ),
+        }
+    }
+
+    /// Grab all logs from both the transaction and receipt outcomes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the transaction is still pending.
+    #[track_caller]
+    pub fn logs(&self) -> Vec<&str> {
+        match self {
+            Self::Full(result) => result.logs(),
+            Self::Pending { status } => panic!(
+                "called `logs()` on a pending transaction (status: {status:?}). \
+                 Use wait_until(TxExecutionStatus::Final) or handle the pending case."
+            ),
+        }
+    }
+}
+
+/// Error type for [`TransactionResult::into_result`].
+#[derive(Debug)]
+pub enum TransactionResultError {
+    /// The transaction failed execution.
+    Failure(Box<ExecutionFailure>),
+    /// The transaction is still pending (was sent with `wait_until` set to `None` or `Included`).
+    Pending(TxExecutionStatus),
+}
+
+impl fmt::Display for TransactionResultError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Failure(err) => write!(f, "Transaction failed: {err}"),
+            Self::Pending(status) => write!(
+                f,
+                "Transaction is pending (status: {status:?}). \
+                 Execution results are not yet available."
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TransactionResultError {}
 
 impl ExecutionSuccess {
     /// Deserialize an instance of type `T` from bytes of JSON text sourced from the
