@@ -210,10 +210,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_different_keys() -> TestRe
 
     let expected_per_key = tx_count as u64 / (pubkey_count + 1);
 
-    assert_eq!(
-        end_nonce.0,
-        start_nonce.0 + expected_per_key
-    );
+    assert_eq!(end_nonce.0, start_nonce.0 + expected_per_key);
 
     Ok(())
 }
