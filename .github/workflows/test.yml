@@ -2,7 +2,7 @@ name: Test & Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, fix/nonce-race-condition ]
   pull_request:
 
 env:
