@@ -60,6 +60,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
 }
 
 #[tokio::test]
+#[allow(clippy::result_large_err)]
 async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
