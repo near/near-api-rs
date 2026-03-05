@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5](https://github.com/near/near-api-rs/compare/near-api-types-v0.8.4...near-api-types-v0.8.5) - 2026-03-05
+
+### Other
+
+- upgrade near-openapi-client to v0.8.0 via git ref ([#130](https://github.com/near/near-api-rs/pull/130))
+
 ## [0.8.4](https://github.com/near/near-api-rs/compare/near-api-types-v0.8.3...near-api-types-v0.8.4) - 2026-03-03
 
 ### Added
