@@ -486,7 +486,7 @@ impl From<near_openapi_types::GlobalContractIdentifier> for GlobalContractIdenti
 impl From<near_openapi_types::GlobalContractIdentifierView> for GlobalContractIdentifier {
     fn from(val: near_openapi_types::GlobalContractIdentifierView) -> Self {
         match val {
-            near_openapi_types::GlobalContractIdentifierView::CryptoHash(code_hash) => {
+            near_openapi_types::GlobalContractIdentifierView::Hash(code_hash) => {
                 Self::CodeHash(code_hash.into())
             }
             near_openapi_types::GlobalContractIdentifierView::AccountId(account_id) => {
