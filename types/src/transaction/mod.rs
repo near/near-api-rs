@@ -13,14 +13,21 @@ use crate::{
 };
 
 /// Borsh-serialize an `Option<CryptoHash>` as a plain `CryptoHash`, preserving
-/// the on-chain wire format. Panics if the value is `None`, since serialization
-/// is only valid for fully-constructed transactions (i.e. those with a known
-/// block hash).
+/// the on-chain wire format. Returns an error if the value is `None`, since
+/// serialization is only valid for fully-constructed transactions (i.e. those
+/// with a known block hash).
 fn borsh_ser_optional_hash<W: std::io::Write>(
     val: &Option<CryptoHash>,
     writer: &mut W,
 ) -> Result<(), std::io::Error> {
-    let hash = val.expect("cannot borsh-serialize a Transaction whose block_hash is None (this transaction was deserialized from an RPC response that lacks block hash information)");
+    let hash = val.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "cannot borsh-serialize a Transaction whose block_hash is None \
+             (this transaction was deserialized from an RPC response that \
+             lacks block hash information)",
+        )
+    })?;
     BorshSerialize::serialize(&hash, writer)
 }
 
