@@ -140,7 +140,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                // FIXME: this is tx hash, not block hash (https://github.com/near/nearcore/blob/master/core/primitives/src/views.rs#L1644)
+                // FIXME: this is tx hash, not block hash (https://github.com/near/near-api-rs/issues/134)
                 block_hash: hash.into(),
                 actions: actions
                     .into_iter()
@@ -154,7 +154,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                // FIXME: this is tx hash, not block hash (https://github.com/near/nearcore/blob/master/core/primitives/src/views.rs#L1644)
+                // FIXME: this is tx hash, not block hash (https://github.com/near/near-api-rs/issues/134)
                 block_hash: hash.into(),
                 actions: actions
                     .into_iter()

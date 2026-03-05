@@ -288,8 +288,8 @@ impl ExecuteSignedTransaction {
         );
 
         let wait_until = match params {
-            RpcTransactionStatusRequest::Variant0 { wait_until, .. } => wait_until,
-            RpcTransactionStatusRequest::Variant1 { wait_until, .. } => wait_until,
+            RpcTransactionStatusRequest::Variant0 { wait_until, .. }
+            | RpcTransactionStatusRequest::Variant1 { wait_until, .. } => wait_until,
         };
 
         let result = retry(network.clone(), |client| {
@@ -348,7 +348,7 @@ impl ExecuteSignedTransaction {
         info!(
             target: TX_EXECUTOR_TARGET,
             "Broadcasting signed transaction. Hash: {:?}, Signer: {:?}, Receiver: {:?}, Nonce: {}",
-            signed_tr.get_hash(),
+            signed_tr.get_hash().to_string(),
             signed_tr.transaction.signer_id(),
             signed_tr.transaction.receiver_id(),
             signed_tr.transaction.nonce(),
@@ -381,7 +381,7 @@ impl ExecuteSignedTransaction {
                 tracing::debug!(
                     target: TX_EXECUTOR_TARGET,
                     "Broadcasting transaction {} resulted in {:?}",
-                    hash,
+                    hash.to_string(),
                     result
                 );
 
@@ -427,7 +427,7 @@ impl ExecuteMetaTransaction {
         self
     }
 
-    pub fn get_tx_lifetime(&self) -> BlockHeight {
+    pub fn get_tx_lifetime_delta(&self) -> BlockHeight {
         self.tx_live_for
             .unwrap_or(META_TRANSACTION_VALID_FOR_DEFAULT)
     }
@@ -452,7 +452,7 @@ impl ExecuteMetaTransaction {
         };
 
         let transaction = transaction.prepopulated()?;
-        let max_block_height = block_height + self.get_tx_lifetime();
+        let max_block_height = block_height + self.get_tx_lifetime_delta();
 
         let signed_tr = self
             .signer
@@ -555,7 +555,7 @@ impl ExecuteMetaTransaction {
                         prepopulated.signer_id.clone(),
                         network,
                         prepopulated,
-                        self.get_tx_lifetime(),
+                        self.get_tx_lifetime_delta(),
                     )
                     .await
             }
@@ -704,13 +704,8 @@ fn into_final_outcome(response: SendImplResponse) -> TxExecutionResult {
                     status,
                     transaction,
                     transaction_outcome,
-                } => FinalExecutionOutcomeView {
-                    receipts_outcome,
-                    status,
-                    transaction,
-                    transaction_outcome,
-                },
-                RpcTransactionResponse::Variant1 {
+                }
+                | RpcTransactionResponse::Variant1 {
                     final_execution_status: _,
                     receipts_outcome,
                     status,
