@@ -12,13 +12,43 @@ use crate::{
     AccountId, Action, CryptoHash, Nonce, PublicKey, Signature, errors::DataConversionError,
 };
 
+/// Borsh-serialize an `Option<CryptoHash>` as a plain `CryptoHash`, preserving
+/// the on-chain wire format. Returns an error if the value is `None`, since
+/// serialization is only valid for fully-constructed transactions (i.e. those
+/// with a known block hash).
+fn borsh_ser_optional_hash<W: std::io::Write>(
+    val: &Option<CryptoHash>,
+    writer: &mut W,
+) -> Result<(), std::io::Error> {
+    let hash = val.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "cannot borsh-serialize a Transaction whose block_hash is None \
+             (this transaction was deserialized from an RPC response that \
+             lacks block hash information)",
+        )
+    })?;
+    BorshSerialize::serialize(&hash, writer)
+}
+
+/// Borsh-deserialize a plain `CryptoHash` into `Some(CryptoHash)`.
+fn borsh_de_optional_hash<R: std::io::Read>(
+    reader: &mut R,
+) -> Result<Option<CryptoHash>, std::io::Error> {
+    CryptoHash::deserialize_reader(reader).map(Some)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct TransactionV0 {
     pub signer_id: AccountId,
     pub public_key: PublicKey,
     pub nonce: Nonce,
     pub receiver_id: AccountId,
-    pub block_hash: CryptoHash,
+    #[borsh(
+        serialize_with = "borsh_ser_optional_hash",
+        deserialize_with = "borsh_de_optional_hash"
+    )]
+    pub block_hash: Option<CryptoHash>,
     pub actions: Vec<Action>,
 }
 
@@ -28,7 +58,11 @@ pub struct TransactionV1 {
     pub public_key: PublicKey,
     pub nonce: Nonce,
     pub receiver_id: AccountId,
-    pub block_hash: CryptoHash,
+    #[borsh(
+        serialize_with = "borsh_ser_optional_hash",
+        deserialize_with = "borsh_de_optional_hash"
+    )]
+    pub block_hash: Option<CryptoHash>,
     pub actions: Vec<Action>,
     pub priority_fee: u64,
 }
@@ -65,6 +99,13 @@ impl Transaction {
         match self {
             Self::V0(tx) => tx.public_key,
             Self::V1(tx) => tx.public_key,
+        }
+    }
+
+    pub const fn block_hash(&self) -> Option<CryptoHash> {
+        match self {
+            Self::V0(tx) => tx.block_hash,
+            Self::V1(tx) => tx.block_hash,
         }
     }
 
@@ -134,13 +175,18 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
             signature,
         } = value;
 
+        // The RPC response provides the transaction hash but not the block hash
+        // that was used when signing. We store the real tx hash and set block_hash
+        // to None since it is unavailable.
+        let tx_hash: CryptoHash = hash.into();
+
         let transaction = if priority_fee > 0 {
             Transaction::V1(TransactionV1 {
                 signer_id,
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                block_hash: hash.into(),
+                block_hash: None,
                 actions: actions
                     .into_iter()
                     .map(Action::try_from)
@@ -153,7 +199,7 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
                 public_key: public_key.try_into()?,
                 nonce,
                 receiver_id,
-                block_hash: hash.into(),
+                block_hash: None,
                 actions: actions
                     .into_iter()
                     .map(Action::try_from)
@@ -161,7 +207,11 @@ impl TryFrom<near_openapi_types::SignedTransactionView> for SignedTransaction {
             })
         };
 
-        Ok(Self::new(Signature::from_str(&signature)?, transaction))
+        let signed = Self::new(Signature::from_str(&signature)?, transaction);
+        // Pre-populate with the correct hash from the RPC response,
+        // since we cannot recompute it without the block hash.
+        let _ = signed.hash.set(tx_hash);
+        Ok(signed)
     }
 }
 
