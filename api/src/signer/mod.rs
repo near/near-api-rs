@@ -111,10 +111,11 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
 
+use futures::lock::Mutex;
 use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
     transaction::{
@@ -140,6 +141,7 @@ pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
+pub mod sequential;
 
 const SIGNER_TARGET: &str = "near_api::signer";
 /// Default HD path for seed phrases and secret keys generation
@@ -388,14 +390,23 @@ pub trait SignerTrait {
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError>;
 }
 
+/// Each transaction group is identified by:  network name, account_id, public_key
+pub type TransactionGroupKey = (String, AccountId, PublicKey);
+
 /// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
 /// of [SignerTrait](`SignerTrait`).
 ///
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
+/// It also provides a sequential send mode to avoid race conditions when sending multiple transactions
+/// at the same time. By default, the sequential send mode is disabled.
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    nonce_cache: futures::lock::Mutex<HashMap<(AccountId, PublicKey), u64>>,
     current_public_key: AtomicUsize,
+    // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
+    nonce_cache: Mutex<HashMap<TransactionGroupKey, u64>>,
+    // For sequential transactions, to avoid race conditions
+    sequential_locks: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<()>>>>,
+    sequential_mode: AtomicBool,
 }
 
 impl Signer {
@@ -410,9 +421,20 @@ impl Signer {
                 public_key,
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
-            nonce_cache: futures::lock::Mutex::new(HashMap::new()),
             current_public_key: AtomicUsize::new(0),
+            nonce_cache: Mutex::new(HashMap::new()),
+            sequential_locks: Mutex::new(HashMap::new()),
+            sequential_mode: AtomicBool::new(false),
         }))
+    }
+
+    /// Set sequential send mode for the signer
+    ///
+    /// If sequential mode is enabled, the signer will sign and send transactions sequentially
+    /// while waiting for the previous transaction to be included in the block.
+    /// This is useful to avoid race conditions when sending multiple transactions at the same time
+    pub fn set_sequential(&self, sequential: bool) {
+        self.sequential_mode.store(sequential, Ordering::SeqCst);
     }
 
     /// Adds a signer to the pool of signers.
@@ -541,7 +563,7 @@ impl Signer {
     /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
     /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
     #[allow(clippy::significant_drop_tightening)]
-    #[instrument(skip(self, network), fields(account_id = %account_id))]
+    #[instrument(skip(self, network))]
     pub async fn fetch_tx_nonce(
         &self,
         account_id: AccountId,
@@ -559,7 +581,9 @@ impl Signer {
 
         let nonce = {
             let mut nonce_cache = self.nonce_cache.lock().await;
-            let nonce = nonce_cache.entry((account_id, public_key)).or_default();
+            let nonce = nonce_cache
+                .entry((network.network_name.clone(), account_id, public_key))
+                .or_default();
             *nonce = (*nonce).max(nonce_data.data.nonce.0) + 1;
             *nonce
         };
