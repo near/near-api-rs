@@ -1,0 +1,48 @@
+name: Accept crate owner invitations
+
+on:
+  workflow_dispatch:
+
+jobs:
+  accept-invites:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List and accept pending crate owner invitations
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "Listing pending invitations..."
+          RESPONSE=$(curl -s -H "Authorization: $CARGO_REGISTRY_TOKEN" \
+            -H "User-Agent: near-api-rs-ci" \
+            https://crates.io/api/v1/me/crate_owner_invitations)
+
+          echo "$RESPONSE" | jq .
+
+          INVITES=$(echo "$RESPONSE" | jq -c '.crate_owner_invitations // []')
+          COUNT=$(echo "$INVITES" | jq length)
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No pending invitations found."
+            exit 0
+          fi
+
+          echo "Found $COUNT pending invitation(s). Accepting..."
+
+          echo "$INVITES" | jq -c '.[]' | while read -r invite; do
+            CRATE_ID=$(echo "$invite" | jq '.crate_id')
+            CRATE_NAME=$(echo "$invite" | jq -r '.crate_name')
+            echo "Accepting invite for $CRATE_NAME (id: $CRATE_ID)..."
+
+            curl -s -X PUT \
+              -H "Authorization: $CARGO_REGISTRY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -H "User-Agent: near-api-rs-ci" \
+              "https://crates.io/api/v1/me/crate_owner_invitations/$CRATE_ID" \
+              -d "{\"crate_owner_invite\":{\"crate_id\":$CRATE_ID,\"accepted\":true}}" | jq .
+
+            echo "Done with $CRATE_NAME"
+          done
+
+          echo "All invitations processed."
