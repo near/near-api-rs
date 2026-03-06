@@ -10,6 +10,7 @@ use near_sandbox::config::{
 use std::str::FromStr;
 use testresult::TestResult;
 
+#[allow(clippy::result_large_err)]
 #[tokio::test]
 async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
@@ -103,6 +104,7 @@ async fn multiple_non_sequential_tx_at_same_time_from_same_key() -> TestResult {
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 #[tokio::test]
 async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
