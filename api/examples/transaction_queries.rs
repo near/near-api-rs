@@ -1,5 +1,5 @@
 use near_api::{
-    Chain, NetworkConfig, Transaction,
+    Chain, Transaction,
     types::{AccountId, CryptoHash, Reference, TxExecutionStatus},
 };
 use testresult::TestResult;
@@ -19,11 +19,6 @@ async fn main() -> TestResult {
         return Ok(());
     }
 
-    let network = NetworkConfig::from_rpc_url(
-        "archival-mainnet",
-        "https://archival-rpc.mainnet.fastnear.com".parse().unwrap(),
-    );
-
     let sender: AccountId = std::env::var("TX_SENDER")
         .unwrap_or_else(|_| "omni.bridge.near".to_string())
         .parse()?;
@@ -32,7 +27,7 @@ async fn main() -> TestResult {
         .parse()?;
 
     let status = Transaction::status(sender.clone(), tx_hash)
-        .fetch_from(&network)
+        .fetch_from_mainnet_archival()
         .await?;
     println!(
         "[status] is_success={}, is_failure={}, gas_burnt={}",
@@ -43,7 +38,7 @@ async fn main() -> TestResult {
 
     let status_final =
         Transaction::status_with_options(sender.clone(), tx_hash, TxExecutionStatus::Final)
-            .fetch_from(&network)
+            .fetch_from_mainnet_archival()
             .await?;
     println!(
         "[status_with_options(Final)] is_success={}, receipts={}",
@@ -57,7 +52,7 @@ async fn main() -> TestResult {
         .first()
         .expect("transaction should have at least one receipt");
     let receipt = Transaction::receipt(receipt_id)
-        .fetch_from(&network)
+        .fetch_from_mainnet_archival()
         .await?;
     println!(
         "[receipt] id={}, receiver={}, predecessor={}",
@@ -66,10 +61,10 @@ async fn main() -> TestResult {
 
     let head_hash = Chain::block_hash()
         .at(Reference::Final)
-        .fetch_from(&network)
+        .fetch_from_mainnet_archival()
         .await?;
     let proof = Transaction::proof(sender, tx_hash, head_hash)
-        .fetch_from(&network)
+        .fetch_from_mainnet_archival()
         .await?;
     println!(
         "[proof] outcome_proof_id={}, block_proof_len={}, outcome_root_proof_len={}",
