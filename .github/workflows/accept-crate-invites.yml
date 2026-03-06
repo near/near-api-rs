@@ -1,7 +1,9 @@
 name: Accept crate owner invitations
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - ci/accept-crate-owner-invites
 
 jobs:
   accept-invites:
