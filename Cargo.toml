@@ -42,7 +42,6 @@ bs58 = "0.5"
 sha2 = "0.10"
 bolero = "0.13"
 serde_with = { version = "3.16.1", features = ["base64", "macros"] }
-dashmap = "6.1.0"
 
 primitive-types = { version = "0.10.0", default-features = false }
 ed25519-dalek = { version = "2.1.0", default-features = false, features = [] }

@@ -115,6 +115,7 @@ use std::{
     },
 };
 
+use futures::lock::Mutex;
 use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
     transaction::{
@@ -402,9 +403,9 @@ pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     current_public_key: AtomicUsize,
     // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
-    nonce_cache: futures::lock::Mutex<HashMap<TransactionGroupKey, u64>>,
+    nonce_cache: Mutex<HashMap<TransactionGroupKey, u64>>,
     // For sequential transactions, to avoid race conditions
-    sequential_locks: dashmap::DashMap<TransactionGroupKey, Arc<tokio::sync::Mutex<()>>>,
+    sequential_locks: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<()>>>>,
     sequential_mode: AtomicBool,
 }
 
@@ -421,8 +422,8 @@ impl Signer {
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
             current_public_key: AtomicUsize::new(0),
-            nonce_cache: futures::lock::Mutex::new(HashMap::new()),
-            sequential_locks: dashmap::DashMap::new(),
+            nonce_cache: Mutex::new(HashMap::new()),
+            sequential_locks: Mutex::new(HashMap::new()),
             sequential_mode: AtomicBool::new(false),
         }))
     }

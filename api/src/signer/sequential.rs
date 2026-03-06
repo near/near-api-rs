@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use futures::lock::Mutex;
 use near_api_types::{
     AccountId, BlockHeight, PublicKey, TxExecutionStatus,
     transaction::{PrepopulateTransaction, SignedTransaction, result::TransactionResult},
@@ -17,10 +18,12 @@ use crate::{
 };
 
 impl Signer {
-    fn get_sequential_lock(&self, key: TransactionGroupKey) -> Arc<tokio::sync::Mutex<()>> {
+    async fn get_sequential_lock(&self, key: TransactionGroupKey) -> Arc<Mutex<()>> {
         self.sequential_locks
+            .lock()
+            .await
             .entry(key)
-            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .or_insert_with(|| Arc::new(Mutex::new(())))
             .clone()
     }
 
@@ -55,7 +58,7 @@ impl Signer {
         }
 
         let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_sequential_lock(key);
+        let lock = self.get_sequential_lock(key).await;
 
         let (signed, result) = {
             let _guard = lock.lock().await;
@@ -116,7 +119,7 @@ impl Signer {
         }
 
         let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_sequential_lock(key);
+        let lock = self.get_sequential_lock(key).await;
         let _guard = lock.lock().await;
 
         self.broadcast_meta_tx(account_id, public_key, network, transaction, tx_live_for)
