@@ -283,9 +283,25 @@ where
         self.fetch_from(&network).await
     }
 
+    /// Fetch the queries from the default mainnet archival network configuration.
+    pub async fn fetch_from_mainnet_archival(
+        self,
+    ) -> ResultWithMethod<Handler::Response, Query::Error> {
+        let network = NetworkConfig::mainnet_archival();
+        self.fetch_from(&network).await
+    }
+
     /// Fetch the queries from the default testnet network configuration.
     pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Query::Error> {
         let network = NetworkConfig::testnet();
+        self.fetch_from(&network).await
+    }
+
+    /// Fetch the queries from the default testnet archival network configuration.
+    pub async fn fetch_from_testnet_archival(
+        self,
+    ) -> ResultWithMethod<Handler::Response, Query::Error> {
+        let network = NetworkConfig::testnet_archival();
         self.fetch_from(&network).await
     }
 }
@@ -446,9 +462,25 @@ where
         self.fetch_from(&network).await
     }
 
+    /// Fetch the query from the default mainnet archival network configuration.
+    pub async fn fetch_from_mainnet_archival(
+        self,
+    ) -> ResultWithMethod<Handler::Response, Query::Error> {
+        let network = NetworkConfig::mainnet_archival();
+        self.fetch_from(&network).await
+    }
+
     /// Fetch the query from the default testnet network configuration.
     pub async fn fetch_from_testnet(self) -> ResultWithMethod<Handler::Response, Query::Error> {
         let network = NetworkConfig::testnet();
+        self.fetch_from(&network).await
+    }
+
+    /// Fetch the query from the default testnet archival network configuration.
+    pub async fn fetch_from_testnet_archival(
+        self,
+    ) -> ResultWithMethod<Handler::Response, Query::Error> {
+        let network = NetworkConfig::testnet_archival();
         self.fetch_from(&network).await
     }
 }
