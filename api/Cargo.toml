@@ -1,6 +1,6 @@
 [package]
 name = "near-api"
-rust-version = "1.85"
+rust-version.workspace = true
 version.workspace = true
 authors.workspace = true
 license.workspace = true
