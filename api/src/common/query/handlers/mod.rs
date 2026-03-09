@@ -1,9 +1,9 @@
 use borsh::BorshDeserialize;
 use near_api_types::{
     AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
-    RpcValidatorResponse, ViewStateResult, json::U64,
+    RpcValidatorResponse, ViewStateResult, json::U64, transaction::result::ExecutionFinalResult,
 };
-use near_openapi_client::types::RpcQueryResponse;
+use near_openapi_client::types::{RpcQueryResponse, RpcReceiptResponse, RpcTransactionResponse};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 use tracing::{info, trace, warn};
@@ -11,9 +11,12 @@ use tracing::{info, trace, warn};
 use crate::{
     advanced::{
         RpcType, block_rpc::SimpleBlockRpc, query_rpc::SimpleQueryRpc,
-        validator_rpc::SimpleValidatorRpc,
+        tx_rpc::TransactionStatusRpc, validator_rpc::SimpleValidatorRpc,
     },
-    common::query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
+    common::{
+        query::{QUERY_EXECUTOR_TARGET, ResultWithMethod},
+        send::to_final_execution_outcome,
+    },
     errors::QueryError,
 };
 pub mod transformers;
@@ -494,6 +497,67 @@ impl ResponseHandler for RpcBlockHandler {
 
     fn request_amount(&self) -> usize {
         1
+    }
+}
+
+/// Handler that converts an [`RpcTransactionResponse`] into an [`ExecutionFinalResult`].
+///
+/// This reuses the same conversion logic from transaction sending: it extracts the
+/// `FinalExecutionOutcomeView` from the response and converts it using `TryFrom`.
+#[derive(Clone, Debug)]
+pub struct TransactionStatusHandler;
+
+impl ResponseHandler for TransactionStatusHandler {
+    type Response = ExecutionFinalResult;
+    type Query = TransactionStatusRpc;
+
+    fn process_response(
+        &self,
+        response: Vec<RpcTransactionResponse>,
+    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+        let response = response
+            .into_iter()
+            .next()
+            .ok_or(QueryError::InternalErrorNoResponse)?;
+
+        let final_execution_outcome_view = to_final_execution_outcome(response);
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed TransactionStatus response, tx hash: {:?}",
+            final_execution_outcome_view.transaction_outcome.id,
+        );
+
+        ExecutionFinalResult::try_from(final_execution_outcome_view)
+            .map_err(|e| QueryError::ConversionError(Box::new(e)))
+    }
+}
+
+/// Handler that passes through the raw [`RpcReceiptResponse`] without transformation.
+#[derive(Clone, Debug)]
+pub struct ReceiptHandler;
+
+impl ResponseHandler for ReceiptHandler {
+    type Response = RpcReceiptResponse;
+    type Query = crate::advanced::tx_rpc::ReceiptRpc;
+
+    fn process_response(
+        &self,
+        response: Vec<RpcReceiptResponse>,
+    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+        let response = response
+            .into_iter()
+            .next()
+            .ok_or(QueryError::InternalErrorNoResponse)?;
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed Receipt response, receipt_id: {:?}, receiver: {:?}",
+            response.receipt_id,
+            response.receiver_id,
+        );
+
+        Ok(response)
     }
 }
 

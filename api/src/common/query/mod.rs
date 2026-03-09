@@ -14,6 +14,7 @@ pub mod block_rpc;
 pub mod handlers;
 pub mod query_request;
 pub mod query_rpc;
+pub mod tx_rpc;
 pub mod validator_rpc;
 
 pub use handlers::*;

@@ -21,7 +21,8 @@ pub use near_abi as abi;
 pub use near_account_id::{AccountId, AccountIdRef};
 pub use near_gas::NearGas;
 pub use near_openapi_types::{
-    AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse, RpcTransactionResponse,
+    AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse,
+    RpcLightClientExecutionProofResponse, RpcReceiptResponse, RpcTransactionResponse,
     RpcValidatorResponse, StoreKey, StoreValue, TxExecutionStatus, ViewStateResult,
 };
 pub use near_token::NearToken;

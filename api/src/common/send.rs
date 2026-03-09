@@ -695,33 +695,42 @@ fn into_final_outcome(response: SendImplResponse) -> TxExecutionResult {
     match response {
         SendImplResponse::Pending(status) => Ok(TransactionResult::Pending { status }),
         SendImplResponse::Full(rpc_response) => {
-            let final_execution_outcome_view = match *rpc_response {
-                // We don't use `experimental_tx`, so we can ignore that, but just to be safe
-                RpcTransactionResponse::Variant0 {
-                    final_execution_status: _,
-                    receipts: _,
-                    receipts_outcome,
-                    status,
-                    transaction,
-                    transaction_outcome,
-                }
-                | RpcTransactionResponse::Variant1 {
-                    final_execution_status: _,
-                    receipts_outcome,
-                    status,
-                    transaction,
-                    transaction_outcome,
-                } => FinalExecutionOutcomeView {
-                    receipts_outcome,
-                    status,
-                    transaction,
-                    transaction_outcome,
-                },
-            };
+            let final_execution_outcome_view = to_final_execution_outcome(*rpc_response);
 
             Ok(TransactionResult::Full(Box::new(
                 ExecutionFinalResult::try_from(final_execution_outcome_view)?,
             )))
         }
+    }
+}
+
+/// Extracts a [`FinalExecutionOutcomeView`] from an [`RpcTransactionResponse`].
+///
+/// Both `send_tx` and `tx` (status query) responses share the same envelope type.
+/// This function strips the `final_execution_status` and optional `receipts` fields
+/// that are not part of `FinalExecutionOutcomeView`.
+// TODO: check if we need to add support for `final_execution_status`
+pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExecutionOutcomeView {
+    match response {
+        RpcTransactionResponse::Variant0 {
+            final_execution_status: _,
+            receipts: _,
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        }
+        | RpcTransactionResponse::Variant1 {
+            final_execution_status: _,
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        } => FinalExecutionOutcomeView {
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        },
     }
 }
