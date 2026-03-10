@@ -14,7 +14,6 @@ async fn fetch_tx_status() -> TestResult {
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
-    signer.set_sequential(true);
 
     let tx = Tokens::account(account.clone())
         .send_to(receiver.clone())

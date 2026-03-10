@@ -111,13 +111,13 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
 use futures::lock::Mutex;
 use near_api_types::{
-    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
     transaction::{
         PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
         delegate_action::{NonDelegateAction, SignedDelegateAction},
@@ -397,16 +397,18 @@ pub type TransactionGroupKey = (String, AccountId, PublicKey);
 /// of [SignerTrait](`SignerTrait`).
 ///
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
-/// It also provides a sequential send mode to avoid race conditions when sending multiple transactions
-/// at the same time. By default, the sequential send mode is disabled.
+/// Taking into account each transaction group: account_id + public_key + network name,
+/// to manage nonces separately for each group.
+/// It also provides a sequential send mode to avoid race conditions, when sending multiple transactions
+/// at the same time
+///
+/// NOTE: Sequential sending can increase processing time, because it waits for the
+/// previous transaction to be included in the block. But this can be mitigated by
+/// adding more keys to the signer pool
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     current_public_key: AtomicUsize,
-    // Taking into account each transaction group: account_id + public_key + network name, to manage nonces separately for each group
-    nonce_cache: Mutex<HashMap<TransactionGroupKey, u64>>,
-    // For sequential transactions, to avoid race conditions
-    sequential_locks: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<()>>>>,
-    sequential_mode: AtomicBool,
+    sequential_nonces: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<u64>>>>,
 }
 
 impl Signer {
@@ -422,19 +424,8 @@ impl Signer {
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
             current_public_key: AtomicUsize::new(0),
-            nonce_cache: Mutex::new(HashMap::new()),
-            sequential_locks: Mutex::new(HashMap::new()),
-            sequential_mode: AtomicBool::new(false),
+            sequential_nonces: Mutex::new(HashMap::new()),
         }))
-    }
-
-    /// Set sequential send mode for the signer
-    ///
-    /// If sequential mode is enabled, the signer will sign and send transactions sequentially
-    /// while waiting for the previous transaction to be included in the block.
-    /// This is useful to avoid race conditions when sending multiple transactions at the same time
-    pub fn set_sequential(&self, sequential: bool) {
-        self.sequential_mode.store(sequential, Ordering::SeqCst);
     }
 
     /// Adds a signer to the pool of signers.
@@ -554,41 +545,6 @@ impl Signer {
     pub async fn add_keystore_to_pool(&self, pub_key: PublicKey) -> Result<(), PublicKeyError> {
         let signer = keystore::KeystoreSigner::new_with_pubkey(pub_key);
         self.add_signer_to_pool(signer).await
-    }
-
-    /// Fetches the transaction nonce and block hash associated to the access key. Internally
-    /// caches the nonce as to not need to query for it every time, and ending up having to run
-    /// into contention with others.
-    ///
-    /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
-    /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
-    #[allow(clippy::significant_drop_tightening)]
-    #[instrument(skip(self, network))]
-    pub async fn fetch_tx_nonce(
-        &self,
-        account_id: AccountId,
-        public_key: PublicKey,
-        network: &NetworkConfig,
-    ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
-        debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
-
-        let nonce_data = crate::account::Account(account_id.clone())
-            .access_key(public_key)
-            .at(Reference::Final)
-            .fetch_from(network)
-            .await
-            .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
-
-        let nonce = {
-            let mut nonce_cache = self.nonce_cache.lock().await;
-            let nonce = nonce_cache
-                .entry((network.network_name.clone(), account_id, public_key))
-                .or_default();
-            *nonce = (*nonce).max(nonce_data.data.nonce.0) + 1;
-            *nonce
-        };
-
-        Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
     /// Creates a [Signer](`Signer`) using seed phrase with default HD path.

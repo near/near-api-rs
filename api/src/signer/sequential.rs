@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use futures::lock::Mutex;
 use near_api_types::{
-    AccountId, BlockHeight, PublicKey, TxExecutionStatus,
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, TxExecutionStatus,
     transaction::{PrepopulateTransaction, SignedTransaction, result::TransactionResult},
 };
 
@@ -18,20 +18,72 @@ use crate::{
 };
 
 impl Signer {
-    async fn get_sequential_lock(&self, key: TransactionGroupKey) -> Arc<Mutex<()>> {
-        self.sequential_locks
+    async fn fetch_nonce_data(
+        account_id: AccountId,
+        public_key: PublicKey,
+        network: &NetworkConfig,
+    ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
+        debug!(target: SIGNER_TARGET, "Fetching latest nonce");
+
+        let nonce_data = crate::account::Account(account_id.clone())
+            .access_key(public_key)
+            .at(Reference::Final)
+            .fetch_from(network)
+            .await
+            .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
+
+        Ok((
+            nonce_data.data.nonce.0,
+            nonce_data.block_hash,
+            nonce_data.block_height,
+        ))
+    }
+
+    async fn get_sequential_nonce(&self, key: TransactionGroupKey) -> Arc<Mutex<u64>> {
+        self.sequential_nonces
             .lock()
             .await
             .entry(key)
-            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .or_insert_with(|| Arc::new(Mutex::new(0)))
             .clone()
+    }
+
+    /// Fetches the transaction nonce and block hash associated to the access key. Internally
+    /// caches the nonce as to not need to query for it every time, and ending up having to run
+    /// into contention with others.
+    ///
+    /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
+    /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
+    ///
+    /// NOTE: This shouldn't be used during sequential sending
+    #[allow(clippy::significant_drop_tightening)]
+    #[instrument(skip(self, network))]
+    pub async fn fetch_tx_nonce(
+        &self,
+        account_id: AccountId,
+        public_key: PublicKey,
+        network: &NetworkConfig,
+    ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
+        debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
+
+        let key = (network.network_name.clone(), account_id.clone(), public_key);
+        let lock = self.get_sequential_nonce(key).await;
+        let mut nonce = lock.lock().await;
+
+        // It is important to fetch the nonce data after lock to get fresh block hash
+        let (cached_nonce, block_hash, block_height) =
+            Self::fetch_nonce_data(account_id, public_key, network).await?;
+
+        *nonce = (*nonce).max(cached_nonce) + 1;
+
+        Ok((*nonce, block_hash, block_height))
     }
 
     /// Signs and sends a transaction to the network.
     ///
     /// This method is used to sign and send a transaction to the network.
-    /// It will use the sequential send mode if it is enabled.
-    /// Otherwise, it will send the transaction non-sequentially.
+    /// Transactions of the same transaction group (network, account, public key)
+    /// sent through this method will be sent sequentially
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send(
         &self,
@@ -46,32 +98,15 @@ impl Signer {
             .await
             .map_err(SignerError::PublicKeyError)?;
 
-        let sequential = self
-            .sequential_mode
-            .load(std::sync::atomic::Ordering::SeqCst);
-
-        if !sequential {
-            let (_, result) = self
-                .broadcast_tx(account_id, public_key, network, transaction, wait_until)
-                .await?;
-            return Ok(result);
-        }
-
-        let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_sequential_lock(key).await;
-
-        let (signed, result) = {
-            let _guard = lock.lock().await;
-
-            self.broadcast_tx(
+        let (signed, result) = self
+            .broadcast_tx(
                 account_id,
                 public_key,
                 network,
                 transaction,
                 TxExecutionStatus::Included,
             )
-            .await?
-        };
+            .await?;
 
         match wait_until {
             TxExecutionStatus::Included => Ok(result),
@@ -91,8 +126,8 @@ impl Signer {
     /// Signs and sends a meta transaction to the relayer.
     ///
     /// This method is used to sign and send a meta transaction to the relayer.
-    /// It will use the sequential send mode if it is enabled.
-    /// Otherwise, it will send the transaction non-sequentially.
+    /// Transactions of the same transaction group (network, account, public key)
+    /// sent through this method will be sent sequentially
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send_meta(
         &self,
@@ -108,24 +143,11 @@ impl Signer {
             .map_err(SignerError::PublicKeyError)
             .map_err(MetaSignError::from)?;
 
-        let sequential = self
-            .sequential_mode
-            .load(std::sync::atomic::Ordering::SeqCst);
-
-        if !sequential {
-            return self
-                .broadcast_meta_tx(account_id, public_key, network, transaction, tx_live_for)
-                .await;
-        }
-
-        let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_sequential_lock(key).await;
-        let _guard = lock.lock().await;
-
         self.broadcast_meta_tx(account_id, public_key, network, transaction, tx_live_for)
             .await
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, account_id, network))]
     pub(crate) async fn broadcast_tx(
         &self,
@@ -139,10 +161,20 @@ impl Signer {
 
         let account_id = account_id.into();
 
-        let (nonce, block_hash, _) = self.fetch_tx_nonce(account_id, public_key, network).await?;
+        // Locking until the transaction is sent
+        let key = (network.network_name.clone(), account_id.clone(), public_key);
+        let lock = self.get_sequential_nonce(key).await;
+        let mut nonce = lock.lock().await;
+
+        // It is important to fetch the nonce data after lock to get fresh block hash
+        let (cached_nonce, block_hash, _) = Self::fetch_nonce_data(account_id, public_key, network)
+            .await
+            .map_err(MetaSignError::from)?;
+
+        *nonce = (*nonce).max(cached_nonce) + 1;
 
         let signed = self
-            .sign(transaction, public_key, nonce, block_hash)
+            .sign(transaction, public_key, *nonce, block_hash)
             .await?;
 
         let result =
@@ -151,6 +183,7 @@ impl Signer {
         Ok((signed, result))
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, account_id, network))]
     pub(crate) async fn broadcast_meta_tx(
         &self,
@@ -163,16 +196,24 @@ impl Signer {
         debug!(target: SIGNER_TARGET, "Broadcasting meta transaction");
         let account_id = account_id.into();
 
-        let (nonce, block_hash, block_height) = self
-            .fetch_tx_nonce(account_id, public_key, network)
-            .await
-            .map_err(MetaSignError::from)?;
+        // Locking until the transaction is sent
+        let key = (network.network_name.clone(), account_id.clone(), public_key);
+        let lock = self.get_sequential_nonce(key).await;
+        let mut nonce = lock.lock().await;
+
+        // It is important to fetch the nonce data after lock to get fresh block hash
+        let (cached_nonce, block_hash, block_height) =
+            Self::fetch_nonce_data(account_id, public_key, network)
+                .await
+                .map_err(MetaSignError::from)?;
+
+        *nonce = (*nonce).max(cached_nonce) + 1;
 
         let signed = self
             .sign_meta(
                 transaction,
                 public_key,
-                nonce,
+                *nonce,
                 block_hash,
                 block_height + tx_live_for,
             )
