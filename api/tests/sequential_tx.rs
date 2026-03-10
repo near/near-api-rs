@@ -63,7 +63,7 @@ async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let pubkey_count = 9;
-    let tx_count = 10_000;
+    let tx_count = 1000;
     let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;

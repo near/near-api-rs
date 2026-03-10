@@ -83,7 +83,7 @@ impl Signer {
     ///
     /// This method is used to sign and send a transaction to the network.
     /// Transactions of the same transaction group (network, account, public key)
-    /// sent through this method will be sent sequentially
+    /// sent through this method will be sequential
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send(
         &self,
@@ -127,7 +127,7 @@ impl Signer {
     ///
     /// This method is used to sign and send a meta transaction to the relayer.
     /// Transactions of the same transaction group (network, account, public key)
-    /// sent through this method will be sent sequentially
+    /// sent through this method will be sequential
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send_meta(
         &self,
@@ -149,7 +149,7 @@ impl Signer {
 
     #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, account_id, network))]
-    pub(crate) async fn broadcast_tx(
+    async fn broadcast_tx(
         &self,
         account_id: impl Into<AccountId>,
         public_key: PublicKey,
@@ -185,7 +185,7 @@ impl Signer {
 
     #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, account_id, network))]
-    pub(crate) async fn broadcast_meta_tx(
+    async fn broadcast_meta_tx(
         &self,
         account_id: impl Into<AccountId>,
         public_key: PublicKey,
