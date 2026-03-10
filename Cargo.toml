@@ -50,7 +50,7 @@ secp256k1 = { version = "0.27.0", default-features = false, features = [
     "alloc",
 ] }
 
-near-account-id = { version = "2.0.0", features = ["serde", "borsh", "abi"] }
+near-account-id = { version = "2.0.0", features = ["serde", "borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"

@@ -141,7 +141,7 @@ pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
-pub mod sequential;
+mod sequential;
 
 const SIGNER_TARGET: &str = "near_api::signer";
 /// Default HD path for seed phrases and secret keys generation
@@ -407,8 +407,8 @@ pub type TransactionGroupKey = (String, AccountId, PublicKey);
 /// adding more keys to the signer pool
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    nonce_cache: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<u64>>>>,
     current_public_key: AtomicUsize,
-    sequential_nonces: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<u64>>>>,
 }
 
 impl Signer {
@@ -423,8 +423,8 @@ impl Signer {
                 public_key,
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
+            nonce_cache: Mutex::new(HashMap::new()),
             current_public_key: AtomicUsize::new(0),
-            sequential_nonces: Mutex::new(HashMap::new()),
         }))
     }
 
