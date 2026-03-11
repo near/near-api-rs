@@ -68,6 +68,7 @@ impl RpcClient {
             .json(&request)
             .send()
             .await?
+            .error_for_status()?
             .bytes()
             .await?;
 

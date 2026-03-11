@@ -105,7 +105,7 @@ impl Account {
         crate::stake::Delegation(self.0.clone())
     }
 
-    /// Prepares a query to fetch the [Data](crate::Data)<[AccountView](near_api_types::Account)> with the account information for the given account ID.
+    /// Prepares a query to fetch the [Data](crate::Data)<[Account](near_api_types::Account)> with the account information for the given account ID.
     ///
     /// ## Example
     /// ```rust,no_run

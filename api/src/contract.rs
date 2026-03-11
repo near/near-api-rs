@@ -346,7 +346,7 @@ impl Contract {
             })
     }
 
-    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_openrpc_client::RpcViewCodeResponse)>) of the contract.
+    /// Prepares a query to fetch the wasm code ([Data]<[RpcViewCodeResponse](near_openrpc_client::RpcViewCodeResponse)>) of the contract.
     ///
     /// # Example
     /// ```rust,no_run
@@ -407,9 +407,9 @@ impl Contract {
         GlobalWasmBuilder
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_openrpc_client::RpcViewStateResponse)>) using the given prefix as a filter.
+    /// Prepares a query to fetch the storage of the contract ([Data]<[RpcViewStateResponse](near_openrpc_client::RpcViewStateResponse)>) using the given prefix as a filter.
     ///
-    /// It helpful if you are aware of the storage that you are looking for.
+    /// It is helpful if you are aware of the storage that you are looking for.
     ///
     /// # Example
     /// ```rust,no_run
@@ -438,7 +438,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_openrpc_client::RpcViewStateResponse)>).
+    /// Prepares a query to fetch the storage of the contract ([Data]<[RpcViewStateResponse](near_openrpc_client::RpcViewStateResponse)>).
     ///
     /// Please be aware that large storage queries might fail.
     ///
