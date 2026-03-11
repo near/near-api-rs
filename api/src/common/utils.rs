@@ -47,12 +47,12 @@ pub fn is_critical_query_error(err: &SendRequestError) -> bool {
 /// INTERNAL_ERROR is treated as critical for transactions (different from queries).
 pub fn is_critical_transaction_error(err: &SendRequestError) -> bool {
     is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.try_cause_as::<RpcTransactionError>() {
+        !matches!(
+            rpc_err.try_cause_as::<RpcTransactionError>(),
             Some(Ok(
                 RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. },
-            )) => false,
-            _ => true,
-        }
+            ))
+        )
     })
 }
 
@@ -61,16 +61,14 @@ pub fn is_critical_transaction_error(err: &SendRequestError) -> bool {
 /// Only INVALID_TRANSACTION is critical.
 pub fn is_critical_transaction_status_error(err: &SendRequestError) -> bool {
     is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.try_cause_as::<RpcTransactionError>() {
-            Some(Ok(
-                RpcTransactionError::TimeoutError
+        !matches!(
+            rpc_err.try_cause_as::<RpcTransactionError>(),
+            Some(Ok(RpcTransactionError::TimeoutError
                 | RpcTransactionError::RequestRouted { .. }
                 | RpcTransactionError::UnknownTransaction { .. }
                 | RpcTransactionError::DoesNotTrackShard { .. }
-                | RpcTransactionError::InternalError { .. },
-            )) => false,
-            _ => true,
-        }
+                | RpcTransactionError::InternalError { .. },))
+        )
     })
 }
 
@@ -88,9 +86,11 @@ pub fn is_critical_receipt_error(err: &SendRequestError) -> bool {
 /// Light client proof errors: UNKNOWN_BLOCK, INTERNAL_ERROR, UNAVAILABLE_SHARD are retryable.
 /// INCONSISTENT_STATE, NOT_CONFIRMED, UNKNOWN_TRANSACTION_OR_RECEIPT are critical.
 pub fn is_critical_light_client_proof_error(err: &SendRequestError) -> bool {
-    is_critical_json_rpc_error(err, |rpc_err| match rpc_err.cause_name() {
-        Some("UNKNOWN_BLOCK" | "INTERNAL_ERROR" | "UNAVAILABLE_SHARD") => false,
-        _ => true,
+    is_critical_json_rpc_error(err, |rpc_err| {
+        !matches!(
+            rpc_err.cause_name(),
+            Some("UNKNOWN_BLOCK" | "INTERNAL_ERROR" | "UNAVAILABLE_SHARD")
+        )
     })
 }
 

@@ -23,12 +23,20 @@ async fn regression_85() -> testresult::TestResult {
         _ => panic!("Should be a RetryError"),
     };
 
+    // With the openrpc client, contract execution errors from `query` are returned as
+    // ContractExecutionError (extracted from the result JSON `error` field) rather than
+    // ServerError(HANDLER_ERROR). Both represent a properly parsed error rather than a
+    // transport/deserialization failure, which is what issue #85 was about.
+    let is_expected = matches!(
+        &retry_error,
+        near_api::errors::SendRequestError::ContractExecutionError(_)
+    ) || matches!(
+        &retry_error,
+        near_api::errors::SendRequestError::ServerError(err) if err.is_handler_error()
+    );
     assert!(
-        matches!(
-            retry_error,
-            near_api::errors::SendRequestError::ServerError(ref err) if err.is_handler_error()
-        ),
-        "Expected ServerError with HANDLER_ERROR, got: {retry_error:?}"
+        is_expected,
+        "Expected ContractExecutionError or ServerError with HANDLER_ERROR, got: {retry_error:?}"
     );
 
     Ok(())
