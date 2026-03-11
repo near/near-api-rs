@@ -2,11 +2,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use near_api_types::NearToken;
 use near_openrpc_client::{RpcError, RpcTransactionError};
 
-use crate::{
-    config::RetryResponse,
-    errors::SendRequestError,
-    rpc_client::RpcCallError,
-};
+use crate::{config::RetryResponse, errors::SendRequestError, rpc_client::RpcCallError};
 
 pub fn to_base64(input: &[u8]) -> String {
     BASE64_STANDARD.encode(input)
@@ -52,7 +48,9 @@ pub fn is_critical_query_error(err: &SendRequestError) -> bool {
 pub fn is_critical_transaction_error(err: &SendRequestError) -> bool {
     is_critical_json_rpc_error(err, |rpc_err| {
         match rpc_err.try_cause_as::<RpcTransactionError>() {
-            Some(Ok(RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. })) => false,
+            Some(Ok(
+                RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. },
+            )) => false,
             _ => true,
         }
     })
@@ -90,11 +88,9 @@ pub fn is_critical_receipt_error(err: &SendRequestError) -> bool {
 /// Light client proof errors: UNKNOWN_BLOCK, INTERNAL_ERROR, UNAVAILABLE_SHARD are retryable.
 /// INCONSISTENT_STATE, NOT_CONFIRMED, UNKNOWN_TRANSACTION_OR_RECEIPT are critical.
 pub fn is_critical_light_client_proof_error(err: &SendRequestError) -> bool {
-    is_critical_json_rpc_error(err, |rpc_err| {
-        match rpc_err.cause_name() {
-            Some("UNKNOWN_BLOCK" | "INTERNAL_ERROR" | "UNAVAILABLE_SHARD") => false,
-            _ => true,
-        }
+    is_critical_json_rpc_error(err, |rpc_err| match rpc_err.cause_name() {
+        Some("UNKNOWN_BLOCK" | "INTERNAL_ERROR" | "UNAVAILABLE_SHARD") => false,
+        _ => true,
     })
 }
 

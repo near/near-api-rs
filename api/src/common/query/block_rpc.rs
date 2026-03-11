@@ -3,8 +3,8 @@ use near_openrpc_client::{BlockId, Finality, RpcBlockRequest, RpcBlockResponse};
 
 use crate::common::utils::to_retry_error;
 use crate::{
-    NetworkConfig, advanced::RpcType, common::utils::is_critical_rpc_error,
-    config::RetryResponse, errors::SendRequestError, rpc_client::RpcClient,
+    NetworkConfig, advanced::RpcType, common::utils::is_critical_rpc_error, config::RetryResponse,
+    errors::SendRequestError, rpc_client::RpcClient,
 };
 
 #[derive(Clone, Debug)]

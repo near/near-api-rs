@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
+use crate::rpc_client::RpcClient;
 use near_api_types::{
     AccountId, Data, EpochReference, NearGas, NearToken, Reference,
     stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
 };
-use crate::rpc_client::RpcClient;
 
 use crate::{
     NetworkConfig,
@@ -561,8 +561,7 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake()
-    -> RequestBuilder<
+    pub fn validators_stake() -> RequestBuilder<
         crate::advanced::AndThenHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>,
     > {
         fn parse_near_token(
@@ -584,13 +583,22 @@ impl Staking {
         .and_then(|validator_response| {
             let mut result = BTreeMap::new();
             for v in &validator_response.current_proposals {
-                result.insert(parse_account_id(&v.account_id)?, parse_near_token(&v.stake)?);
+                result.insert(
+                    parse_account_id(&v.account_id)?,
+                    parse_near_token(&v.stake)?,
+                );
             }
             for v in &validator_response.current_validators {
-                result.insert(parse_account_id(&v.account_id)?, parse_near_token(&v.stake)?);
+                result.insert(
+                    parse_account_id(&v.account_id)?,
+                    parse_near_token(&v.stake)?,
+                );
             }
             for v in &validator_response.next_validators {
-                result.insert(parse_account_id(&v.account_id)?, parse_near_token(&v.stake)?);
+                result.insert(
+                    parse_account_id(&v.account_id)?,
+                    parse_near_token(&v.stake)?,
+                );
             }
             Ok(result)
         })

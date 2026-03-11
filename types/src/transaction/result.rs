@@ -705,9 +705,9 @@ impl ExecutionOutcome {
             ExecutionStatusView::SuccessValue(value) => {
                 Ok(ValueOrReceiptId::Value(Value::from_string(value)))
             }
-            ExecutionStatusView::SuccessReceiptId(hash) => Ok(ValueOrReceiptId::ReceiptId(
-                CryptoHash::try_from(hash).map_err(DataConversionError::from)?,
-            )),
+            ExecutionStatusView::SuccessReceiptId(hash) => {
+                Ok(ValueOrReceiptId::ReceiptId(CryptoHash::try_from(hash)?))
+            }
             ExecutionStatusView::Failure(err) => {
                 Err(ExecutionError::TransactionExecutionFailed(Box::new(err)))
             }
@@ -769,7 +769,9 @@ impl Value {
 
 impl TryFrom<near_openrpc_client::ExecutionOutcomeWithIdView> for ExecutionOutcome {
     type Error = DataConversionError;
-    fn try_from(view: near_openrpc_client::ExecutionOutcomeWithIdView) -> Result<Self, Self::Error> {
+    fn try_from(
+        view: near_openrpc_client::ExecutionOutcomeWithIdView,
+    ) -> Result<Self, Self::Error> {
         let near_openrpc_client::ExecutionOutcomeWithIdView {
             id,
             block_hash,

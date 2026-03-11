@@ -45,16 +45,22 @@ impl RpcType for TransactionStatusRpc {
         reference: &TransactionStatusRef,
     ) -> RetryResponse<Self::Response, SendRequestError> {
         let request = RpcTransactionStatusRequest::TxHashSenderAccountId {
-            sender_account_id: near_openrpc_client::AccountId(reference.sender_account_id.to_string()),
+            sender_account_id: near_openrpc_client::AccountId(
+                reference.sender_account_id.to_string(),
+            ),
             tx_hash: reference.tx_hash.into(),
             wait_until: reference.wait_until,
         };
 
-        match client.call::<_, RpcTransactionResponse>("tx", request).await {
+        match client
+            .call::<_, RpcTransactionResponse>("tx", request)
+            .await
+        {
             Ok(response) => RetryResponse::Ok(response),
-            Err(err) => {
-                to_retry_error(SendRequestError::from(err), is_critical_transaction_status_error)
-            }
+            Err(err) => to_retry_error(
+                SendRequestError::from(err),
+                is_critical_transaction_status_error,
+            ),
         }
     }
 }
@@ -137,12 +143,10 @@ impl RpcType for TransactionProofRpc {
             .await
         {
             Ok(response) => RetryResponse::Ok(response),
-            Err(err) => {
-                to_retry_error(
-                    SendRequestError::from(err),
-                    is_critical_light_client_proof_error,
-                )
-            }
+            Err(err) => to_retry_error(
+                SendRequestError::from(err),
+                is_critical_light_client_proof_error,
+            ),
         }
     }
 }

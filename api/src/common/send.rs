@@ -299,9 +299,7 @@ impl ExecuteSignedTransaction {
                     Ok(rpc_response) => match rpc_response {
                         RpcTransactionResponse::Empty {
                             final_execution_status,
-                        } => RetryResponse::Ok(SendImplResponse::Pending(
-                            final_execution_status,
-                        )),
+                        } => RetryResponse::Ok(SendImplResponse::Pending(final_execution_status)),
                         RpcTransactionResponse::FinalExecutionOutcomeView {
                             final_execution_status: _,
                             receipts_outcome,
@@ -606,7 +604,9 @@ pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExec
             transaction_outcome,
         },
         RpcTransactionResponse::Empty { .. } => {
-            unreachable!("Empty response should be handled before calling to_final_execution_outcome")
+            unreachable!(
+                "Empty response should be handled before calling to_final_execution_outcome"
+            )
         }
     }
 }

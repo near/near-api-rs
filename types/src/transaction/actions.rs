@@ -249,12 +249,10 @@ pub struct AddGasKeyAction {
     pub permission: AccessKeyPermission,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct DeleteGasKeyAction {
     pub public_key: PublicKey,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
 pub struct TransferToGasKeyAction {
@@ -368,9 +366,10 @@ impl TryFrom<near_openrpc_client::AccessKeyPermission> for AccessKeyPermission {
                 Ok(Self::FunctionCall(function_call_permission.try_into()?))
             }
             near_openrpc_client::AccessKeyPermission::FullAccess => Ok(Self::FullAccess),
-            near_openrpc_client::AccessKeyPermission::GasKeyFunctionCall(_, function_call_permission) => {
-                Ok(Self::FunctionCall(function_call_permission.try_into()?))
-            }
+            near_openrpc_client::AccessKeyPermission::GasKeyFunctionCall(
+                _,
+                function_call_permission,
+            ) => Ok(Self::FunctionCall(function_call_permission.try_into()?)),
             near_openrpc_client::AccessKeyPermission::GasKeyFullAccess(_) => Ok(Self::FullAccess),
         }
     }
@@ -482,7 +481,9 @@ impl TryFrom<near_openrpc_client::GlobalContractIdentifier> for GlobalContractId
 
 impl TryFrom<near_openrpc_client::GlobalContractIdentifierView> for GlobalContractIdentifier {
     type Error = DataConversionError;
-    fn try_from(val: near_openrpc_client::GlobalContractIdentifierView) -> Result<Self, Self::Error> {
+    fn try_from(
+        val: near_openrpc_client::GlobalContractIdentifierView,
+    ) -> Result<Self, Self::Error> {
         match val {
             near_openrpc_client::GlobalContractIdentifierView::Hash(code_hash) => {
                 Ok(Self::CodeHash(code_hash.try_into()?))
@@ -604,13 +605,12 @@ impl TryFrom<near_openrpc_client::ActionView> for Action {
                 public_key: public_key.try_into()?,
                 deposit: parse_near_token(&deposit)?,
             }))),
-            near_openrpc_client::ActionView::WithdrawFromGasKey {
-                amount,
-                public_key,
-            } => Ok(Self::TransferToGasKey(Box::new(TransferToGasKeyAction {
-                public_key: public_key.try_into()?,
-                deposit: parse_near_token(&amount)?,
-            }))),
+            near_openrpc_client::ActionView::WithdrawFromGasKey { amount, public_key } => {
+                Ok(Self::TransferToGasKey(Box::new(TransferToGasKeyAction {
+                    public_key: public_key.try_into()?,
+                    deposit: parse_near_token(&amount)?,
+                })))
+            }
         }
     }
 }

@@ -5,8 +5,8 @@ use near_api_types::{
     transaction::result::ExecutionFinalResult,
 };
 use near_openrpc_client::{
-    RpcCallFunctionResponse, RpcViewAccessKeyListResponse,
-    RpcViewAccessKeyResponse, RpcViewAccountResponse, RpcViewCodeResponse, RpcViewStateResponse,
+    RpcCallFunctionResponse, RpcViewAccessKeyListResponse, RpcViewAccessKeyResponse,
+    RpcViewAccountResponse, RpcViewCodeResponse, RpcViewStateResponse,
 };
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
@@ -193,7 +193,8 @@ impl ResponseHandler for AccessKeyListHandler {
         &self,
         response: Vec<serde_json::Value>,
     ) -> ResultWithMethod<Self::Response> {
-        let key_list: RpcViewAccessKeyListResponse = serde_json::from_value(take_single(response)?)?;
+        let key_list: RpcViewAccessKeyListResponse =
+            serde_json::from_value(take_single(response)?)?;
 
         info!(
             target: QUERY_EXECUTOR_TARGET,

@@ -96,9 +96,9 @@ impl TryFrom<near_openrpc_client::NonDelegateAction> for NonDelegateAction {
             near_openrpc_client::NonDelegateAction::DeleteKey(delete_key_action) => Ok(Self(
                 Action::DeleteKey(Box::new(delete_key_action.try_into()?)),
             )),
-            near_openrpc_client::NonDelegateAction::DeleteAccount(delete_account_action) => {
-                Ok(Self(Action::DeleteAccount(delete_account_action.try_into()?)))
-            }
+            near_openrpc_client::NonDelegateAction::DeleteAccount(delete_account_action) => Ok(
+                Self(Action::DeleteAccount(delete_account_action.try_into()?)),
+            ),
             near_openrpc_client::NonDelegateAction::DeployGlobalContract(
                 deploy_global_contract_action,
             ) => Ok(Self(Action::DeployGlobalContract(
@@ -109,11 +109,11 @@ impl TryFrom<near_openrpc_client::NonDelegateAction> for NonDelegateAction {
             ) => Ok(Self(Action::UseGlobalContract(Box::new(
                 use_global_contract_action.try_into()?,
             )))),
-            near_openrpc_client::NonDelegateAction::TransferToGasKey(transfer_to_gas_key_action) => {
-                Ok(Self(Action::TransferToGasKey(Box::new(
-                    transfer_to_gas_key_action.try_into()?,
-                ))))
-            }
+            near_openrpc_client::NonDelegateAction::TransferToGasKey(
+                transfer_to_gas_key_action,
+            ) => Ok(Self(Action::TransferToGasKey(Box::new(
+                transfer_to_gas_key_action.try_into()?,
+            )))),
             near_openrpc_client::NonDelegateAction::WithdrawFromGasKey(withdraw_action) => {
                 use crate::transaction::actions::{TransferToGasKeyAction, parse_near_token};
                 Ok(Self(Action::TransferToGasKey(Box::new(

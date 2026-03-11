@@ -60,10 +60,8 @@ where
     requests: Vec<
         Result<
             Arc<
-                dyn RpcType<
-                        Response = Query::Response,
-                        RpcReference = Query::RpcReference,
-                    > + Send
+                dyn RpcType<Response = Query::Response, RpcReference = Query::RpcReference>
+                    + Send
                     + Sync,
             >,
             ArgumentValidationError,
@@ -184,10 +182,8 @@ where
     pub fn add_query(
         mut self,
         request: Arc<
-            dyn RpcType<
-                    Response = Query::Response,
-                    RpcReference = Query::RpcReference,
-                > + Send
+            dyn RpcType<Response = Query::Response, RpcReference = Query::RpcReference>
+                + Send
                 + Sync,
         >,
     ) -> Self {
@@ -214,10 +210,7 @@ where
 
     /// Fetch the queries from the provided network.
     #[instrument(skip(self, network), fields(request_count = self.requests.len()))]
-    pub async fn fetch_from(
-        self,
-        network: &NetworkConfig,
-    ) -> ResultWithMethod<Handler::Response> {
+    pub async fn fetch_from(self, network: &NetworkConfig) -> ResultWithMethod<Handler::Response> {
         let (requests, errors) =
             self.requests
                 .into_iter()
@@ -258,7 +251,6 @@ where
             }
         });
 
-
         let requests: Vec<_> = join_all(requests)
             .await
             .into_iter()
@@ -279,9 +271,7 @@ where
     }
 
     /// Fetch the queries from the default mainnet archival network configuration.
-    pub async fn fetch_from_mainnet_archival(
-        self,
-    ) -> ResultWithMethod<Handler::Response> {
+    pub async fn fetch_from_mainnet_archival(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::mainnet_archival();
         self.fetch_from(&network).await
     }
@@ -293,9 +283,7 @@ where
     }
 
     /// Fetch the queries from the default testnet archival network configuration.
-    pub async fn fetch_from_testnet_archival(
-        self,
-    ) -> ResultWithMethod<Handler::Response> {
+    pub async fn fetch_from_testnet_archival(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::testnet_archival();
         self.fetch_from(&network).await
     }
@@ -311,10 +299,8 @@ where
     #[allow(clippy::type_complexity)]
     request: Result<
         Arc<
-            dyn RpcType<
-                    Response = Query::Response,
-                    RpcReference = Query::RpcReference,
-                > + Send
+            dyn RpcType<Response = Query::Response, RpcReference = Query::RpcReference>
+                + Send
                 + Sync,
         >,
         ArgumentValidationError,
@@ -420,10 +406,7 @@ where
 
     /// Fetch the query from the provided network.
     #[instrument(skip(self, network))]
-    pub async fn fetch_from(
-        self,
-        network: &NetworkConfig,
-    ) -> ResultWithMethod<Handler::Response> {
+    pub async fn fetch_from(self, network: &NetworkConfig) -> ResultWithMethod<Handler::Response> {
         let request = self.request?;
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
@@ -455,9 +438,7 @@ where
     }
 
     /// Fetch the query from the default mainnet archival network configuration.
-    pub async fn fetch_from_mainnet_archival(
-        self,
-    ) -> ResultWithMethod<Handler::Response> {
+    pub async fn fetch_from_mainnet_archival(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::mainnet_archival();
         self.fetch_from(&network).await
     }
@@ -469,9 +450,7 @@ where
     }
 
     /// Fetch the query from the default testnet archival network configuration.
-    pub async fn fetch_from_testnet_archival(
-        self,
-    ) -> ResultWithMethod<Handler::Response> {
+    pub async fn fetch_from_testnet_archival(self) -> ResultWithMethod<Handler::Response> {
         let network = NetworkConfig::testnet_archival();
         self.fetch_from(&network).await
     }

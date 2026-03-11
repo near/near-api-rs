@@ -58,9 +58,7 @@ impl TryFrom<near_openrpc_client::RpcViewAccountResponse> for Account {
         let locked = NearToken::from_yoctonear(locked.parse::<u128>()?);
         let code_hash = CryptoHash::try_from(code_hash)?;
 
-        let global_contract_hash = global_contract_hash
-            .map(CryptoHash::try_from)
-            .transpose()?;
+        let global_contract_hash = global_contract_hash.map(CryptoHash::try_from).transpose()?;
         let global_contract_account_id: Option<AccountId> = global_contract_account_id
             .map(|id| id.parse::<AccountId>())
             .transpose()?;
