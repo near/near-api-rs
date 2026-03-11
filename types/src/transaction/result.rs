@@ -244,7 +244,15 @@ impl ExecutionFinalResult {
                 value: tx_error,
                 details: self.details,
             }),
-            _ => unreachable!(),
+            FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started => {
+                panic!(
+                    "called `into_result()` on a transaction that is still pending \
+                     (status: {:?}). Use `is_pending()` to check before calling this method, \
+                     or use `Transaction::status_with_options()` with a `wait_until` value \
+                     of `ExecutedOptimistic` or higher.",
+                    self.status
+                )
+            }
         }
     }
 
@@ -269,6 +277,10 @@ impl ExecutionFinalResult {
     /// the internal state does not meet up with [`serde::de::DeserializeOwned`]'s
     /// requirements.
     pub fn json<T: serde::de::DeserializeOwned>(self) -> Result<T, ExecutionError> {
+        if self.is_pending() {
+            return Err(ExecutionError::ExecutionPendingOrUnknown);
+        }
+
         let val = self.into_result()?;
         match val.json() {
             Err(err) => {
@@ -294,6 +306,10 @@ impl ExecutionFinalResult {
     /// result. This conversion can fail if the structure of the internal state does
     /// not meet up with [`borsh::BorshDeserialize`]'s requirements.
     pub fn borsh<T: borsh::BorshDeserialize>(self) -> Result<T, ExecutionError> {
+        if self.is_pending() {
+            return Err(ExecutionError::ExecutionPendingOrUnknown);
+        }
+
         self.into_result()?.borsh()
     }
 
@@ -301,6 +317,10 @@ impl ExecutionFinalResult {
     /// If we want to deserialize these bytes into a rust datatype, use [`ExecutionResult::json`]
     /// or [`ExecutionResult::borsh`] instead.
     pub fn raw_bytes(self) -> Result<Vec<u8>, ExecutionError> {
+        if self.is_pending() {
+            return Err(ExecutionError::ExecutionPendingOrUnknown);
+        }
+
         self.into_result()?.raw_bytes()
     }
 
@@ -314,6 +334,19 @@ impl ExecutionFinalResult {
     /// the transaction has a status of [`FinalExecutionStatus::Failure`].
     pub const fn is_failure(&self) -> bool {
         matches!(self.status, FinalExecutionStatus::Failure(_))
+    }
+
+    /// Checks whether the transaction execution is still pending (not started or in progress).
+    ///
+    /// Returns `true` if the status is [`FinalExecutionStatus::NotStarted`] or
+    /// [`FinalExecutionStatus::Started`]. When this returns `true`, calling
+    /// [`into_result`](Self::into_result), [`json`](Self::json), [`borsh`](Self::borsh),
+    /// or [`raw_bytes`](Self::raw_bytes) will fail.
+    pub const fn is_pending(&self) -> bool {
+        matches!(
+            self.status,
+            FinalExecutionStatus::NotStarted | FinalExecutionStatus::Started
+        )
     }
 
     /// Returns just the transaction outcome.

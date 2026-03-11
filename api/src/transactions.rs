@@ -1,9 +1,20 @@
 use std::sync::Arc;
 
-use near_api_types::{AccountId, Action, transaction::PrepopulateTransaction};
+use near_api_types::{
+    AccountId, Action, CryptoHash, TxExecutionStatus, transaction::PrepopulateTransaction,
+};
 
 use crate::{
-    common::send::{ExecuteSignedTransaction, Transactionable},
+    common::{
+        query::{
+            ReceiptHandler, RequestBuilder, TransactionStatusHandler,
+            tx_rpc::{
+                ReceiptRef, ReceiptRpc, TransactionProofRef, TransactionProofRpc,
+                TransactionStatusRef, TransactionStatusRpc,
+            },
+        },
+        send::{ExecuteSignedTransaction, Transactionable},
+    },
     config::NetworkConfig,
     errors::{ArgumentValidationError, ValidationError},
     signer::Signer,
@@ -199,7 +210,143 @@ impl Transaction {
             .with_signer(signer)
     }
 
-    // TODO: fetch transaction status
-    // TODO: fetch transaction receipt
-    // TODO: fetch transaction proof
+    /// Sets up a query to fetch the current status of a transaction by its hash and sender account ID.
+    ///
+    /// Waits until the transaction has been optimistically executed ([`TxExecutionStatus::ExecutedOptimistic`]),
+    /// ensuring that outcome fields (gas usage, logs, status) are populated.
+    /// If you need to wait until the transaction reaches a different stage
+    /// (e.g., [`TxExecutionStatus::Final`] or [`TxExecutionStatus::None`]),
+    /// use [`Transaction::status_with_options`] instead.
+    ///
+    /// The returned result is an [`ExecutionFinalResult`](near_api_types::transaction::result::ExecutionFinalResult)
+    /// which provides details about gas usage, logs, and the execution status.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tx_hash: CryptoHash = "EaNakSaXUTjbPsUJbuDdbuq3e6Ynmjo8zYUgDVqt1iTn".parse()?;
+    /// let sender: AccountId = "sender.near".parse()?;
+    ///
+    /// let result = Transaction::status(sender, tx_hash)
+    ///     .fetch_from_mainnet()
+    ///     .await?;
+    /// println!("Transaction success: {}", result.is_success());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn status(
+        sender_account_id: AccountId,
+        tx_hash: CryptoHash,
+    ) -> RequestBuilder<TransactionStatusHandler> {
+        Self::status_with_options(
+            sender_account_id,
+            tx_hash,
+            TxExecutionStatus::ExecutedOptimistic,
+        )
+    }
+
+    /// Sets up a query to fetch the status of a transaction, waiting until it reaches
+    /// the specified execution stage.
+    ///
+    /// Use [`TxExecutionStatus::None`] to return immediately with whatever state is available,
+    /// or [`TxExecutionStatus::Final`] to wait until the transaction is fully finalized.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use near_api::{*, types::TxExecutionStatus};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tx_hash: CryptoHash = "EaNakSaXUTjbPsUJbuDdbuq3e6Ynmjo8zYUgDVqt1iTn".parse()?;
+    /// let sender: AccountId = "sender.near".parse()?;
+    ///
+    /// let result = Transaction::status_with_options(
+    ///     sender,
+    ///     tx_hash,
+    ///     TxExecutionStatus::Final,
+    /// )
+    /// .fetch_from_mainnet()
+    /// .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn status_with_options(
+        sender_account_id: AccountId,
+        tx_hash: CryptoHash,
+        wait_until: TxExecutionStatus,
+    ) -> RequestBuilder<TransactionStatusHandler> {
+        RequestBuilder::new(
+            TransactionStatusRpc,
+            TransactionStatusRef {
+                sender_account_id,
+                tx_hash,
+                wait_until,
+            },
+            TransactionStatusHandler,
+        )
+    }
+
+    /// Sets up a query to fetch a receipt by its ID.
+    ///
+    /// This uses the `EXPERIMENTAL_receipt` RPC method to retrieve the details of a specific receipt.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let receipt_id: CryptoHash = "EaNakSaXUTjbPsUJbuDdbuq3e6Ynmjo8zYUgDVqt1iTn".parse()?;
+    ///
+    /// let receipt = Transaction::receipt(receipt_id)
+    ///     .fetch_from_mainnet()
+    ///     .await?;
+    /// println!("Receipt receiver: {:?}", receipt.receiver_id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn receipt(receipt_id: CryptoHash) -> RequestBuilder<ReceiptHandler> {
+        RequestBuilder::new(ReceiptRpc, ReceiptRef { receipt_id }, ReceiptHandler)
+    }
+
+    /// Sets up a query to fetch the light client execution proof for a transaction.
+    ///
+    /// This is used to verify a transaction's execution against a light client block header.
+    /// The `light_client_head` parameter specifies the block hash of the light client's latest known head.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use near_api::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tx_hash: CryptoHash = "EaNakSaXUTjbPsUJbuDdbuq3e6Ynmjo8zYUgDVqt1iTn".parse()?;
+    /// let sender: AccountId = "sender.near".parse()?;
+    /// let head_hash: CryptoHash = "3i1SypXzBRhLMvpHmNJXpg18FgVW6jNFrFcUqBF5Wmit".parse()?;
+    ///
+    /// let proof = Transaction::proof(sender, tx_hash, head_hash)
+    ///     .fetch_from_mainnet()
+    ///     .await?;
+    /// println!("Proof block header: {:?}", proof.block_header_lite);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn proof(
+        sender_id: AccountId,
+        transaction_hash: CryptoHash,
+        light_client_head: CryptoHash,
+    ) -> RequestBuilder<TransactionProofRpc> {
+        RequestBuilder::new(
+            TransactionProofRpc,
+            TransactionProofRef {
+                sender_id,
+                transaction_hash,
+                light_client_head,
+            },
+            TransactionProofRpc,
+        )
+    }
 }

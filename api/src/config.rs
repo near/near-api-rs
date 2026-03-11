@@ -59,9 +59,19 @@ impl RPCEndpoint {
         Self::new("https://free.rpc.fastnear.com".parse().unwrap())
     }
 
+    /// Constructs default mainnet archival configuration.
+    pub fn mainnet_archival() -> Self {
+        Self::new("https://archival-rpc.mainnet.fastnear.com".parse().unwrap())
+    }
+
     /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
         Self::new("https://test.rpc.fastnear.com".parse().unwrap())
+    }
+
+    /// Constructs default testnet archival configuration.
+    pub fn testnet_archival() -> Self {
+        Self::new("https://archival-rpc.testnet.fastnear.com".parse().unwrap())
     }
 
     /// Set API key for the endpoint.
@@ -177,11 +187,39 @@ impl NetworkConfig {
         }
     }
 
+    /// Constructs default mainnet archival configuration.
+    pub fn mainnet_archival() -> Self {
+        Self {
+            network_name: "mainnet-archival".to_string(),
+            rpc_endpoints: vec![RPCEndpoint::mainnet_archival()],
+            linkdrop_account_id: Some("near".parse().unwrap()),
+            near_social_db_contract_account_id: Some("social.near".parse().unwrap()),
+            faucet_url: None,
+            meta_transaction_relayer_url: None,
+            fastnear_url: Some("https://api.fastnear.com/".parse().unwrap()),
+            staking_pools_factory_account_id: Some("poolv1.near".parse().unwrap()),
+        }
+    }
+
     /// Constructs default testnet configuration.
     pub fn testnet() -> Self {
         Self {
             network_name: "testnet".to_string(),
             rpc_endpoints: vec![RPCEndpoint::testnet()],
+            linkdrop_account_id: Some("testnet".parse().unwrap()),
+            near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
+            faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),
+            meta_transaction_relayer_url: None,
+            fastnear_url: None,
+            staking_pools_factory_account_id: Some("pool.f863973.m0".parse().unwrap()),
+        }
+    }
+
+    /// Constructs default testnet archival configuration.
+    pub fn testnet_archival() -> Self {
+        Self {
+            network_name: "testnet-archival".to_string(),
+            rpc_endpoints: vec![RPCEndpoint::testnet_archival()],
             linkdrop_account_id: Some("testnet".parse().unwrap()),
             near_social_db_contract_account_id: Some("v1.social08.testnet".parse().unwrap()),
             faucet_url: Some("https://helper.nearprotocol.com/account".parse().unwrap()),

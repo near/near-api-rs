@@ -58,6 +58,46 @@ pub fn is_critical_transaction_error(err: &SendRequestError) -> bool {
     })
 }
 
+/// Transaction status errors: TIMEOUT_ERROR, REQUEST_ROUTED, UNKNOWN_TRANSACTION,
+/// DOES_NOT_TRACK_SHARD, and INTERNAL_ERROR are retryable.
+/// Only INVALID_TRANSACTION is critical.
+pub fn is_critical_transaction_status_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        match rpc_err.try_cause_as::<RpcTransactionError>() {
+            Some(Ok(
+                RpcTransactionError::TimeoutError
+                | RpcTransactionError::RequestRouted { .. }
+                | RpcTransactionError::UnknownTransaction { .. }
+                | RpcTransactionError::DoesNotTrackShard { .. }
+                | RpcTransactionError::InternalError { .. },
+            )) => false,
+            _ => true,
+        }
+    })
+}
+
+/// Receipt errors: INTERNAL_ERROR is retryable, everything else is critical.
+pub fn is_critical_receipt_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        // UNKNOWN_RECEIPT is critical, INTERNAL_ERROR is retryable
+        match rpc_err.cause_name() {
+            Some("INTERNAL_ERROR") => false,
+            _ => !rpc_err.is_retryable(),
+        }
+    })
+}
+
+/// Light client proof errors: UNKNOWN_BLOCK, INTERNAL_ERROR, UNAVAILABLE_SHARD are retryable.
+/// INCONSISTENT_STATE, NOT_CONFIRMED, UNKNOWN_TRANSACTION_OR_RECEIPT are critical.
+pub fn is_critical_light_client_proof_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        match rpc_err.cause_name() {
+            Some("UNKNOWN_BLOCK" | "INTERNAL_ERROR" | "UNAVAILABLE_SHARD") => false,
+            _ => true,
+        }
+    })
+}
+
 fn is_critical_json_rpc_error(
     err: &SendRequestError,
     is_critical_handler: impl Fn(&RpcError) -> bool,

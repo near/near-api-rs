@@ -23,7 +23,8 @@ pub use near_abi as abi;
 pub use near_account_id::AccountId;
 pub use near_gas::NearGas;
 pub use near_openrpc_client::{
-    FunctionArgs, RpcBlockResponse, RpcCallFunctionResponse, RpcTransactionResponse,
+    FunctionArgs, RpcBlockResponse, RpcCallFunctionResponse,
+    RpcLightClientExecutionProofResponse, RpcReceiptResponse, RpcTransactionResponse,
     RpcValidatorResponse, RpcViewAccountResponse, RpcViewCodeResponse, RpcViewStateResponse,
     StateItem, StoreKey, StoreValue, TxExecutionStatus,
 };

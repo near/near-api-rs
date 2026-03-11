@@ -572,3 +572,41 @@ impl ExecuteMetaTransaction {
         Ok(resp)
     }
 }
+
+/// Extracts a [`FinalExecutionOutcomeView`] from an [`RpcTransactionResponse`].
+///
+/// Both `send_tx` and `tx` (status query) responses share the same envelope type.
+/// This function strips the `final_execution_status` and optional `receipts` fields
+/// that are not part of `FinalExecutionOutcomeView`.
+pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExecutionOutcomeView {
+    match response {
+        RpcTransactionResponse::FinalExecutionOutcomeWithReceiptView {
+            final_execution_status: _,
+            receipts: _,
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        } => FinalExecutionOutcomeView {
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        },
+        RpcTransactionResponse::FinalExecutionOutcomeView {
+            final_execution_status: _,
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        } => FinalExecutionOutcomeView {
+            receipts_outcome,
+            status,
+            transaction,
+            transaction_outcome,
+        },
+        RpcTransactionResponse::Empty { .. } => {
+            unreachable!("Empty response should be handled before calling to_final_execution_outcome")
+        }
+    }
+}

@@ -3,9 +3,9 @@ resolver = "3"
 members = ["api", "types"]
 
 [workspace.package]
+rust-version = "1.86"
 edition = "2024"
-rust-version = "1.88"
-version = "0.8.4"
+version = "0.8.5"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
     "frol <frolvlad@gmail.com>",
@@ -16,7 +16,7 @@ repository = "https://github.com/near/near-api-rs"
 
 
 [workspace.dependencies]
-near-api-types = { path = "types", version = "~0.8.4" }
+near-api-types = { path = "types", version = "~0.8.5" }
 
 borsh = "1.5"
 async-trait = "0.1"
