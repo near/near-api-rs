@@ -322,7 +322,7 @@ impl SendRequestError {
 impl From<RpcCallError> for SendRequestError {
     fn from(err: RpcCallError) -> Self {
         match err {
-            RpcCallError::Rpc(rpc_err) => Self::ServerError(rpc_err),
+            RpcCallError::Rpc(rpc_err) => Self::ServerError(*rpc_err),
             other => Self::TransportError(other),
         }
     }

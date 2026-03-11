@@ -39,7 +39,7 @@ pub enum RpcCallError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
     #[error("RPC error: {0}")]
-    Rpc(RpcError),
+    Rpc(Box<RpcError>),
     #[error("JSON deserialization error: {0}")]
     Deserialize(serde_json::Error),
 }
@@ -75,7 +75,7 @@ impl RpcClient {
             serde_json::from_slice(&bytes).map_err(RpcCallError::Deserialize)?;
 
         if let Some(error) = response.error {
-            return Err(RpcCallError::Rpc(error));
+            return Err(RpcCallError::Rpc(Box::new(error)));
         }
 
         response.result.map_or_else(
