@@ -288,7 +288,7 @@ pub enum SendRequestError {
 
 impl SendRequestError {
     /// Returns the underlying [`RpcError`] if this is a server error.
-    pub fn as_rpc_error(&self) -> Option<&RpcError> {
+    pub const fn as_rpc_error(&self) -> Option<&RpcError> {
         match self {
             Self::ServerError(e) => Some(e),
             _ => None,

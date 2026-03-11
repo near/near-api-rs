@@ -105,7 +105,7 @@ fn is_critical_json_rpc_error(
         SendRequestError::TransportError(err) => match err {
             RpcCallError::Http(e) => {
                 use reqwest::StatusCode;
-                e.status().map_or(false, |s| {
+                e.status().is_some_and(|s| {
                     !matches!(
                         s,
                         StatusCode::REQUEST_TIMEOUT

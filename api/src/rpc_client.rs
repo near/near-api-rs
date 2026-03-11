@@ -45,7 +45,7 @@ pub enum RpcCallError {
 }
 
 impl RpcClient {
-    pub fn new(url: String, client: reqwest::Client) -> Self {
+    pub const fn new(url: String, client: reqwest::Client) -> Self {
         Self { client, url }
     }
 
@@ -78,11 +78,13 @@ impl RpcClient {
             return Err(RpcCallError::Rpc(error));
         }
 
-        match response.result {
-            Some(value) => serde_json::from_value(value).map_err(RpcCallError::Deserialize),
-            None => Err(RpcCallError::Deserialize(serde::de::Error::custom(
-                "response has neither result nor error",
-            ))),
-        }
+        response.result.map_or_else(
+            || {
+                Err(RpcCallError::Deserialize(serde::de::Error::custom(
+                    "response has neither result nor error",
+                )))
+            },
+            |value| serde_json::from_value(value).map_err(RpcCallError::Deserialize),
+        )
     }
 }
