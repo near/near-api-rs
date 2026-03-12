@@ -46,7 +46,7 @@ pub enum RpcCallError {
 }
 
 impl RpcClient {
-    pub fn new(url: String, client: reqwest::Client) -> Self {
+    pub const fn new(url: String, client: reqwest::Client) -> Self {
         Self {
             client,
             url,
