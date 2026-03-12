@@ -399,15 +399,9 @@ pub type TransactionGroupKey = (String, AccountId, PublicKey);
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
 /// Taking into account each transaction group: account_id + public_key + network name,
 /// to manage nonces separately for each group.
-/// It also provides a sequential send mode to avoid race conditions, when sending multiple transactions
-/// at the same time
-///
-/// NOTE: Sequential sending can increase processing time, because it waits for the
-/// previous transaction to be included in the block. But this can be mitigated by
-/// adding more keys to the signer pool
 pub struct Signer {
     pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    nonce_cache: Mutex<HashMap<TransactionGroupKey, Arc<Mutex<u64>>>>,
+    nonce_cache: Mutex<HashMap<TransactionGroupKey, Nonce>>,
     current_public_key: AtomicUsize,
 }
 

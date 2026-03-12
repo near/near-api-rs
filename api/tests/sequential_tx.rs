@@ -12,7 +12,7 @@ use testresult::TestResult;
 
 #[allow(clippy::result_large_err)]
 #[tokio::test]
-async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
+async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
 
@@ -29,7 +29,7 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
         .data
         .nonce;
 
-    let tx_count = 100;
+    let tx_count = 5000;
     let tx = (0..tx_count).map(|_| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
@@ -52,18 +52,20 @@ async fn multiple_sequential_tx_at_same_time_from_same_key() -> TestResult {
         .await?
         .data
         .nonce;
-    assert_eq!(end_nonce.0, start_nonce.0 + tx_count as u64);
+
+    // Nonce can be higher than the number of transactions sent because of retries
+    assert!(end_nonce.0 >= start_nonce.0 + tx_count as u64);
 
     Ok(())
 }
 
 #[allow(clippy::result_large_err)]
 #[tokio::test]
-async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult {
+async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let pubkey_count = 9;
-    let tx_count = 1000;
+    let tx_count = 7000;
     let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -103,10 +105,8 @@ async fn multiple_sequential_tx_at_same_time_from_different_keys() -> TestResult
         .data
         .nonce;
 
-    assert_eq!(
-        end_nonce.0,
-        start_nonce.0 + tx_count as u64 / (pubkey_count + 1)
-    );
+    // Nonce can be higher than the number of transactions sent because of retries
+    assert!(end_nonce.0 >= start_nonce.0 + tx_count as u64 / (pubkey_count + 1));
 
     Ok(())
 }

@@ -1,20 +1,21 @@
-use std::sync::Arc;
-
-use futures::lock::Mutex;
 use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, TxExecutionStatus,
-    transaction::{PrepopulateTransaction, SignedTransaction, result::TransactionResult},
+    transaction::{PrepopulateTransaction, result::TransactionResult},
 };
 
-use near_openapi_client::types::RpcTransactionStatusRequest;
+use near_openapi_client::types::RpcTransactionError;
+use tokio::time;
 use tracing::{debug, instrument};
 
 use crate::{
     Signer,
     advanced::{ExecuteMetaTransaction, ExecuteSignedTransaction, TxExecutionResult},
     config::NetworkConfig,
-    errors::{ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, SignerError},
-    signer::{SIGNER_TARGET, TransactionGroupKey},
+    errors::{
+        ExecuteMetaTransactionsError, ExecuteTransactionError, MetaSignError, RetryError,
+        SendRequestError, SignerError,
+    },
+    signer::SIGNER_TARGET,
 };
 
 impl Signer {
@@ -39,23 +40,12 @@ impl Signer {
         ))
     }
 
-    async fn get_nonce_cache(&self, key: TransactionGroupKey) -> Arc<Mutex<u64>> {
-        self.nonce_cache
-            .lock()
-            .await
-            .entry(key)
-            .or_insert_with(|| Arc::new(Mutex::new(0)))
-            .clone()
-    }
-
     /// Fetches the transaction nonce and block hash associated to the access key. Internally
     /// caches the nonce as to not need to query for it every time, and ending up having to run
     /// into contention with others.
     ///
     /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
     /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
-    ///
-    /// NOTE: This shouldn't be used during sequential sending
     #[allow(clippy::significant_drop_tightening)]
     #[instrument(skip(self, network))]
     pub async fn fetch_tx_nonce(
@@ -67,23 +57,27 @@ impl Signer {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
 
         let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_nonce_cache(key).await;
-        let mut nonce = lock.lock().await;
 
-        // It is important to fetch the nonce data after lock to get fresh block hash
         let (fetched_nonce, block_hash, block_height) =
             Self::fetch_nonce_data(account_id, public_key, network).await?;
 
-        *nonce = (*nonce).max(fetched_nonce) + 1;
+        let nonce = {
+            let mut nonce_cache = self.nonce_cache.lock().await;
+            let nonce = nonce_cache.entry(key).or_default();
 
-        Ok((*nonce, block_hash, block_height))
+            *nonce = (*nonce).max(fetched_nonce) + 1;
+            *nonce
+        };
+
+        Ok((nonce, block_hash, block_height))
     }
 
     /// Signs and sends a transaction to the network.
     ///
     /// This method is used to sign and send a transaction to the network.
-    /// Transactions of the same transaction group (network, account, public key)
-    /// sent through this method will be sequential
+    /// Concurrent broadcasting of transactions of the same transaction group (network, account, public key)
+    /// can cause nonce conflicts due to InvalidTransaction errors,
+    /// so this method implements a retry mechanism to mitigate those errors
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send(
         &self,
@@ -98,36 +92,39 @@ impl Signer {
             .await
             .map_err(SignerError::PublicKeyError)?;
 
-        let (signed, result) = self
-            .broadcast_tx(
-                account_id,
-                public_key,
-                network,
-                transaction,
-                TxExecutionStatus::Included,
-            )
-            .await?;
+        const MAX_NONCE_RETRIES: u32 = 3;
+        const FIXED_RETRY_TIME: time::Duration = time::Duration::from_millis(500);
 
-        match wait_until {
-            TxExecutionStatus::None | TxExecutionStatus::Included => Ok(result),
-            _ => {
-                ExecuteSignedTransaction::fetch_tx(
+        for _ in 0..MAX_NONCE_RETRIES {
+            let res = self
+                .broadcast_tx(
+                    account_id.clone(),
+                    public_key,
                     network,
-                    RpcTransactionStatusRequest::Variant0 {
-                        signed_tx_base64: signed.into(),
-                        wait_until,
-                    },
+                    transaction.clone(),
+                    wait_until,
                 )
-                .await
+                .await;
+
+            match res {
+                Err(ExecuteTransactionError::TransactionError(RetryError::Critical(
+                    SendRequestError::ServerError(RpcTransactionError::InvalidTransaction(e)),
+                ))) => {
+                    tokio::time::sleep(FIXED_RETRY_TIME).await;
+                    continue;
+                }
+                _ => {
+                    return res;
+                }
             }
         }
+
+        unimplemented!()
     }
 
     /// Signs and sends a meta transaction to the relayer.
     ///
     /// This method is used to sign and send a meta transaction to the relayer.
-    /// Transactions of the same transaction group (network, account, public key)
-    /// sent through this method will be sequential
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send_meta(
         &self,
@@ -156,32 +153,18 @@ impl Signer {
         network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
-    ) -> Result<(SignedTransaction, TransactionResult), ExecuteTransactionError> {
+    ) -> Result<TransactionResult, ExecuteTransactionError> {
         debug!(target: SIGNER_TARGET, "Broadcasting transaction");
-
         let account_id = account_id.into();
 
-        // Locking until the transaction is sent
-        let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_nonce_cache(key).await;
-        let mut nonce = lock.lock().await;
-
-        // It is important to fetch the nonce data after lock to get fresh block hash
         let (fetched_nonce, block_hash, _) =
-            Self::fetch_nonce_data(account_id, public_key, network)
-                .await
-                .map_err(MetaSignError::from)?;
-
-        *nonce = (*nonce).max(fetched_nonce) + 1;
+            self.fetch_tx_nonce(account_id, public_key, network).await?;
 
         let signed = self
-            .sign(transaction, public_key, *nonce, block_hash)
+            .sign(transaction, public_key, fetched_nonce, block_hash)
             .await?;
 
-        let result =
-            ExecuteSignedTransaction::send_impl(network, signed.clone(), wait_until).await?;
-
-        Ok((signed, result))
+        ExecuteSignedTransaction::send_impl(network, signed.clone(), wait_until).await
     }
 
     #[allow(clippy::significant_drop_tightening)]
@@ -197,24 +180,16 @@ impl Signer {
         debug!(target: SIGNER_TARGET, "Broadcasting meta transaction");
         let account_id = account_id.into();
 
-        // Locking until the transaction is sent
-        let key = (network.network_name.clone(), account_id.clone(), public_key);
-        let lock = self.get_nonce_cache(key).await;
-        let mut nonce = lock.lock().await;
-
-        // It is important to fetch the nonce data after lock to get fresh block hash
-        let (fetched_nonce, block_hash, block_height) =
-            Self::fetch_nonce_data(account_id, public_key, network)
-                .await
-                .map_err(MetaSignError::from)?;
-
-        *nonce = (*nonce).max(fetched_nonce) + 1;
+        let (fetched_nonce, block_hash, block_height) = self
+            .fetch_tx_nonce(account_id, public_key, network)
+            .await
+            .map_err(MetaSignError::from)?;
 
         let signed = self
             .sign_meta(
                 transaction,
                 public_key,
-                *nonce,
+                fetched_nonce,
                 block_hash,
                 block_height + tx_live_for,
             )
