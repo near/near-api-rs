@@ -29,7 +29,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
         .data
         .nonce;
 
-    let tx_count = 2000;
+    let tx_count = 5_000;
     let tx = (0..tx_count).map(|_| {
         Tokens::account(account.clone())
             .send_to(receiver.clone())
@@ -65,7 +65,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let pubkey_count = 9;
-    let tx_count = 2000;
+    let tx_count = 5_000;
     let first_pubkey = PublicKey::from_str(DEFAULT_GENESIS_ACCOUNT_PUBLIC_KEY)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;

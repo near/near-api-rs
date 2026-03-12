@@ -192,8 +192,9 @@ impl Signer {
     ) -> Result<TransactionResult, ExecuteTransactionError> {
         debug!(target: SIGNER_TARGET, "Broadcasting transaction");
 
-        let (fetched_nonce, block_hash, _) =
-            self.fetch_tx_nonce(account_id.clone(), public_key, network).await?;
+        let (fetched_nonce, block_hash, _) = self
+            .fetch_tx_nonce(account_id.clone(), public_key, network)
+            .await?;
 
         let signed = self
             .sign(transaction, public_key, fetched_nonce, block_hash)

@@ -107,7 +107,7 @@
 //! The user can instantiate [`Signer`] with a custom signing logic by utilizing the [`SignerTrait`] trait.
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -400,7 +400,7 @@ pub type TransactionGroupKey = (String, AccountId, PublicKey);
 /// Taking into account each transaction group: account_id + public_key + network name,
 /// to manage nonces separately for each group.
 pub struct Signer {
-    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    pool: tokio::sync::RwLock<BTreeMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     nonce_cache: Mutex<HashMap<TransactionGroupKey, Nonce>>,
     current_public_key: AtomicUsize,
 }
@@ -413,7 +413,7 @@ impl Signer {
     ) -> Result<Arc<Self>, PublicKeyError> {
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
-            pool: tokio::sync::RwLock::new(HashMap::from([(
+            pool: tokio::sync::RwLock::new(BTreeMap::from([(
                 public_key,
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),

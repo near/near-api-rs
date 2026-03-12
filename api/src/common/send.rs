@@ -292,7 +292,7 @@ impl ExecuteSignedTransaction {
             | RpcTransactionStatusRequest::Variant1 { wait_until, .. } => wait_until,
         };
 
-        let result = retry(network.clone(), |client| {
+        let result = retry(network, |client| {
             let params = params.clone();
             async move {
                 let result = parse_rpc_response(
@@ -357,7 +357,7 @@ impl ExecuteSignedTransaction {
         let hash = signed_tr.get_hash();
         let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
 
-        let result = retry(network.clone(), |client| {
+        let result = retry(network, |client| {
             let signed_tx_base64 = signed_tx_base64.clone();
             async move {
                 let result = parse_rpc_response(
