@@ -79,7 +79,7 @@ impl Signer {
     /// Concurrent broadcasting of transactions of the same transaction group
     /// (network, account, public key) can cause nonce conflicts
     /// (`InvalidTransaction` errors), so this method retries with a fresh nonce
-    /// up to `MAX_NONCE_ATTEMPTS` times before giving up.
+    /// up to `max_nonce_retries` specified in the signer configuration
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send(
         &self,

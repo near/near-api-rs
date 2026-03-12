@@ -19,7 +19,7 @@ Currently, the library provides:
 * Ability to create custom transactions
 * Several ways to sign transactions (secret key, seed phrase, file, ledger, secure keychain).
 * Account key pool support to sign the transaction with different user keys to avoid nonce issues.
-* Sequential transaction sending
+* Retry in case of invalid transaction nonce error
 
 The minimum required version is located in the [rust-version](./Cargo.toml#L4) field of the `Cargo.toml` file.
 
