@@ -1,5 +1,5 @@
-use std::fmt;
 use std::sync::Arc;
+use std::{fmt, sync::LazyLock};
 
 use near_openapi_client::types::{
     ErrorWrapperForRpcTransactionError, FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
@@ -33,6 +33,9 @@ use super::META_TRANSACTION_VALID_FOR_DEFAULT;
 
 const TX_EXECUTOR_TARGET: &str = "near_api::tx::executor";
 const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
+
+pub static REQWEST_CLIENT: LazyLock<Arc<reqwest::Client>> =
+    LazyLock::new(|| Arc::new(reqwest::Client::new()));
 
 pub type TxExecutionResult = Result<TransactionResult, ExecuteTransactionError>;
 
@@ -591,7 +594,7 @@ impl ExecuteMetaTransaction {
             transaction.delegate_action.max_block_height
         );
 
-        let client = reqwest::Client::new();
+        let client = REQWEST_CLIENT.clone();
         let json_payload = serde_json::json!({
             "signed_delegate_action": SignedDelegateActionAsBase64::from(
                 transaction.clone()
