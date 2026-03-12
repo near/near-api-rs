@@ -1,11 +1,13 @@
+use std::time::Duration;
+
 use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, TxExecutionStatus,
     transaction::{PrepopulateTransaction, result::TransactionResult},
 };
 
 use near_openapi_client::types::RpcTransactionError;
-use tokio::time;
-use tracing::{debug, instrument};
+use tokio::time::sleep;
+use tracing::{debug, error, instrument, warn};
 
 use crate::{
     Signer,
@@ -74,10 +76,10 @@ impl Signer {
 
     /// Signs and sends a transaction to the network.
     ///
-    /// This method is used to sign and send a transaction to the network.
-    /// Concurrent broadcasting of transactions of the same transaction group (network, account, public key)
-    /// can cause nonce conflicts due to InvalidTransaction errors,
-    /// so this method implements a retry mechanism to mitigate those errors
+    /// Concurrent broadcasting of transactions of the same transaction group
+    /// (network, account, public key) can cause nonce conflicts
+    /// (`InvalidTransaction` errors), so this method retries with a fresh nonce
+    /// up to `MAX_NONCE_ATTEMPTS` times before giving up.
     #[instrument(skip(self, network, transaction, account_id))]
     pub async fn sign_and_send(
         &self,
@@ -92,11 +94,32 @@ impl Signer {
             .await
             .map_err(SignerError::PublicKeyError)?;
 
-        const MAX_NONCE_RETRIES: u32 = 3;
-        const FIXED_RETRY_TIME: time::Duration = time::Duration::from_millis(500);
+        self.sign_and_send_with_retry(account_id, public_key, network, transaction, wait_until)
+            .await
+    }
 
-        for _ in 0..MAX_NONCE_RETRIES {
-            let res = self
+    async fn sign_and_send_with_retry(
+        &self,
+        account_id: AccountId,
+        public_key: PublicKey,
+        network: &NetworkConfig,
+        transaction: PrepopulateTransaction,
+        wait_until: TxExecutionStatus,
+    ) -> TxExecutionResult {
+        const MAX_NONCE_RETRIES: u32 = 3;
+
+        let mut last_error = None;
+
+        for attempt in 0..MAX_NONCE_RETRIES {
+            debug!(
+                target: SIGNER_TARGET,
+                account_id = %account_id,
+                attempt = attempt + 1,
+                max_attempts = MAX_NONCE_RETRIES,
+                "Attempting to broadcast transaction"
+            );
+
+            match self
                 .broadcast_tx(
                     account_id.clone(),
                     public_key,
@@ -104,22 +127,75 @@ impl Signer {
                     transaction.clone(),
                     wait_until,
                 )
-                .await;
+                .await
+            {
+                Ok(result) => {
+                    debug!(
+                        target: SIGNER_TARGET,
+                        account_id = %account_id,
+                        attempt = attempt + 1,
+                        "Transaction broadcast successful"
+                    );
 
-            match res {
-                Err(ExecuteTransactionError::TransactionError(RetryError::Critical(
-                    SendRequestError::ServerError(RpcTransactionError::InvalidTransaction(e)),
-                ))) => {
-                    tokio::time::sleep(FIXED_RETRY_TIME).await;
-                    continue;
+                    return Ok(result);
                 }
-                _ => {
-                    return res;
+
+                Err(err)
+                    if Self::is_retryable_nonce_error(&err) && attempt + 1 < MAX_NONCE_RETRIES =>
+                {
+                    warn!(
+                        target: SIGNER_TARGET,
+                        account_id = %account_id,
+                        attempt = attempt + 1,
+                        max_attempts = MAX_NONCE_RETRIES,
+                        error = ?err,
+                        "Invalid transaction detected, retrying after delay"
+                    );
+
+                    last_error = Some(err);
+
+                    // exponential backoff
+                    let delay = Self::calculate_retry_delay(attempt);
+                    sleep(delay).await;
+                }
+
+                Err(err) => {
+                    error!(
+                        target: SIGNER_TARGET,
+                        account_id = %account_id,
+                        attempt = attempt + 1,
+                        error = ?err,
+                        "Transaction broadcast failed"
+                    );
+                    return Err(err);
                 }
             }
         }
 
-        unimplemented!()
+        error!(
+            target: SIGNER_TARGET,
+            account_id = %account_id,
+            max_attempts = MAX_NONCE_RETRIES,
+            "All retry attempts exhausted"
+        );
+
+        Err(last_error.unwrap())
+    }
+
+    const fn is_retryable_nonce_error(error: &ExecuteTransactionError) -> bool {
+        // TODO: check tx nonce error after fix in near openapi types
+        matches!(
+            error,
+            ExecuteTransactionError::TransactionError(RetryError::Critical(
+                SendRequestError::ServerError(RpcTransactionError::InvalidTransaction(_))
+            ))
+        )
+    }
+
+    fn calculate_retry_delay(attempt: u32) -> Duration {
+        const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
+
+        INITIAL_RETRY_DELAY * 2u32.pow(attempt)
     }
 
     /// Signs and sends a meta transaction to the relayer.
@@ -164,7 +240,7 @@ impl Signer {
             .sign(transaction, public_key, fetched_nonce, block_hash)
             .await?;
 
-        ExecuteSignedTransaction::send_impl(network, signed.clone(), wait_until).await
+        ExecuteSignedTransaction::send_impl(network, signed, wait_until).await
     }
 
     #[allow(clippy::significant_drop_tightening)]
