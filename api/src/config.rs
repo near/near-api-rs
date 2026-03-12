@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    hash::{DefaultHasher, Hash, Hasher},
+    hash::Hash,
     sync::{Arc, LazyLock},
 };
 
@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::errors::RetryError;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Hash)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Hash, Eq, PartialEq)]
 /// Specifies the retry strategy for RPC endpoint requests.
 pub enum RetryMethod {
     /// Exponential backoff strategy with configurable initial delay and multiplication factor.
@@ -30,7 +30,7 @@ pub enum RetryMethod {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Hash)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Hash, Eq, PartialEq)]
 /// Configuration for a [NEAR RPC](https://docs.near.org/api/rpc/providers) endpoint with retry and backoff settings.
 pub struct RPCEndpoint {
     /// The URL of the RPC endpoint
@@ -274,7 +274,7 @@ pub static OPENAPI_CLIENT_CACHE: LazyLock<OpenapiClientCache> =
     LazyLock::new(OpenapiClientCache::new);
 
 pub struct OpenapiClientCache {
-    inner: RwLock<HashMap<u64, Arc<Client>>>,
+    inner: RwLock<HashMap<RPCEndpoint, Arc<Client>>>,
 }
 
 impl OpenapiClientCache {
@@ -288,14 +288,10 @@ impl OpenapiClientCache {
         &self,
         endpoint: &RPCEndpoint,
     ) -> Result<Arc<Client>, InvalidHeaderValue> {
-        let mut s = DefaultHasher::new();
-        endpoint.hash(&mut s);
-        let key = s.finish();
-
         {
             let guard = self.inner.read().await;
 
-            if let Some(client) = guard.get(&key) {
+            if let Some(client) = guard.get(endpoint) {
                 return Ok(Arc::clone(client));
             }
         }
@@ -304,7 +300,9 @@ impl OpenapiClientCache {
 
         {
             let mut guard = self.inner.write().await;
-            guard.entry(key).or_insert_with(|| Arc::clone(&client));
+            guard
+                .entry(endpoint.clone())
+                .or_insert_with(|| Arc::clone(&client));
         }
 
         Ok(client)

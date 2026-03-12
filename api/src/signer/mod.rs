@@ -403,8 +403,7 @@ pub struct Signer {
     pool: tokio::sync::RwLock<BTreeMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
     nonce_cache: Mutex<HashMap<TransactionGroupKey, Nonce>>,
     current_public_key: AtomicUsize,
-    // Optional max retry limit for nonce conflicts during transaction broadcasting.
-    // If `None`, will retry indefinitely until success
+    // Optional max retry limit for nonce conflicts during transaction broadcasting
     max_nonce_retries: Option<u32>,
 }
 

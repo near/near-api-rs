@@ -106,8 +106,9 @@ impl Signer {
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> TxExecutionResult {
-        // Set max retry limit or default to unlimited retries if not set
-        let max_nonce_retries = self.max_nonce_retries.unwrap_or(u32::MAX);
+        const DEFAULT_MAX_RETRIES: u32 = 3;
+
+        let max_nonce_retries = self.max_nonce_retries.unwrap_or(DEFAULT_MAX_RETRIES);
         for attempt in 0..max_nonce_retries {
             match self
                 .broadcast_tx(
