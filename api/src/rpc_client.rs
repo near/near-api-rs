@@ -12,6 +12,7 @@ pub use near_openrpc_client::errors;
 pub struct RpcClient {
     pub(crate) client: reqwest::Client,
     pub(crate) url: String,
+    pub(crate) headers: Option<reqwest::header::HeaderMap>,
 }
 
 /// JSON-RPC request envelope.
@@ -45,8 +46,17 @@ pub enum RpcCallError {
 }
 
 impl RpcClient {
-    pub const fn new(url: String, client: reqwest::Client) -> Self {
-        Self { client, url }
+    pub fn new(url: String, client: reqwest::Client) -> Self {
+        Self {
+            client,
+            url,
+            headers: None,
+        }
+    }
+
+    pub fn with_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
+        self.headers = Some(headers);
+        self
     }
 
     /// Make a JSON-RPC call with the given method and params.
@@ -62,15 +72,12 @@ impl RpcClient {
             params,
         };
 
-        let bytes = self
-            .client
-            .post(&self.url)
-            .json(&request)
-            .send()
-            .await?
-            .error_for_status()?
-            .bytes()
-            .await?;
+        let mut req = self.client.post(&self.url).json(&request);
+        if let Some(headers) = &self.headers {
+            req = req.headers(headers.clone());
+        }
+
+        let bytes = req.send().await?.error_for_status()?.bytes().await?;
 
         let response: RpcResponse =
             serde_json::from_slice(&bytes).map_err(RpcCallError::Deserialize)?;

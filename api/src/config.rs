@@ -1,9 +1,21 @@
+use std::sync::LazyLock;
+
 use near_api_types::AccountId;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
 use url::Url;
 
 use crate::errors::RetryError;
 use crate::rpc_client::RpcClient;
+
+/// Global shared `reqwest::Client` so all RPC calls reuse TCP connections.
+static SHARED_HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    let dur = std::time::Duration::from_secs(15);
+    reqwest::ClientBuilder::new()
+        .connect_timeout(dur)
+        .timeout(dur)
+        .build()
+        .expect("failed to build HTTP client")
+});
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// Specifies the retry strategy for RPC endpoint requests.
@@ -102,10 +114,8 @@ impl RPCEndpoint {
     }
 
     pub(crate) fn client(&self) -> Result<RpcClient, InvalidHeaderValue> {
-        let dur = std::time::Duration::from_secs(15);
-        let mut client = reqwest::ClientBuilder::new()
-            .connect_timeout(dur)
-            .timeout(dur);
+        let url = self.url.as_ref().trim_end_matches('/').to_string();
+        let mut client = RpcClient::new(url, SHARED_HTTP_CLIENT.clone());
 
         if let Some(rpc_api_key) = &self.bearer_header {
             let mut headers = reqwest::header::HeaderMap::new();
@@ -121,12 +131,9 @@ impl RPCEndpoint {
                 reqwest::header::HeaderName::from_static("x-api-key"),
                 header,
             );
-            client = client.default_headers(headers);
+            client = client.with_headers(headers);
         };
-        Ok(RpcClient::new(
-            self.url.as_ref().trim_end_matches('/').to_string(),
-            client.build().unwrap(),
-        ))
+        Ok(client)
     }
 }
 
