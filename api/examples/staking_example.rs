@@ -12,7 +12,7 @@ async fn main() -> testresult::TestResult {
     let network = near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
     sandbox.create_account(staker.clone()).send().await?;
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
 
     let staking_pool = setup_staking_pool(&sandbox, &network, signer.clone()).await?;
 

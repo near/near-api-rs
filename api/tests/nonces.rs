@@ -9,7 +9,7 @@ use testresult::TestResult;
 #[tokio::test]
 async fn correct_nonces_for_different_networks() -> TestResult {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let second_sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -55,7 +55,7 @@ async fn correct_nonces_for_different_networks() -> TestResult {
 async fn sequential_nonces() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
 
     let tx_count = 10;
 

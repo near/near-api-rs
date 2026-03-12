@@ -24,6 +24,7 @@ async fn main() -> testresult::TestResult {
         .add_key(AccessKeyPermission::FullAccess, public_key)
         .with_signer(Signer::from_secret_key(
             DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+            None,
         )?)
         .send_to(&network)
         .await?
@@ -33,11 +34,15 @@ async fn main() -> testresult::TestResult {
         println!("Skipping ledger signing in CI");
     } else {
         // Let's add ledger to the account with the new seed phrase
-        let ledger = Signer::from_ledger()?;
+        let ledger = Signer::from_ledger(None)?;
         let ledger_pubkey = ledger.get_public_key().await?;
         Account(account.clone())
             .add_key(AccessKeyPermission::FullAccess, ledger_pubkey)
-            .with_signer(Signer::from_seed_phrase(&new_seed_phrase, Some("smile"))?)
+            .with_signer(Signer::from_seed_phrase(
+                &new_seed_phrase,
+                Some("smile"),
+                None,
+            )?)
             .send_to(&network)
             .await?
             .assert_success();

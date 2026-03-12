@@ -106,9 +106,9 @@ impl Signer {
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> TxExecutionResult {
-        const MAX_NONCE_RETRIES: u32 = 3;
-
-        for attempt in 0..MAX_NONCE_RETRIES {
+        // Set max retry limit or default to unlimited retries if not set
+        let max_nonce_retries = self.max_nonce_retries.unwrap_or(u32::MAX);
+        for attempt in 0..max_nonce_retries {
             match self
                 .broadcast_tx(
                     &account_id,
@@ -120,13 +120,13 @@ impl Signer {
                 .await
             {
                 Err(err)
-                    if Self::is_retryable_nonce_error(&err) && attempt + 1 < MAX_NONCE_RETRIES =>
+                    if Self::is_retryable_nonce_error(&err) && attempt + 1 < max_nonce_retries =>
                 {
                     warn!(
                         target: SIGNER_TARGET,
                         account_id = %account_id,
                         attempt = attempt + 1,
-                        max_attempts = MAX_NONCE_RETRIES,
+                        max_attempts = max_nonce_retries,
                         error = ?err,
                         "Invalid transaction detected, retrying after delay"
                     );

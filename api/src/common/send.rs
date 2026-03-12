@@ -233,8 +233,6 @@ impl ExecuteSignedTransaction {
     /// Sends the transaction to the custom provided network.
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
-    /// Please note that if the transaction is not presigned, it will be signed with the network's nonce and block hash
-    /// and sent in sequential mode to avoid nonce conflicts
     ///
     /// Returns a [`TransactionResult`] which is either:
     /// - [`TransactionResult::Pending`] if `wait_until` is `None` or `Included` (no execution data available yet)
@@ -261,7 +259,6 @@ impl ExecuteSignedTransaction {
 
         // If the transaction is signed, send it to the network.
         // If the transaction is not signed, sign it and send
-        // in sequential mode to avoid nonce conflicts
         match signed {
             Some(signed) => Self::send_impl(network, signed, self.wait_until).await,
             None => {
@@ -520,8 +517,6 @@ impl ExecuteMetaTransaction {
     /// Sends the transaction to the custom provided network.
     ///
     /// This is useful if you want to send the transaction to a non-default network configuration (e.g, custom RPC URL, sandbox).
-    /// Please note that if the transaction is not presigned, it will be sign with the network's nonce and block hash
-    /// and sent in sequential mode to avoid nonce conflicts
     pub async fn send_to(
         mut self,
         network: &NetworkConfig,
@@ -547,7 +542,6 @@ impl ExecuteMetaTransaction {
 
         // If the transaction is signed, send it to the relayer.
         // If the transaction is not signed, sign it and send
-        // in sequential mode to avoid nonce conflicts
         match signed {
             Some(signed) => Self::send_impl(network, signed).await,
             None => {
