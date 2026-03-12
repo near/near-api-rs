@@ -346,7 +346,7 @@ impl Contract {
             })
     }
 
-    /// Prepares a query to fetch the wasm code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) of the contract.
+    /// Prepares a query to fetch the wasm code ([Data]<[RpcViewCodeResponse](near_openrpc_client::RpcViewCodeResponse)>) of the contract.
     ///
     /// # Example
     /// ```rust,no_run
@@ -407,9 +407,9 @@ impl Contract {
         GlobalWasmBuilder
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_api_types::ViewStateResult)>) using the given prefix as a filter.
+    /// Prepares a query to fetch the storage of the contract ([Data]<[RpcViewStateResponse](near_openrpc_client::RpcViewStateResponse)>) using the given prefix as a filter.
     ///
-    /// It helpful if you are aware of the storage that you are looking for.
+    /// It is helpful if you are aware of the storage that you are looking for.
     ///
     /// # Example
     /// ```rust,no_run
@@ -438,7 +438,7 @@ impl Contract {
         )
     }
 
-    /// Prepares a query to fetch the storage of the contract ([Data]<[ViewStateResult](near_api_types::ViewStateResult)>).
+    /// Prepares a query to fetch the storage of the contract ([Data]<[RpcViewStateResponse](near_openrpc_client::RpcViewStateResponse)>).
     ///
     /// Please be aware that large storage queries might fail.
     ///
@@ -961,7 +961,7 @@ impl ContractTransactBuilder {
 pub struct GlobalWasmBuilder;
 
 impl GlobalWasmBuilder {
-    /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) by account ID.
+    /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_openrpc_client::RpcViewCodeResponse)>) by account ID.
     ///
     /// # Example
     /// ```rust,no_run
@@ -986,7 +986,7 @@ impl GlobalWasmBuilder {
         )
     }
 
-    /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_api_types::ContractCodeView)>) by hash.
+    /// Prepares a query to fetch global contract code ([Data]<[ContractCodeView](near_openrpc_client::RpcViewCodeResponse)>) by hash.
     ///
     /// # Example
     /// ```rust,no_run

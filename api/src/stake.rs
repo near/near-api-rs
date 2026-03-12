@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
+use crate::rpc_client::RpcClient;
 use near_api_types::{
     AccountId, Data, EpochReference, NearGas, NearToken, Reference,
     stake::{RewardFeeFraction, StakingPoolInfo, UserStakeBalance},
 };
-use near_openapi_client::types::{RpcQueryError, RpcQueryResponse};
 
 use crate::{
     NetworkConfig,
@@ -561,37 +561,46 @@ impl Staking {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn validators_stake()
-    -> RequestBuilder<PostprocessHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>> {
+    pub fn validators_stake() -> RequestBuilder<
+        crate::advanced::AndThenHandler<BTreeMap<AccountId, NearToken>, RpcValidatorHandler>,
+    > {
+        fn parse_near_token(
+            s: &near_openrpc_client::NearToken,
+        ) -> Result<NearToken, Box<dyn std::error::Error + Send + Sync>> {
+            Ok(NearToken::from_yoctonear(s.parse::<u128>()?))
+        }
+        fn parse_account_id(
+            s: &near_openrpc_client::AccountId,
+        ) -> Result<AccountId, Box<dyn std::error::Error + Send + Sync>> {
+            Ok(s.parse::<AccountId>()?)
+        }
+
         RequestBuilder::new(
             SimpleValidatorRpc,
             EpochReference::Latest,
             RpcValidatorHandler,
         )
-        .map(|validator_response| {
-            validator_response
-                .current_proposals
-                .into_iter()
-                .map(|validator_stake_view| {
-                    (validator_stake_view.account_id, validator_stake_view.stake)
-                })
-                .chain(validator_response.current_validators.into_iter().map(
-                    |current_epoch_validator_info| {
-                        (
-                            current_epoch_validator_info.account_id,
-                            current_epoch_validator_info.stake,
-                        )
-                    },
-                ))
-                .chain(validator_response.next_validators.into_iter().map(
-                    |next_epoch_validator_info| {
-                        (
-                            next_epoch_validator_info.account_id,
-                            next_epoch_validator_info.stake,
-                        )
-                    },
-                ))
-                .collect::<BTreeMap<_, NearToken>>()
+        .and_then(|validator_response| {
+            let mut result = BTreeMap::new();
+            for v in &validator_response.current_proposals {
+                result.insert(
+                    parse_account_id(&v.account_id)?,
+                    parse_near_token(&v.stake)?,
+                );
+            }
+            for v in &validator_response.current_validators {
+                result.insert(
+                    parse_account_id(&v.account_id)?,
+                    parse_near_token(&v.stake)?,
+                );
+            }
+            for v in &validator_response.next_validators {
+                result.insert(
+                    parse_account_id(&v.account_id)?,
+                    parse_near_token(&v.stake)?,
+                );
+            }
+            Ok(result)
         })
     }
 
@@ -732,14 +741,13 @@ pub struct ActiveStakingPoolQuery;
 impl RpcType for ActiveStakingPoolQuery {
     type RpcReference = <SimpleQueryRpc as RpcType>::RpcReference;
     type Response = <SimpleQueryRpc as RpcType>::Response;
-    type Error = <SimpleQueryRpc as RpcType>::Error;
 
     async fn send_query(
         &self,
-        client: &near_openapi_client::Client,
+        client: &RpcClient,
         network: &NetworkConfig,
         reference: &Reference,
-    ) -> RetryResponse<RpcQueryResponse, SendRequestError<RpcQueryError>> {
+    ) -> RetryResponse<serde_json::Value, SendRequestError> {
         let Some(account_id) = network.staking_pools_factory_account_id.clone() else {
             return RetryResponse::Critical(SendRequestError::RequestCreationError(
                 QueryCreationError::StakingPoolFactoryNotDefined,
@@ -768,8 +776,8 @@ impl ResponseHandler for ActiveStakingHandler {
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> core::result::Result<Self::Response, QueryError<RpcQueryError>> {
+        response: Vec<serde_json::Value>,
+    ) -> core::result::Result<Self::Response, QueryError> {
         let query_result = ViewStateHandler {}.process_response(response)?;
 
         Ok(query_result

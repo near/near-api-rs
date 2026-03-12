@@ -40,10 +40,10 @@ pub struct DelegateAction {
     pub public_key: PublicKey,
 }
 
-impl TryFrom<near_openapi_types::DelegateAction> for DelegateAction {
+impl TryFrom<near_openrpc_client::DelegateAction> for DelegateAction {
     type Error = DataConversionError;
-    fn try_from(value: near_openapi_types::DelegateAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::DelegateAction {
+    fn try_from(value: near_openrpc_client::DelegateAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::DelegateAction {
             sender_id,
             receiver_id,
             actions,
@@ -53,8 +53,8 @@ impl TryFrom<near_openapi_types::DelegateAction> for DelegateAction {
         } = value;
 
         Ok(Self {
-            sender_id,
-            receiver_id,
+            sender_id: sender_id.parse()?,
+            receiver_id: receiver_id.parse()?,
             actions: actions
                 .into_iter()
                 .map(NonDelegateAction::try_from)
@@ -66,58 +66,61 @@ impl TryFrom<near_openapi_types::DelegateAction> for DelegateAction {
     }
 }
 
-impl TryFrom<near_openapi_types::NonDelegateAction> for NonDelegateAction {
+impl TryFrom<near_openrpc_client::NonDelegateAction> for NonDelegateAction {
     type Error = DataConversionError;
-    fn try_from(val: near_openapi_types::NonDelegateAction) -> Result<Self, Self::Error> {
+    fn try_from(val: near_openrpc_client::NonDelegateAction) -> Result<Self, Self::Error> {
         match val {
-            near_openapi_types::NonDelegateAction::DeterministicStateInit(
+            near_openrpc_client::NonDelegateAction::DeterministicStateInit(
                 deterministic_state_init,
             ) => Ok(Self(Action::DeterministicStateInit(Box::new(
                 deterministic_state_init.try_into()?,
             )))),
-            near_openapi_types::NonDelegateAction::CreateAccount(create_account_action) => {
+            near_openrpc_client::NonDelegateAction::CreateAccount(create_account_action) => {
                 Ok(Self(Action::CreateAccount(create_account_action.into())))
             }
-            near_openapi_types::NonDelegateAction::DeployContract(deploy_contract_action) => Ok(
+            near_openrpc_client::NonDelegateAction::DeployContract(deploy_contract_action) => Ok(
                 Self(Action::DeployContract(deploy_contract_action.try_into()?)),
             ),
-            near_openapi_types::NonDelegateAction::FunctionCall(function_call_action) => Ok(Self(
+            near_openrpc_client::NonDelegateAction::FunctionCall(function_call_action) => Ok(Self(
                 Action::FunctionCall(Box::new(function_call_action.try_into()?)),
             )),
-            near_openapi_types::NonDelegateAction::Transfer(transfer_action) => {
+            near_openrpc_client::NonDelegateAction::Transfer(transfer_action) => {
                 Ok(Self(Action::Transfer(transfer_action.try_into()?)))
             }
-            near_openapi_types::NonDelegateAction::Stake(stake_action) => {
+            near_openrpc_client::NonDelegateAction::Stake(stake_action) => {
                 Ok(Self(Action::Stake(Box::new(stake_action.try_into()?))))
             }
-            near_openapi_types::NonDelegateAction::AddKey(add_key_action) => {
+            near_openrpc_client::NonDelegateAction::AddKey(add_key_action) => {
                 Ok(Self(Action::AddKey(Box::new(add_key_action.try_into()?))))
             }
-            near_openapi_types::NonDelegateAction::DeleteKey(delete_key_action) => Ok(Self(
+            near_openrpc_client::NonDelegateAction::DeleteKey(delete_key_action) => Ok(Self(
                 Action::DeleteKey(Box::new(delete_key_action.try_into()?)),
             )),
-            near_openapi_types::NonDelegateAction::DeleteAccount(delete_account_action) => {
-                Ok(Self(Action::DeleteAccount(delete_account_action.into())))
-            }
-            near_openapi_types::NonDelegateAction::DeployGlobalContract(
+            near_openrpc_client::NonDelegateAction::DeleteAccount(delete_account_action) => Ok(
+                Self(Action::DeleteAccount(delete_account_action.try_into()?)),
+            ),
+            near_openrpc_client::NonDelegateAction::DeployGlobalContract(
                 deploy_global_contract_action,
             ) => Ok(Self(Action::DeployGlobalContract(
                 deploy_global_contract_action.try_into()?,
             ))),
-            near_openapi_types::NonDelegateAction::UseGlobalContract(
+            near_openrpc_client::NonDelegateAction::UseGlobalContract(
                 use_global_contract_action,
             ) => Ok(Self(Action::UseGlobalContract(Box::new(
-                use_global_contract_action.into(),
+                use_global_contract_action.try_into()?,
             )))),
-            near_openapi_types::NonDelegateAction::AddGasKey(add_gas_key_action) => Ok(Self(
-                Action::AddGasKey(Box::new(add_gas_key_action.try_into()?)),
-            )),
-            near_openapi_types::NonDelegateAction::DeleteGasKey(delete_gas_key_action) => Ok(Self(
-                Action::DeleteGasKey(Box::new(delete_gas_key_action.try_into()?)),
-            )),
-            near_openapi_types::NonDelegateAction::TransferToGasKey(transfer_to_gas_key_action) => {
+            near_openrpc_client::NonDelegateAction::TransferToGasKey(
+                transfer_to_gas_key_action,
+            ) => Ok(Self(Action::TransferToGasKey(Box::new(
+                transfer_to_gas_key_action.try_into()?,
+            )))),
+            near_openrpc_client::NonDelegateAction::WithdrawFromGasKey(withdraw_action) => {
+                use crate::transaction::actions::{TransferToGasKeyAction, parse_near_token};
                 Ok(Self(Action::TransferToGasKey(Box::new(
-                    transfer_to_gas_key_action.try_into()?,
+                    TransferToGasKeyAction {
+                        public_key: withdraw_action.public_key.try_into()?,
+                        deposit: parse_near_token(&withdraw_action.amount)?,
+                    },
                 ))))
             }
         }
@@ -130,10 +133,10 @@ pub struct SignedDelegateAction {
     pub signature: Signature,
 }
 
-impl TryFrom<near_openapi_types::SignedDelegateAction> for SignedDelegateAction {
+impl TryFrom<near_openrpc_client::SignedDelegateAction> for SignedDelegateAction {
     type Error = DataConversionError;
-    fn try_from(value: near_openapi_types::SignedDelegateAction) -> Result<Self, Self::Error> {
-        let near_openapi_types::SignedDelegateAction {
+    fn try_from(value: near_openrpc_client::SignedDelegateAction) -> Result<Self, Self::Error> {
+        let near_openrpc_client::SignedDelegateAction {
             delegate_action,
             signature,
         } = value;

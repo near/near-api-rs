@@ -1,6 +1,8 @@
+use std::fmt;
+use std::str::FromStr;
+
 use secp256k1::ThirtyTwoByteHash;
 use sha2::Digest;
-use std::fmt;
 
 pub mod account;
 pub mod contract;
@@ -20,10 +22,10 @@ pub mod utils;
 pub use near_abi as abi;
 pub use near_account_id::AccountId;
 pub use near_gas::NearGas;
-pub use near_openapi_types::{
-    AccountView, ContractCodeView, FunctionArgs, RpcBlockResponse,
-    RpcLightClientExecutionProofResponse, RpcReceiptResponse, RpcTransactionResponse,
-    RpcValidatorResponse, StoreKey, StoreValue, TxExecutionStatus, ViewStateResult,
+pub use near_openrpc_client::{
+    FunctionArgs, RpcBlockResponse, RpcCallFunctionResponse, RpcLightClientExecutionProofResponse,
+    RpcReceiptResponse, RpcTransactionResponse, RpcValidatorResponse, RpcViewAccountResponse,
+    RpcViewCodeResponse, RpcViewStateResponse, StateItem, StoreKey, StoreValue, TxExecutionStatus,
 };
 pub use near_token::NearToken;
 pub use reference::{EpochReference, Reference};
@@ -149,9 +151,11 @@ impl TryFrom<Vec<u8>> for CryptoHash {
     }
 }
 
-impl From<near_openapi_types::CryptoHash> for CryptoHash {
-    fn from(value: near_openapi_types::CryptoHash) -> Self {
-        Self(value.0)
+impl TryFrom<near_openrpc_client::CryptoHash> for CryptoHash {
+    type Error = DataConversionError;
+
+    fn try_from(value: near_openrpc_client::CryptoHash) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
     }
 }
 
@@ -167,8 +171,8 @@ impl std::fmt::Display for CryptoHash {
     }
 }
 
-impl From<CryptoHash> for near_openapi_types::CryptoHash {
+impl From<CryptoHash> for near_openrpc_client::CryptoHash {
     fn from(hash: CryptoHash) -> Self {
-        Self(hash.0)
+        Self(hash.to_string())
     }
 }
