@@ -350,8 +350,17 @@ impl TryFrom<near_openrpc_client::AccessKeyPermissionView> for AccessKeyPermissi
                 method_names,
             })),
             near_openrpc_client::AccessKeyPermissionView::FullAccess => Ok(Self::FullAccess),
-            near_openrpc_client::AccessKeyPermissionView::GasKeyFunctionCall { .. }
-            | near_openrpc_client::AccessKeyPermissionView::GasKeyFullAccess { .. } => {
+            near_openrpc_client::AccessKeyPermissionView::GasKeyFunctionCall {
+                allowance,
+                method_names,
+                receiver_id,
+                ..
+            } => Ok(Self::FunctionCall(FunctionCallPermission {
+                allowance: allowance.map(|a| parse_near_token(&a)).transpose()?,
+                receiver_id,
+                method_names,
+            })),
+            near_openrpc_client::AccessKeyPermissionView::GasKeyFullAccess { .. } => {
                 Ok(Self::FullAccess)
             }
         }
