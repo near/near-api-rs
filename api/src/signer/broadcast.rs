@@ -7,7 +7,7 @@ use near_api_types::{
 
 use near_openapi_client::types::RpcTransactionError;
 use tokio::time::sleep;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, instrument, warn};
 
 use crate::{
     Signer,
@@ -108,20 +108,10 @@ impl Signer {
     ) -> TxExecutionResult {
         const MAX_NONCE_RETRIES: u32 = 3;
 
-        let mut last_error = None;
-
         for attempt in 0..MAX_NONCE_RETRIES {
-            debug!(
-                target: SIGNER_TARGET,
-                account_id = %account_id,
-                attempt = attempt + 1,
-                max_attempts = MAX_NONCE_RETRIES,
-                "Attempting to broadcast transaction"
-            );
-
             match self
                 .broadcast_tx(
-                    account_id.clone(),
+                    &account_id,
                     public_key,
                     network,
                     transaction.clone(),
@@ -129,17 +119,6 @@ impl Signer {
                 )
                 .await
             {
-                Ok(result) => {
-                    debug!(
-                        target: SIGNER_TARGET,
-                        account_id = %account_id,
-                        attempt = attempt + 1,
-                        "Transaction broadcast successful"
-                    );
-
-                    return Ok(result);
-                }
-
                 Err(err)
                     if Self::is_retryable_nonce_error(&err) && attempt + 1 < MAX_NONCE_RETRIES =>
                 {
@@ -152,34 +131,15 @@ impl Signer {
                         "Invalid transaction detected, retrying after delay"
                     );
 
-                    last_error = Some(err);
-
-                    // exponential backoff
                     let delay = Self::calculate_retry_delay(attempt);
                     sleep(delay).await;
                 }
 
-                Err(err) => {
-                    error!(
-                        target: SIGNER_TARGET,
-                        account_id = %account_id,
-                        attempt = attempt + 1,
-                        error = ?err,
-                        "Transaction broadcast failed"
-                    );
-                    return Err(err);
-                }
+                result => return result,
             }
         }
 
-        error!(
-            target: SIGNER_TARGET,
-            account_id = %account_id,
-            max_attempts = MAX_NONCE_RETRIES,
-            "All retry attempts exhausted"
-        );
-
-        Err(last_error.unwrap())
+        unreachable!("loop always returns on the final attempt")
     }
 
     const fn is_retryable_nonce_error(error: &ExecuteTransactionError) -> bool {
@@ -224,17 +184,16 @@ impl Signer {
     #[instrument(skip(self, account_id, network))]
     async fn broadcast_tx(
         &self,
-        account_id: impl Into<AccountId>,
+        account_id: &AccountId,
         public_key: PublicKey,
         network: &NetworkConfig,
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> Result<TransactionResult, ExecuteTransactionError> {
         debug!(target: SIGNER_TARGET, "Broadcasting transaction");
-        let account_id = account_id.into();
 
         let (fetched_nonce, block_hash, _) =
-            self.fetch_tx_nonce(account_id, public_key, network).await?;
+            self.fetch_tx_nonce(account_id.clone(), public_key, network).await?;
 
         let signed = self
             .sign(transaction, public_key, fetched_nonce, block_hash)
