@@ -136,12 +136,12 @@ use crate::{
 
 use secret_key::SecretKeySigner;
 
+mod broadcast;
 #[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
 pub mod ledger;
 pub mod secret_key;
-mod sequential;
 
 const SIGNER_TARGET: &str = "near_api::signer";
 /// Default HD path for seed phrases and secret keys generation

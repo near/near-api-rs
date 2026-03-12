@@ -193,7 +193,7 @@ impl Signer {
     }
 
     fn calculate_retry_delay(attempt: u32) -> Duration {
-        const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
+        const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(2);
 
         INITIAL_RETRY_DELAY * 2u32.pow(attempt)
     }
