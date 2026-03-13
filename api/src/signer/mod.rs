@@ -111,7 +111,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
 
@@ -404,7 +404,7 @@ pub struct Signer {
     nonce_cache: Mutex<HashMap<TransactionGroupKey, Nonce>>,
     current_public_key: AtomicUsize,
     // Optional max retry limit for nonce conflicts during transaction broadcasting
-    max_nonce_retries: Option<u32>,
+    max_nonce_retries: AtomicU32,
 }
 
 impl Signer {
@@ -412,8 +412,9 @@ impl Signer {
     #[instrument(skip(signer))]
     pub fn new<T: SignerTrait + Send + Sync + 'static>(
         signer: T,
-        max_nonce_retries: Option<u32>,
     ) -> Result<Arc<Self>, PublicKeyError> {
+        const DEFAULT_MAX_RETRIES: u32 = 3;
+
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
             pool: tokio::sync::RwLock::new(BTreeMap::from([(
@@ -422,8 +423,14 @@ impl Signer {
             )])),
             nonce_cache: Mutex::new(HashMap::new()),
             current_public_key: AtomicUsize::new(0),
-            max_nonce_retries,
+            max_nonce_retries: AtomicU32::new(DEFAULT_MAX_RETRIES),
         }))
+    }
+
+    /// Sets the maximum number of retries for nonce conflicts during transaction broadcasting
+    #[instrument(skip(self, retries))]
+    pub fn set_max_nonce_retries(&self, retries: u32) {
+        self.max_nonce_retries.store(retries, Ordering::SeqCst);
     }
 
     /// Adds a signer to the pool of signers.
@@ -549,24 +556,19 @@ impl Signer {
     pub fn from_seed_phrase(
         seed_phrase: &str,
         password: Option<&str>,
-        max_nonce_retries: Option<u32>,
     ) -> Result<Arc<Self>, SecretError> {
         let signer = Self::from_seed_phrase_with_hd_path(
             seed_phrase,
             DEFAULT_HD_PATH.parse().expect("Valid HD path"),
             password,
-            max_nonce_retries,
         )?;
         Ok(signer)
     }
 
     /// Creates a [Signer](`Signer`) using a secret key.
-    pub fn from_secret_key(
-        secret_key: SecretKey,
-        max_nonce_retries: Option<u32>,
-    ) -> Result<Arc<Self>, PublicKeyError> {
+    pub fn from_secret_key(secret_key: SecretKey) -> Result<Arc<Self>, PublicKeyError> {
         let inner = SecretKeySigner::new(secret_key);
-        Self::new(inner, max_nonce_retries)
+        Self::new(inner)
     }
 
     /// Creates a [Signer](`Signer`) using seed phrase with a custom HD path.
@@ -574,18 +576,14 @@ impl Signer {
         seed_phrase: &str,
         hd_path: BIP32Path,
         password: Option<&str>,
-        max_nonce_retries: Option<u32>,
     ) -> Result<Arc<Self>, SecretError> {
         let secret_key = get_secret_key_from_seed(hd_path, seed_phrase, password)?;
         let inner = SecretKeySigner::new(secret_key);
-        Self::new(inner, max_nonce_retries).map_err(|_| SecretError::DeriveKeyInvalidIndex)
+        Self::new(inner).map_err(|_| SecretError::DeriveKeyInvalidIndex)
     }
 
     /// Creates a [Signer](`Signer`) using a path to the access key file.
-    pub fn from_access_keyfile(
-        path: PathBuf,
-        max_nonce_retries: Option<u32>,
-    ) -> Result<Arc<Self>, AccessKeyFileError> {
+    pub fn from_access_keyfile(path: PathBuf) -> Result<Arc<Self>, AccessKeyFileError> {
         let keypair = AccountKeyPair::load_access_key_file(&path)?;
         debug!(target: SIGNER_TARGET, "Access key file loaded successfully");
 
@@ -594,35 +592,29 @@ impl Signer {
         }
 
         let inner = SecretKeySigner::new(keypair.private_key);
-        Ok(Self::new(inner, max_nonce_retries)?)
+        Ok(Self::new(inner)?)
     }
 
     /// Creates a [Signer](`Signer`) using Ledger hardware wallet with default HD path.
     #[cfg(feature = "ledger")]
-    pub fn from_ledger(max_nonce_retries: Option<u32>) -> Result<Arc<Self>, PublicKeyError> {
+    pub fn from_ledger() -> Result<Arc<Self>, PublicKeyError> {
         let inner =
             ledger::LedgerSigner::new(DEFAULT_LEDGER_HD_PATH.parse().expect("Valid HD path"));
-        Self::new(inner, max_nonce_retries)
+        Self::new(inner)
     }
 
     /// Creates a [Signer](`Signer`) using Ledger hardware wallet with a custom HD path.
     #[cfg(feature = "ledger")]
-    pub fn from_ledger_with_hd_path(
-        hd_path: BIP32Path,
-        max_nonce_retries: Option<u32>,
-    ) -> Result<Arc<Self>, PublicKeyError> {
+    pub fn from_ledger_with_hd_path(hd_path: BIP32Path) -> Result<Arc<Self>, PublicKeyError> {
         let inner = ledger::LedgerSigner::new(hd_path);
-        Self::new(inner, max_nonce_retries)
+        Self::new(inner)
     }
 
     /// Creates a [Signer](`Signer`) with keystore using a predefined public key.
     #[cfg(feature = "keystore")]
-    pub fn from_keystore(
-        pub_key: PublicKey,
-        max_nonce_retries: Option<u32>,
-    ) -> Result<Arc<Self>, PublicKeyError> {
+    pub fn from_keystore(pub_key: PublicKey) -> Result<Arc<Self>, PublicKeyError> {
         let inner = keystore::KeystoreSigner::new_with_pubkey(pub_key);
-        Self::new(inner, max_nonce_retries)
+        Self::new(inner)
     }
 
     /// Creates a [Signer](`Signer`) with keystore. The provided function will query provided account for public keys and search
@@ -631,10 +623,9 @@ impl Signer {
     pub async fn from_keystore_with_search_for_keys(
         account_id: AccountId,
         network: &NetworkConfig,
-        max_nonce_retries: Option<u32>,
     ) -> Result<Arc<Self>, crate::errors::KeyStoreError> {
         let inner = keystore::KeystoreSigner::search_for_keys(account_id, network).await?;
-        Self::new(inner, max_nonce_retries).map_err(|_| {
+        Self::new(inner).map_err(|_| {
             // Convert SignerError into SecretError as a workaround since KeyStoreError doesn't have SignerError variant
             crate::errors::KeyStoreError::SecretError(
                 crate::errors::SecretError::DeriveKeyInvalidIndex,
@@ -877,7 +868,6 @@ mod nep_413_tests {
         let signer = Signer::from_seed_phrase(
             "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
             None,
-            None,
         )
         .unwrap();
         let public_key = signer.get_public_key().await.unwrap();
@@ -911,7 +901,6 @@ mod nep_413_tests {
         let signer = Signer::from_seed_phrase(
             "fatal edge jacket cash hard pass gallery fabric whisper size rain biology",
             None,
-            None,
         )
         .unwrap();
         let public_key = signer.get_public_key().await.unwrap();
@@ -934,7 +923,7 @@ mod nep_413_tests {
         let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
         let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-        let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
+        let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
         let public_key = signer.get_public_key().await?;
 
         let payload: NEP413Payload = NEP413Payload {
@@ -969,7 +958,7 @@ mod nep_413_tests {
         let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
         let secret_key = generate_secret_key()?;
 
-        let signer = Signer::from_secret_key(secret_key, None)?;
+        let signer = Signer::from_secret_key(secret_key)?;
         let public_key = signer.get_public_key().await?;
 
         let payload: NEP413Payload = NEP413Payload {
@@ -1004,9 +993,8 @@ mod nep_413_tests {
         let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
         let secret_key = generate_secret_key()?;
 
-        let msg_signer = Signer::from_secret_key(secret_key, None)?;
-        let tx_signer =
-            Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
+        let msg_signer = Signer::from_secret_key(secret_key)?;
+        let tx_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
         let public_key = msg_signer.get_public_key().await?;
 
         Account(DEFAULT_GENESIS_ACCOUNT.into())

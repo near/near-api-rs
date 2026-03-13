@@ -9,7 +9,7 @@ use testresult::TestResult;
 #[tokio::test]
 async fn correct_nonces_for_different_networks() -> TestResult {
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let second_sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -45,7 +45,7 @@ async fn correct_nonces_for_different_networks() -> TestResult {
         .data
         .nonce;
 
-    // Check that nonce differs for the same account but different networks
+    // Check that presigning on a different network does not change the nonce on this network
     assert_eq!(nonce_after.0, nonce_before.0);
 
     Ok(())
@@ -55,7 +55,7 @@ async fn correct_nonces_for_different_networks() -> TestResult {
 async fn sequential_nonces() -> TestResult {
     let receiver: AccountId = "tmp_account".parse()?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let tx_count = 10;
 

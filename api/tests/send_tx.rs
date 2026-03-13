@@ -20,7 +20,7 @@ async fn multiple_tx_at_same_time_from_same_key() -> TestResult {
     sandbox.create_account(receiver.clone()).send().await?;
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let start_nonce = Account(account.clone())
         .access_key(signer.get_public_key().await?)
@@ -72,7 +72,7 @@ async fn multiple_tx_at_same_time_from_different_keys() -> TestResult {
     sandbox.create_account(receiver.clone()).send().await?;
 
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?, None)?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     join_all((0..pubkey_count).map(|_| add_key_to_pool(&account, &signer, &network)))
         .await

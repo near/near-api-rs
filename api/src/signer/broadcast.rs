@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::atomic::Ordering, time::Duration};
 
 use near_api_types::{
     AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, TxExecutionStatus,
@@ -106,10 +106,10 @@ impl Signer {
         transaction: PrepopulateTransaction,
         wait_until: TxExecutionStatus,
     ) -> TxExecutionResult {
-        const DEFAULT_MAX_RETRIES: u32 = 3;
+        let max_nonce_retries = self.max_nonce_retries.load(Ordering::SeqCst);
+        let attempts = max_nonce_retries + 1; // +1 for the initial attempt
 
-        let max_nonce_retries = self.max_nonce_retries.unwrap_or(DEFAULT_MAX_RETRIES);
-        for attempt in 0..max_nonce_retries {
+        for attempt in 0..attempts {
             match self
                 .broadcast_tx(
                     &account_id,
@@ -120,9 +120,7 @@ impl Signer {
                 )
                 .await
             {
-                Err(err)
-                    if Self::is_retryable_nonce_error(&err) && attempt + 1 < max_nonce_retries =>
-                {
+                Err(err) if Self::is_retryable_nonce_error(&err) && attempt + 1 < attempts => {
                     warn!(
                         target: SIGNER_TARGET,
                         account_id = %account_id,

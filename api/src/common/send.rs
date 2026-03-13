@@ -147,7 +147,7 @@ impl ExecuteSignedTransaction {
     /// Get transaction hash if the transaction is signed, otherwise returns None.
     pub fn get_hash(&self) -> Option<CryptoHash> {
         // FIXME: transaction hash should be retrieved without signing the transaction,
-        //  but currently it is designed to have complete transaction msg only alter signing
+        //  but currently it is designed to have complete transaction msg only after signing
         self.transaction.signed().map(|signed| signed.get_hash())
     }
 
