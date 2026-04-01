@@ -27,7 +27,6 @@ openssl = { workspace = true, features = ["vendored"] }
 bip39 = { workspace = true, features = ["rand"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-serde_dbgfmt.workspace = true
 slipped10.workspace = true
 url.workspace = true
 tokio = { workspace = true, default-features = false, features = ["time"] }
@@ -35,7 +34,7 @@ tracing.workspace = true
 thiserror.workspace = true
 
 near-ledger = { workspace = true, optional = true }
-near-openapi-client.workspace = true
+near-openrpc-client.workspace = true
 near-api-types.workspace = true
 
 zstd.workspace = true

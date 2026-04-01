@@ -1,6 +1,6 @@
 use std::array::TryFromSliceError;
 
-use near_openapi_types::TxExecutionError;
+use near_openrpc_client::TxExecutionError;
 
 use crate::transaction::result::ExecutionFailure;
 
@@ -48,6 +48,8 @@ pub enum DataConversionError {
     DelegateActionNotSupported,
     #[error("Invalid global contract identifier")]
     InvalidGlobalContractIdentifier,
+    #[error("Invalid account ID: {0}")]
+    InvalidAccountId(#[from] near_account_id::ParseAccountError),
 }
 
 impl From<Vec<u8>> for DataConversionError {

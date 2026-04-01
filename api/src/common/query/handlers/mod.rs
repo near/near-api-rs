@@ -1,12 +1,16 @@
 use borsh::BorshDeserialize;
 use near_api_types::{
-    AccessKey, Account, AccountView, ContractCodeView, Data, PublicKey, RpcBlockResponse,
-    RpcValidatorResponse, ViewStateResult, json::U64, transaction::result::ExecutionFinalResult,
+    AccessKey, Account, Data, PublicKey, RpcBlockResponse, RpcReceiptResponse,
+    RpcTransactionResponse, RpcValidatorResponse, json::U64,
+    transaction::result::ExecutionFinalResult,
 };
-use near_openapi_client::types::{RpcQueryResponse, RpcReceiptResponse, RpcTransactionResponse};
+use near_openrpc_client::{
+    RpcCallFunctionResponse, RpcViewAccessKeyListResponse, RpcViewAccessKeyResponse,
+    RpcViewAccountResponse, RpcViewCodeResponse, RpcViewStateResponse,
+};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
-use tracing::{info, trace, warn};
+use tracing::{info, trace};
 
 use crate::{
     advanced::{
@@ -22,20 +26,18 @@ use crate::{
 pub mod transformers;
 pub use transformers::*;
 
-const fn query_to_kind(response: &RpcQueryResponse) -> &'static str {
-    match response {
-        RpcQueryResponse::Variant0 { .. } => "ViewAccount",
-        RpcQueryResponse::Variant1 { .. } => "ViewCode",
-        RpcQueryResponse::Variant2 { .. } => "ViewState",
-        RpcQueryResponse::Variant3 { .. } => "CallResult",
-        RpcQueryResponse::Variant4 { .. } => "AccessKey",
-        RpcQueryResponse::Variant5 { .. } => "AccessKeyList",
-        RpcQueryResponse::Variant6 { .. } => "ViewGasKey",
-        RpcQueryResponse::Variant7 { .. } => "ViewGasKeyList",
+fn take_single<T>(responses: Vec<T>) -> Result<T, QueryError> {
+    responses
+        .into_iter()
+        .next()
+        .ok_or(QueryError::InternalErrorNoResponse)
+}
 
-        #[allow(unreachable_patterns)]
-        _ => "UnknownQueryResponse",
-    }
+fn convert_block_hash(
+    hash: near_openrpc_client::CryptoHash,
+) -> Result<near_api_types::CryptoHash, QueryError> {
+    hash.try_into()
+        .map_err(|e| QueryError::ConversionError(Box::new(e)))
 }
 
 pub trait ResponseHandler {
@@ -46,7 +48,7 @@ pub trait ResponseHandler {
     fn process_response(
         &self,
         responses: Vec<<Self::Query as RpcType>::Response>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error>;
+    ) -> ResultWithMethod<Self::Response>;
     fn request_amount(&self) -> usize {
         1
     }
@@ -70,34 +72,17 @@ where
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let call_result: RpcCallFunctionResponse = serde_json::from_value(take_single(response)?)?;
 
-        if let RpcQueryResponse::Variant3 {
-            result,
-            logs: _logs,
-            block_height,
-            block_hash,
-        } = response
-        {
-            trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult, result size: {} bytes", result.len());
-            let data: Response = serde_json::from_slice(&result)?;
-            Ok(Data {
-                data,
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "CallResult",
-                got: query_to_kind(&response),
-            })
-        }
+        trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult, result size: {} bytes", call_result.result.len());
+        let data: Response = serde_json::from_slice(&call_result.result)?;
+        Ok(Data {
+            data,
+            block_height: call_result.block_height,
+            block_hash: convert_block_hash(call_result.block_hash)?,
+        })
     }
 }
 
@@ -116,33 +101,16 @@ impl ResponseHandler for CallResultRawHandler {
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let call_result: RpcCallFunctionResponse = serde_json::from_value(take_single(response)?)?;
 
-        if let RpcQueryResponse::Variant3 {
-            result,
-            logs: _logs,
-            block_height,
-            block_hash,
-        } = response
-        {
-            trace!(target: QUERY_EXECUTOR_TARGET, "Returning CallResult raw bytes, result size: {} bytes", result.len());
-            Ok(Data {
-                data: result,
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "CallResult",
-                got: query_to_kind(&response),
-            })
-        }
+        trace!(target: QUERY_EXECUTOR_TARGET, "Returning CallResult raw bytes, result size: {} bytes", call_result.result.len());
+        Ok(Data {
+            data: call_result.result,
+            block_height: call_result.block_height,
+            block_hash: convert_block_hash(call_result.block_hash)?,
+        })
     }
 }
 
@@ -164,35 +132,18 @@ where
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let call_result: RpcCallFunctionResponse = serde_json::from_value(take_single(response)?)?;
 
-        if let RpcQueryResponse::Variant3 {
-            result,
-            logs: _logs,
-            block_height,
-            block_hash,
-        } = response
-        {
-            trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult using Borsh, result size: {} bytes", result.len());
-            let data: Response = Response::try_from_slice(&result)
-                .map_err(|e| QueryError::ConversionError(Box::new(e)))?;
-            Ok(Data {
-                data,
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "CallResult",
-                got: query_to_kind(&response),
-            })
-        }
+        trace!(target: QUERY_EXECUTOR_TARGET, "Deserializing CallResult using Borsh, result size: {} bytes", call_result.result.len());
+        let data: Response = Response::try_from_slice(&call_result.result)
+            .map_err(|e| QueryError::ConversionError(Box::new(e)))?;
+        Ok(Data {
+            data,
+            block_height: call_result.block_height,
+            block_hash: convert_block_hash(call_result.block_hash)?,
+        })
     }
 }
 
@@ -205,52 +156,25 @@ impl ResponseHandler for AccountViewHandler {
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let account_view: RpcViewAccountResponse = serde_json::from_value(take_single(response)?)?;
 
-        if let RpcQueryResponse::Variant0 {
-            amount,
-            locked,
-            code_hash,
-            storage_usage,
-            storage_paid_at,
-            block_hash,
-            block_height,
-            global_contract_account_id,
-            global_contract_hash,
-        } = response
-        {
-            info!(
-                target: QUERY_EXECUTOR_TARGET,
-                "Processed ViewAccount response: balance: {}, locked: {}",
-                amount, locked
-            );
-            Ok(Data {
-                data: AccountView {
-                    amount,
-                    locked,
-                    code_hash,
-                    storage_usage,
-                    storage_paid_at,
-                    global_contract_account_id,
-                    global_contract_hash,
-                }
-                .try_into()
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed ViewAccount response: balance: {}, locked: {}",
+            account_view.amount, account_view.locked
+        );
+
+        let block_height = account_view.block_height;
+        let block_hash = convert_block_hash(account_view.block_hash.clone())?;
+
+        Ok(Data {
+            data: Account::try_from(account_view)
                 .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "ViewAccount",
-                got: query_to_kind(&response),
-            })
-        }
+            block_height,
+            block_hash,
+        })
     }
 
     fn request_amount(&self) -> usize {
@@ -267,42 +191,29 @@ impl ResponseHandler for AccessKeyListHandler {
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-        if let RpcQueryResponse::Variant5 {
-            keys,
-            block_height,
-            block_hash,
-        } = response
-        {
-            info!(
-                target: QUERY_EXECUTOR_TARGET,
-                "Processed AccessKeyList response, keys count: {}",
-                keys.len()
-            );
-            Ok(Data {
-                data: keys
-                    .into_iter()
-                    .filter_map(|key| {
-                        let public_key = key.public_key.try_into().ok()?;
-                        let access_key = key.access_key.try_into().ok()?;
-                        Some((public_key, access_key))
-                    })
-                    .collect(),
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "AccessKeyList",
-                got: query_to_kind(&response),
-            })
-        }
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let key_list: RpcViewAccessKeyListResponse =
+            serde_json::from_value(take_single(response)?)?;
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed AccessKeyList response, keys count: {}",
+            key_list.keys.len()
+        );
+        Ok(Data {
+            data: key_list
+                .keys
+                .into_iter()
+                .filter_map(|key| {
+                    let public_key = key.public_key.try_into().ok()?;
+                    let access_key = key.access_key.try_into().ok()?;
+                    Some((public_key, access_key))
+                })
+                .collect(),
+            block_height: key_list.block_height,
+            block_hash: convert_block_hash(key_list.block_hash)?,
+        })
     }
 
     fn request_amount(&self) -> usize {
@@ -319,42 +230,27 @@ impl ResponseHandler for AccessKeyHandler {
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-        if let RpcQueryResponse::Variant4 {
-            block_hash,
-            nonce,
-            block_height,
-            permission,
-        } = response
-        {
-            info!(
-                target: QUERY_EXECUTOR_TARGET,
-                "Processed AccessKey response, nonce: {}, permission: {:?}",
-                nonce,
-                permission
-            );
-            Ok(Data {
-                data: AccessKey {
-                    nonce: U64(nonce),
-                    permission: permission
-                        .try_into()
-                        .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
-                },
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "AccessKey",
-                got: query_to_kind(&response),
-            })
-        }
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let ak: RpcViewAccessKeyResponse = serde_json::from_value(take_single(response)?)?;
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed AccessKey response, nonce: {}, permission: {:?}",
+            ak.nonce,
+            ak.permission
+        );
+        Ok(Data {
+            data: AccessKey {
+                nonce: U64(ak.nonce),
+                permission: ak
+                    .permission
+                    .try_into()
+                    .map_err(|e| QueryError::ConversionError(Box::new(e)))?,
+            },
+            block_height: ak.block_height,
+            block_hash: convert_block_hash(ak.block_hash)?,
+        })
     }
 }
 
@@ -362,42 +258,26 @@ impl ResponseHandler for AccessKeyHandler {
 pub struct ViewStateHandler;
 
 impl ResponseHandler for ViewStateHandler {
-    type Response = Data<ViewStateResult>;
+    type Response = Data<RpcViewStateResponse>;
     type Query = SimpleQueryRpc;
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-        if let RpcQueryResponse::Variant2 {
-            proof,
-            values,
-            block_height,
-            block_hash,
-        } = response
-        {
-            info!(
-                target: QUERY_EXECUTOR_TARGET,
-                "Processed ViewState response, values count: {}, proof nodes: {}",
-                values.len(),
-                proof.len()
-            );
-            Ok(Data {
-                data: ViewStateResult { proof, values },
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "ViewState",
-                got: query_to_kind(&response),
-            })
-        }
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let state: RpcViewStateResponse = serde_json::from_value(take_single(response)?)?;
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed ViewState response, values count: {}, proof nodes: {}",
+            state.values.len(),
+            state.proof.len()
+        );
+        Ok(Data {
+            block_height: state.block_height,
+            block_hash: convert_block_hash(state.block_hash.clone())?,
+            data: state,
+        })
     }
 }
 
@@ -405,42 +285,26 @@ impl ResponseHandler for ViewStateHandler {
 pub struct ViewCodeHandler;
 
 impl ResponseHandler for ViewCodeHandler {
-    type Response = Data<ContractCodeView>;
+    type Response = Data<RpcViewCodeResponse>;
     type Query = SimpleQueryRpc;
 
     fn process_response(
         &self,
-        response: Vec<RpcQueryResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-        if let RpcQueryResponse::Variant1 {
-            code_base64,
-            hash,
-            block_height,
-            block_hash,
-        } = response
-        {
-            info!(
-                target: QUERY_EXECUTOR_TARGET,
-                "Processed ViewCode response, code size: {} bytes, hash: {:?}",
-                code_base64.len(),
-                hash
-            );
-            Ok(Data {
-                data: ContractCodeView { code_base64, hash },
-                block_height,
-                block_hash: block_hash.into(),
-            })
-        } else {
-            warn!(target: QUERY_EXECUTOR_TARGET, "Unexpected response kind: {:?}", response);
-            Err(QueryError::UnexpectedResponse {
-                expected: "ViewCode",
-                got: query_to_kind(&response),
-            })
-        }
+        response: Vec<serde_json::Value>,
+    ) -> ResultWithMethod<Self::Response> {
+        let code: RpcViewCodeResponse = serde_json::from_value(take_single(response)?)?;
+
+        info!(
+            target: QUERY_EXECUTOR_TARGET,
+            "Processed ViewCode response, code size: {} bytes, hash: {:?}",
+            code.code_base64.len(),
+            code.hash
+        );
+        Ok(Data {
+            block_height: code.block_height,
+            block_hash: convert_block_hash(code.block_hash.clone())?,
+            data: code,
+        })
     }
 }
 
@@ -454,12 +318,8 @@ impl ResponseHandler for RpcValidatorHandler {
     fn process_response(
         &self,
         response: Vec<RpcValidatorResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
+    ) -> ResultWithMethod<Self::Response> {
+        let response = take_single(response)?;
         info!(
             target: QUERY_EXECUTOR_TARGET,
             "Processed EpochValidatorInfo response, epoch height: {}, validators count: {}",
@@ -480,12 +340,8 @@ impl ResponseHandler for RpcBlockHandler {
     fn process_response(
         &self,
         response: Vec<RpcBlockResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
+    ) -> ResultWithMethod<Self::Response> {
+        let response = take_single(response)?;
         info!(
             target: QUERY_EXECUTOR_TARGET,
             "Processed Block response, height: {}, hash: {:?}",
@@ -514,7 +370,7 @@ impl ResponseHandler for TransactionStatusHandler {
     fn process_response(
         &self,
         response: Vec<RpcTransactionResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+    ) -> ResultWithMethod<Self::Response> {
         let response = response
             .into_iter()
             .next()
@@ -544,7 +400,7 @@ impl ResponseHandler for ReceiptHandler {
     fn process_response(
         &self,
         response: Vec<RpcReceiptResponse>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
+    ) -> ResultWithMethod<Self::Response> {
         let response = response
             .into_iter()
             .next()
@@ -568,14 +424,9 @@ impl<T: RpcType> ResponseHandler for T {
     fn process_response(
         &self,
         response: Vec<<Self::Query as RpcType>::Response>,
-    ) -> ResultWithMethod<Self::Response, <Self::Query as RpcType>::Error> {
-        let response = response
-            .into_iter()
-            .next()
-            .ok_or(QueryError::InternalErrorNoResponse)?;
-
+    ) -> ResultWithMethod<Self::Response> {
+        let response = take_single(response)?;
         trace!(target: QUERY_EXECUTOR_TARGET, "Processed empty response handler");
-
         Ok(response)
     }
 }

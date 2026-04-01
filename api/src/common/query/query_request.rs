@@ -1,15 +1,5 @@
 use near_api_types::{AccountId, CryptoHash, Reference};
-use near_openapi_client::types::{
-    BlockId, CallFunctionByBlockIdRequestType, CallFunctionByFinalityRequestType, Finality,
-    FunctionArgs, PublicKey, RpcQueryRequest, StoreKey, ViewAccessKeyByBlockIdRequestType,
-    ViewAccessKeyByFinalityRequestType, ViewAccessKeyListByBlockIdRequestType,
-    ViewAccessKeyListByFinalityRequestType, ViewAccountByBlockIdRequestType,
-    ViewAccountByFinalityRequestType, ViewCodeByBlockIdRequestType, ViewCodeByFinalityRequestType,
-    ViewGlobalContractCodeByAccountIdByBlockIdRequestType,
-    ViewGlobalContractCodeByAccountIdByFinalityRequestType,
-    ViewGlobalContractCodeByBlockIdRequestType, ViewGlobalContractCodeByFinalityRequestType,
-    ViewStateByBlockIdRequestType, ViewStateByFinalityRequestType,
-};
+use near_openrpc_client::{FunctionArgs, StoreKey};
 use serde::{Deserialize, Serialize};
 
 /// Simplified query request structure that eliminates duplication by removing reference types
@@ -30,7 +20,7 @@ pub enum QueryRequest {
     /// View a specific access key for an account
     ViewAccessKey {
         account_id: AccountId,
-        public_key: PublicKey,
+        public_key: near_openrpc_client::PublicKey,
     },
     /// View all access keys for an account
     ViewAccessKeyList { account_id: AccountId },
@@ -46,272 +36,112 @@ pub enum QueryRequest {
     ViewGlobalContractCodeByAccountId { account_id: AccountId },
 }
 
+fn apply_reference(req: &mut serde_json::Value, reference: &Reference) {
+    match reference {
+        Reference::Final => {
+            req["finality"] = serde_json::Value::String("final".to_string());
+        }
+        Reference::NearFinal => {
+            req["finality"] = serde_json::Value::String("near-final".to_string());
+        }
+        Reference::Optimistic => {
+            req["finality"] = serde_json::Value::String("optimistic".to_string());
+        }
+        Reference::AtBlock(height) => {
+            req["block_id"] = serde_json::json!(*height);
+        }
+        Reference::AtBlockHash(hash) => {
+            req["block_id"] = serde_json::Value::String(hash.to_string());
+        }
+    }
+}
+
 impl QueryRequest {
-    /// Convert this simplified query request to the OpenAPI RpcQueryRequest enum
-    /// This method handles the conversion from our unified Reference type to the appropriate
-    /// OpenAPI variant based on the reference type
-    pub fn to_rpc_query_request(
-        self,
-        reference: Reference,
-    ) -> near_openapi_client::types::RpcQueryRequest {
+    /// Convert this simplified query request to a JSON value suitable for the "query" RPC method.
+    pub fn to_rpc_query_request(self, reference: Reference) -> serde_json::Value {
         match self {
             Self::ViewAccount { account_id } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewAccountByFinality {
-                        account_id,
-                        finality: Finality::Final,
-                        request_type: ViewAccountByFinalityRequestType::ViewAccount,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewAccountByFinality {
-                        account_id,
-                        finality: Finality::NearFinal,
-                        request_type: ViewAccountByFinalityRequestType::ViewAccount,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewAccountByFinality {
-                        account_id,
-                        finality: Finality::Optimistic,
-                        request_type: ViewAccountByFinalityRequestType::ViewAccount,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewAccountByBlockId {
-                        account_id,
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: ViewAccountByBlockIdRequestType::ViewAccount,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewAccountByBlockId {
-                        account_id,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: ViewAccountByBlockIdRequestType::ViewAccount,
-                    },
-                }
-            },
+                let mut req = serde_json::json!({
+                    "request_type": "view_account",
+                    "account_id": account_id,
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
             Self::ViewCode { account_id } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewCodeByFinality {
-                        account_id,
-                        finality: Finality::Final,
-                        request_type: ViewCodeByFinalityRequestType::ViewCode,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewCodeByFinality {
-                        account_id,
-                        finality: Finality::NearFinal,
-                        request_type: ViewCodeByFinalityRequestType::ViewCode,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewCodeByFinality {
-                        account_id,
-                        finality: Finality::Optimistic,
-                        request_type: ViewCodeByFinalityRequestType::ViewCode,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewCodeByBlockId {
-                        account_id,
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: ViewCodeByBlockIdRequestType::ViewCode,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewCodeByBlockId {
-                        account_id,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: ViewCodeByBlockIdRequestType::ViewCode,
-                    },
+                let mut req = serde_json::json!({
+                    "request_type": "view_code",
+                    "account_id": account_id,
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
+            Self::ViewState {
+                account_id,
+                include_proof,
+                prefix_base64,
+            } => {
+                let mut req = serde_json::json!({
+                    "request_type": "view_state",
+                    "account_id": account_id,
+                    "prefix_base64": prefix_base64,
+                });
+                if let Some(include_proof) = include_proof {
+                    req["include_proof"] = serde_json::json!(include_proof);
                 }
-            },
-            Self::ViewState { account_id, include_proof, prefix_base64 } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewStateByFinality {
-                        account_id,
-                        finality: Finality::Final,
-                        include_proof,
-                        prefix_base64,
-                        request_type: ViewStateByFinalityRequestType::ViewState,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewStateByFinality {
-                        account_id,
-                        finality: Finality::NearFinal,
-                        include_proof,
-                        prefix_base64,
-                        request_type: ViewStateByFinalityRequestType::ViewState,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewStateByFinality {
-                        account_id,
-                        finality: Finality::Optimistic,
-                        include_proof,
-                        prefix_base64,
-                        request_type: ViewStateByFinalityRequestType::ViewState,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewStateByBlockId {
-                        account_id,
-                        block_id: BlockId::BlockHeight(height),
-                        include_proof,
-                        prefix_base64,
-                        request_type: ViewStateByBlockIdRequestType::ViewState,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewStateByBlockId {
-                        account_id,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        include_proof,
-                        prefix_base64,
-                        request_type: ViewStateByBlockIdRequestType::ViewState,
-                    },
-                }
-            },
-            Self::ViewAccessKey { account_id, public_key } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewAccessKeyByFinality {
-                        account_id,
-                        public_key,
-                        finality: Finality::Final,
-                        request_type: ViewAccessKeyByFinalityRequestType::ViewAccessKey,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewAccessKeyByFinality {
-                        account_id,
-                        public_key,
-                        finality: Finality::Optimistic,
-                        request_type: ViewAccessKeyByFinalityRequestType::ViewAccessKey,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewAccessKeyByFinality {
-                        account_id,
-                        public_key,
-                        finality: Finality::NearFinal,
-                        request_type: ViewAccessKeyByFinalityRequestType::ViewAccessKey,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewAccessKeyByBlockId {
-                        account_id,
-                        public_key,
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: ViewAccessKeyByBlockIdRequestType::ViewAccessKey,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewAccessKeyByBlockId {
-                        account_id,
-                        public_key,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: ViewAccessKeyByBlockIdRequestType::ViewAccessKey,
-                    },
-                }
-            },
+                apply_reference(&mut req, &reference);
+                req
+            }
+            Self::ViewAccessKey {
+                account_id,
+                public_key,
+            } => {
+                let mut req = serde_json::json!({
+                    "request_type": "view_access_key",
+                    "account_id": account_id,
+                    "public_key": public_key,
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
             Self::ViewAccessKeyList { account_id } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewAccessKeyListByFinality {
-                        account_id,
-                        finality: Finality::Final,
-                        request_type: ViewAccessKeyListByFinalityRequestType::ViewAccessKeyList,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewAccessKeyListByFinality {
-                        account_id,
-                        finality: Finality::Optimistic,
-                        request_type: ViewAccessKeyListByFinalityRequestType::ViewAccessKeyList,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewAccessKeyListByFinality {
-                        account_id,
-                        finality: Finality::NearFinal,
-                        request_type: ViewAccessKeyListByFinalityRequestType::ViewAccessKeyList,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewAccessKeyListByBlockId {
-                        account_id,
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: ViewAccessKeyListByBlockIdRequestType::ViewAccessKeyList,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewAccessKeyListByBlockId {
-                        account_id,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: ViewAccessKeyListByBlockIdRequestType::ViewAccessKeyList,
-                    },
-                }
-            },
-            Self::CallFunction { account_id, method_name, args_base64 } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::CallFunctionByFinality {
-                        account_id,
-                        method_name,
-                        args_base64,
-                        finality: Finality::Final,
-                        request_type: CallFunctionByFinalityRequestType::CallFunction,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::CallFunctionByFinality {
-                        account_id,
-                        method_name,
-                        args_base64,
-                        finality: Finality::Optimistic,
-                        request_type: CallFunctionByFinalityRequestType::CallFunction,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::CallFunctionByFinality {
-                        account_id,
-                        method_name,
-                        args_base64,
-                        finality: Finality::NearFinal,
-                        request_type: CallFunctionByFinalityRequestType::CallFunction,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::CallFunctionByBlockId {
-                        account_id,
-                        method_name,
-                        args_base64,
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: CallFunctionByBlockIdRequestType::CallFunction,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::CallFunctionByBlockId {
-                        account_id,
-                        method_name,
-                        args_base64,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: CallFunctionByBlockIdRequestType::CallFunction,
-                    },
-                }
-            },
+                let mut req = serde_json::json!({
+                    "request_type": "view_access_key_list",
+                    "account_id": account_id,
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
+            Self::CallFunction {
+                account_id,
+                method_name,
+                args_base64,
+            } => {
+                let mut req = serde_json::json!({
+                    "request_type": "call_function",
+                    "account_id": account_id,
+                    "method_name": method_name,
+                    "args_base64": args_base64,
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
             Self::ViewGlobalContractCode { code_hash } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewGlobalContractCodeByFinality {
-                        code_hash: code_hash.into(),
-                        finality: Finality::Final,
-                        request_type: ViewGlobalContractCodeByFinalityRequestType::ViewGlobalContractCode,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewGlobalContractCodeByFinality {
-                        code_hash: code_hash.into(),
-                        finality: Finality::Optimistic,
-                        request_type: ViewGlobalContractCodeByFinalityRequestType::ViewGlobalContractCode,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewGlobalContractCodeByFinality {
-                        code_hash: code_hash.into(),
-                        finality: Finality::NearFinal,
-                        request_type: ViewGlobalContractCodeByFinalityRequestType::ViewGlobalContractCode,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewGlobalContractCodeByBlockId {
-                        code_hash: code_hash.into(),
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: ViewGlobalContractCodeByBlockIdRequestType::ViewGlobalContractCode,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewGlobalContractCodeByBlockId {
-                        code_hash: code_hash.into(),
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: ViewGlobalContractCodeByBlockIdRequestType::ViewGlobalContractCode,
-                    },
-                }
-            },
+                let mut req = serde_json::json!({
+                    "request_type": "view_global_contract_code",
+                    "code_hash": code_hash.to_string(),
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
             Self::ViewGlobalContractCodeByAccountId { account_id } => {
-                match reference {
-                    Reference::Final => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
-                        account_id,
-                        finality: Finality::Final,
-                        request_type: ViewGlobalContractCodeByAccountIdByFinalityRequestType::ViewGlobalContractCodeByAccountId,
-                    },
-                    Reference::Optimistic => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
-                        account_id,
-                        finality: Finality::Optimistic,
-                        request_type: ViewGlobalContractCodeByAccountIdByFinalityRequestType::ViewGlobalContractCodeByAccountId,
-                    },
-                    Reference::NearFinal => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByFinality {
-                        account_id,
-                        finality: Finality::NearFinal,
-                        request_type: ViewGlobalContractCodeByAccountIdByFinalityRequestType::ViewGlobalContractCodeByAccountId,
-                    },
-                    Reference::AtBlock(height) => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByBlockId {
-                        account_id,
-                        block_id: BlockId::BlockHeight(height),
-                        request_type: ViewGlobalContractCodeByAccountIdByBlockIdRequestType::ViewGlobalContractCodeByAccountId,
-                    },
-                    Reference::AtBlockHash(hash) => RpcQueryRequest::ViewGlobalContractCodeByAccountIdByBlockId {
-                        account_id,
-                        block_id: BlockId::CryptoHash(hash.into()),
-                        request_type: ViewGlobalContractCodeByAccountIdByBlockIdRequestType::ViewGlobalContractCodeByAccountId,
-                    },
-                }
-            },
+                let mut req = serde_json::json!({
+                    "request_type": "view_global_contract_code_by_account_id",
+                    "account_id": account_id,
+                });
+                apply_reference(&mut req, &reference);
+                req
+            }
         }
     }
 }

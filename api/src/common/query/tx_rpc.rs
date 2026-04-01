@@ -1,16 +1,7 @@
-use near_api_types::{AccountId, CryptoHash, TxExecutionStatus};
-use near_openapi_client::Client;
-use near_openapi_client::types::{
-    ErrorWrapperForRpcLightClientProofError, ErrorWrapperForRpcReceiptError,
-    JsonRpcRequestForExperimentalReceipt, JsonRpcRequestForExperimentalReceiptMethod,
-    JsonRpcRequestForLightClientProof, JsonRpcRequestForLightClientProofMethod,
-    JsonRpcRequestForTx, JsonRpcRequestForTxMethod,
-    JsonRpcResponseForRpcLightClientExecutionProofResponseAndRpcLightClientProofError,
-    JsonRpcResponseForRpcReceiptResponseAndRpcReceiptError,
-    JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError,
-    RpcLightClientExecutionProofRequest, RpcLightClientExecutionProofRequestVariant0Type,
-    RpcLightClientExecutionProofResponse, RpcLightClientProofError, RpcReceiptError,
-    RpcReceiptRequest, RpcReceiptResponse, RpcTransactionError, RpcTransactionStatusRequest,
+use near_api_types::{AccountId, CryptoHash, RpcReceiptResponse, TxExecutionStatus};
+use near_openrpc_client::{
+    RpcLightClientExecutionProofRequest, RpcLightClientExecutionProofResponse, RpcReceiptRequest,
+    RpcTransactionResponse, RpcTransactionStatusRequest,
 };
 
 use crate::common::utils::to_retry_error;
@@ -23,6 +14,7 @@ use crate::{
     },
     config::RetryResponse,
     errors::SendRequestError,
+    rpc_client::RpcClient,
 };
 
 /// Reference type for transaction status queries.
@@ -44,43 +36,31 @@ pub struct TransactionStatusRpc;
 #[async_trait::async_trait]
 impl RpcType for TransactionStatusRpc {
     type RpcReference = TransactionStatusRef;
-    type Response = near_openapi_client::types::RpcTransactionResponse;
-    type Error = RpcTransactionError;
+    type Response = RpcTransactionResponse;
 
     async fn send_query(
         &self,
-        client: &Client,
+        client: &RpcClient,
         _network: &NetworkConfig,
         reference: &TransactionStatusRef,
-    ) -> RetryResponse<Self::Response, SendRequestError<RpcTransactionError>> {
-        let response = client
-            .tx(&JsonRpcRequestForTx {
-                id: "0".to_string(),
-                jsonrpc: "2.0".to_string(),
-                method: JsonRpcRequestForTxMethod::Tx,
-                params: RpcTransactionStatusRequest::Variant1 {
-                    sender_account_id: reference.sender_account_id.clone(),
-                    tx_hash: reference.tx_hash.into(),
-                    wait_until: reference.wait_until,
-                },
-            })
-            .await
-            .map(|r| r.into_inner())
-            .map_err(SendRequestError::from);
+    ) -> RetryResponse<Self::Response, SendRequestError> {
+        let request = RpcTransactionStatusRequest::TxHashSenderAccountId {
+            sender_account_id: near_openrpc_client::AccountId(
+                reference.sender_account_id.to_string(),
+            ),
+            tx_hash: reference.tx_hash.into(),
+            wait_until: reference.wait_until,
+        };
 
-        match response {
-            Ok(JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant0 {
-                result,
-                ..
-            }) => RetryResponse::Ok(result),
-            Ok(JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant1 {
-                error,
-                ..
-            }) => {
-                let error = SendRequestError::from(error);
-                to_retry_error(error, is_critical_transaction_status_error)
-            }
-            Err(err) => to_retry_error(err, is_critical_transaction_status_error),
+        match client
+            .call::<_, RpcTransactionResponse>("tx", request)
+            .await
+        {
+            Ok(response) => RetryResponse::Ok(response),
+            Err(err) => to_retry_error(
+                SendRequestError::from(err),
+                is_critical_transaction_status_error,
+            ),
         }
     }
 }
@@ -103,54 +83,23 @@ pub struct ReceiptRpc;
 impl RpcType for ReceiptRpc {
     type RpcReference = ReceiptRef;
     type Response = RpcReceiptResponse;
-    type Error = RpcReceiptError;
 
     async fn send_query(
         &self,
-        client: &Client,
+        client: &RpcClient,
         _network: &NetworkConfig,
         reference: &ReceiptRef,
-    ) -> RetryResponse<RpcReceiptResponse, SendRequestError<RpcReceiptError>> {
-        let response = client
-            .experimental_receipt(&JsonRpcRequestForExperimentalReceipt {
-                id: "0".to_string(),
-                jsonrpc: "2.0".to_string(),
-                method: JsonRpcRequestForExperimentalReceiptMethod::ExperimentalReceipt,
-                params: RpcReceiptRequest {
-                    receipt_id: reference.receipt_id.into(),
-                },
-            })
+    ) -> RetryResponse<RpcReceiptResponse, SendRequestError> {
+        let request = RpcReceiptRequest {
+            receipt_id: reference.receipt_id.into(),
+        };
+
+        match client
+            .call::<_, RpcReceiptResponse>("EXPERIMENTAL_receipt", request)
             .await
-            .map(|r| r.into_inner())
-            .map_err(SendRequestError::from);
-
-        match response {
-            Ok(JsonRpcResponseForRpcReceiptResponseAndRpcReceiptError::Variant0 {
-                result, ..
-            }) => RetryResponse::Ok(result),
-            Ok(JsonRpcResponseForRpcReceiptResponseAndRpcReceiptError::Variant1 {
-                error, ..
-            }) => {
-                let error = SendRequestError::from(error);
-                to_retry_error(error, is_critical_receipt_error)
-            }
-            Err(err) => to_retry_error(err, is_critical_receipt_error),
-        }
-    }
-}
-
-impl From<ErrorWrapperForRpcReceiptError> for SendRequestError<RpcReceiptError> {
-    fn from(err: ErrorWrapperForRpcReceiptError) -> Self {
-        match err {
-            ErrorWrapperForRpcReceiptError::InternalError(internal_error) => {
-                Self::InternalError(internal_error)
-            }
-            ErrorWrapperForRpcReceiptError::RequestValidationError(
-                rpc_request_validation_error_kind,
-            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
-            ErrorWrapperForRpcReceiptError::HandlerError(server_error) => {
-                Self::ServerError(server_error)
-            }
+        {
+            Ok(response) => RetryResponse::Ok(response),
+            Err(err) => to_retry_error(SendRequestError::from(err), is_critical_receipt_error),
         }
     }
 }
@@ -176,66 +125,28 @@ pub struct TransactionProofRpc;
 impl RpcType for TransactionProofRpc {
     type RpcReference = TransactionProofRef;
     type Response = RpcLightClientExecutionProofResponse;
-    type Error = RpcLightClientProofError;
 
     async fn send_query(
         &self,
-        client: &Client,
+        client: &RpcClient,
         _network: &NetworkConfig,
         reference: &TransactionProofRef,
-    ) -> RetryResponse<
-        RpcLightClientExecutionProofResponse,
-        SendRequestError<RpcLightClientProofError>,
-    > {
-        let response = client
-            .light_client_proof(&JsonRpcRequestForLightClientProof {
-                id: "0".to_string(),
-                jsonrpc: "2.0".to_string(),
-                method: JsonRpcRequestForLightClientProofMethod::LightClientProof,
-                params: RpcLightClientExecutionProofRequest::Variant0 {
-                    sender_id: reference.sender_id.clone(),
-                    transaction_hash: reference.transaction_hash.into(),
-                    light_client_head: reference.light_client_head.into(),
-                    type_: RpcLightClientExecutionProofRequestVariant0Type::Transaction,
-                },
-            })
+    ) -> RetryResponse<RpcLightClientExecutionProofResponse, SendRequestError> {
+        let request = RpcLightClientExecutionProofRequest::Transaction {
+            sender_id: near_openrpc_client::AccountId(reference.sender_id.to_string()),
+            transaction_hash: reference.transaction_hash.into(),
+            light_client_head: reference.light_client_head.into(),
+        };
+
+        match client
+            .call::<_, RpcLightClientExecutionProofResponse>("light_client_proof", request)
             .await
-            .map(|r| r.into_inner())
-            .map_err(SendRequestError::from);
-
-        match response {
-            Ok(
-                JsonRpcResponseForRpcLightClientExecutionProofResponseAndRpcLightClientProofError::Variant0 {
-                    result,
-                    ..
-                },
-            ) => RetryResponse::Ok(result),
-            Ok(
-                JsonRpcResponseForRpcLightClientExecutionProofResponseAndRpcLightClientProofError::Variant1 {
-                    error,
-                    ..
-                },
-            ) => {
-                let error = SendRequestError::from(error);
-                to_retry_error(error, is_critical_light_client_proof_error)
-            }
-            Err(err) => to_retry_error(err, is_critical_light_client_proof_error),
-        }
-    }
-}
-
-impl From<ErrorWrapperForRpcLightClientProofError> for SendRequestError<RpcLightClientProofError> {
-    fn from(err: ErrorWrapperForRpcLightClientProofError) -> Self {
-        match err {
-            ErrorWrapperForRpcLightClientProofError::InternalError(internal_error) => {
-                Self::InternalError(internal_error)
-            }
-            ErrorWrapperForRpcLightClientProofError::RequestValidationError(
-                rpc_request_validation_error_kind,
-            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
-            ErrorWrapperForRpcLightClientProofError::HandlerError(server_error) => {
-                Self::ServerError(server_error)
-            }
+        {
+            Ok(response) => RetryResponse::Ok(response),
+            Err(err) => to_retry_error(
+                SendRequestError::from(err),
+                is_critical_light_client_proof_error,
+            ),
         }
     }
 }

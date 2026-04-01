@@ -1,15 +1,8 @@
-// New errors can be added to the codebase, so we want to handle them gracefully
-#![allow(unreachable_patterns)]
-
 use base64::{Engine, prelude::BASE64_STANDARD};
 use near_api_types::NearToken;
-use near_openapi_client::types::{
-    RpcBlockError, RpcLightClientProofError, RpcQueryError, RpcReceiptError, RpcTransactionError,
-    RpcValidatorError,
-};
-use reqwest::StatusCode;
+use near_openrpc_client::{RpcError, RpcTransactionError};
 
-use crate::{config::RetryResponse, errors::SendRequestError};
+use crate::{config::RetryResponse, errors::SendRequestError, rpc_client::RpcCallError};
 
 pub fn to_base64(input: &[u8]) -> String {
     BASE64_STANDARD.encode(input)
@@ -24,10 +17,10 @@ pub const fn near_data_to_near_token(data: near_api_types::Data<u128>) -> NearTo
     NearToken::from_yoctonear(data.data)
 }
 
-pub fn to_retry_error<T, E: std::fmt::Debug + Send + Sync>(
-    err: SendRequestError<E>,
-    is_critical_t: impl Fn(&SendRequestError<E>) -> bool,
-) -> RetryResponse<T, SendRequestError<E>> {
+pub fn to_retry_error<T>(
+    err: SendRequestError,
+    is_critical_t: impl Fn(&SendRequestError) -> bool,
+) -> RetryResponse<T, SendRequestError> {
     if is_critical_t(&err) {
         RetryResponse::Critical(err)
     } else {
@@ -35,128 +28,99 @@ pub fn to_retry_error<T, E: std::fmt::Debug + Send + Sync>(
     }
 }
 
-pub fn is_critical_blocks_error(err: &SendRequestError<RpcBlockError>) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcBlockError::UnknownBlock { .. }
-        | RpcBlockError::NotSyncedYet
-        | RpcBlockError::InternalError { .. } => false,
-        _ => false,
+/// Generic RPC error criticality check: an error is critical unless `is_retryable()` says otherwise.
+/// Used for blocks, validators, and other RPC methods where all known causes are retryable.
+pub fn is_critical_rpc_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
+}
+
+/// Query errors: retryable causes (NO_SYNCED_BLOCKS, UNAVAILABLE_SHARD, UNKNOWN_BLOCK, INTERNAL_ERROR)
+/// are not critical, but permanent errors (INVALID_ACCOUNT, UNKNOWN_ACCOUNT, etc.) are.
+/// NO_GLOBAL_CONTRACT_CODE is treated as retryable since it may not have propagated yet.
+/// ContractExecutionError is always critical (handled by `is_critical_json_rpc_error`).
+pub fn is_critical_query_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| !rpc_err.is_retryable())
+}
+
+/// Transaction errors: TIMEOUT_ERROR and REQUEST_ROUTED are retryable.
+/// INVALID_TRANSACTION, DOES_NOT_TRACK_SHARD, UNKNOWN_TRANSACTION are critical.
+/// INTERNAL_ERROR is treated as critical for transactions (different from queries).
+pub fn is_critical_transaction_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        !matches!(
+            rpc_err.try_cause_as::<RpcTransactionError>(),
+            Some(Ok(
+                RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. },
+            ))
+        )
     })
 }
 
-pub fn is_critical_validator_error(err: &SendRequestError<RpcValidatorError>) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcValidatorError::UnknownEpoch
-        | RpcValidatorError::ValidatorInfoUnavailable
-        | RpcValidatorError::InternalError { .. } => false,
-        _ => false,
-    })
-}
-pub fn is_critical_query_error(err: &SendRequestError<RpcQueryError>) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcQueryError::NoSyncedBlocks
-        | RpcQueryError::UnavailableShard { .. }
-        | RpcQueryError::UnknownBlock { .. }
-        | RpcQueryError::InternalError { .. } => false,
-
-        RpcQueryError::GarbageCollectedBlock { .. }
-        | RpcQueryError::InvalidAccount { .. }
-        | RpcQueryError::UnknownAccount { .. }
-        | RpcQueryError::NoContractCode { .. }
-        | RpcQueryError::TooLargeContractState { .. }
-        | RpcQueryError::UnknownAccessKey { .. }
-        | RpcQueryError::ContractExecutionError { .. }
-        | RpcQueryError::UnknownGasKey { .. } => true,
-
-        // Might be critical, but also might not yet propagated across the network, so we will retry
-        RpcQueryError::NoGlobalContractCode { .. } => false,
-        _ => false,
+/// Transaction status errors: TIMEOUT_ERROR, REQUEST_ROUTED, UNKNOWN_TRANSACTION,
+/// DOES_NOT_TRACK_SHARD, and INTERNAL_ERROR are retryable.
+/// Only INVALID_TRANSACTION is critical.
+pub fn is_critical_transaction_status_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        !matches!(
+            rpc_err.try_cause_as::<RpcTransactionError>(),
+            Some(Ok(RpcTransactionError::TimeoutError
+                | RpcTransactionError::RequestRouted { .. }
+                | RpcTransactionError::UnknownTransaction { .. }
+                | RpcTransactionError::DoesNotTrackShard { .. }
+                | RpcTransactionError::InternalError { .. },))
+        )
     })
 }
 
-pub fn is_critical_transaction_error(err: &SendRequestError<RpcTransactionError>) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcTransactionError::TimeoutError | RpcTransactionError::RequestRouted { .. } => false,
-        RpcTransactionError::InvalidTransaction { .. }
-        | RpcTransactionError::DoesNotTrackShard
-        | RpcTransactionError::UnknownTransaction { .. }
-        | RpcTransactionError::InternalError { .. } => true,
-        _ => false,
+/// Receipt errors: INTERNAL_ERROR is retryable, everything else is critical.
+pub fn is_critical_receipt_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        // UNKNOWN_RECEIPT is critical, INTERNAL_ERROR is retryable
+        match rpc_err.cause_name() {
+            Some("INTERNAL_ERROR") => false,
+            _ => !rpc_err.is_retryable(),
+        }
     })
 }
 
-pub fn is_critical_transaction_status_error(err: &SendRequestError<RpcTransactionError>) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcTransactionError::TimeoutError
-        | RpcTransactionError::RequestRouted { .. }
-        | RpcTransactionError::UnknownTransaction { .. }
-        | RpcTransactionError::DoesNotTrackShard
-        | RpcTransactionError::InternalError { .. } => false,
-
-        RpcTransactionError::InvalidTransaction { .. } => true,
-
-        _ => false,
+/// Light client proof errors: UNKNOWN_BLOCK, INTERNAL_ERROR, UNAVAILABLE_SHARD are retryable.
+/// INCONSISTENT_STATE, NOT_CONFIRMED, UNKNOWN_TRANSACTION_OR_RECEIPT are critical.
+pub fn is_critical_light_client_proof_error(err: &SendRequestError) -> bool {
+    is_critical_json_rpc_error(err, |rpc_err| {
+        !matches!(
+            rpc_err.cause_name(),
+            Some("UNKNOWN_BLOCK" | "INTERNAL_ERROR" | "UNAVAILABLE_SHARD")
+        )
     })
 }
 
-pub fn is_critical_receipt_error(err: &SendRequestError<RpcReceiptError>) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcReceiptError::InternalError { .. } => false,
-        RpcReceiptError::UnknownReceipt { .. } => true,
-        _ => false,
-    })
-}
-
-pub fn is_critical_light_client_proof_error(
-    err: &SendRequestError<RpcLightClientProofError>,
-) -> bool {
-    is_critical_json_rpc_error(err, |err| match err {
-        RpcLightClientProofError::UnknownBlock { .. }
-        | RpcLightClientProofError::InternalError { .. }
-        | RpcLightClientProofError::UnavailableShard { .. } => false,
-
-        RpcLightClientProofError::InconsistentState { .. }
-        | RpcLightClientProofError::NotConfirmed { .. }
-        | RpcLightClientProofError::UnknownTransactionOrReceipt { .. } => true,
-
-        _ => false,
-    })
-}
-
-fn is_critical_json_rpc_error<RpcError: std::fmt::Debug + Send + Sync>(
-    err: &SendRequestError<RpcError>,
-    is_critical_t: impl Fn(&RpcError) -> bool,
+fn is_critical_json_rpc_error(
+    err: &SendRequestError,
+    is_critical_handler: impl Fn(&RpcError) -> bool,
 ) -> bool {
     match err {
-        SendRequestError::ServerError(rpc_error) => is_critical_t(rpc_error),
-        SendRequestError::WasmExecutionError(_) => true,
-        SendRequestError::InternalError { .. } => false,
-        SendRequestError::RequestValidationError(_) => true,
+        SendRequestError::ServerError(rpc_error) => is_critical_handler(rpc_error),
         SendRequestError::RequestCreationError(_) => true,
-        SendRequestError::TransportError(error) => match error {
-            near_openapi_client::Error::InvalidRequest(_)
-            | near_openapi_client::Error::CommunicationError(_)
-            | near_openapi_client::Error::InvalidUpgrade(_)
-            | near_openapi_client::Error::ResponseBodyError(_)
-            | near_openapi_client::Error::InvalidResponsePayload(_, _)
-            | near_openapi_client::Error::UnexpectedResponse(_)
-            | near_openapi_client::Error::Custom(_) => true,
-
-            near_openapi_client::Error::ErrorResponse(response_value) => {
-                // It's more readable to use a match statement than a macro
-                #[allow(clippy::match_like_matches_macro)]
-                match response_value.status() {
-                    StatusCode::REQUEST_TIMEOUT
-                    | StatusCode::TOO_MANY_REQUESTS
-                    | StatusCode::INTERNAL_SERVER_ERROR
-                    | StatusCode::BAD_GATEWAY
-                    | StatusCode::SERVICE_UNAVAILABLE
-                    | StatusCode::GATEWAY_TIMEOUT => false,
-                    _ => true,
-                }
+        SendRequestError::ContractExecutionError(_) => true,
+        SendRequestError::TransportError(err) => match err {
+            RpcCallError::Http(e) => {
+                use reqwest::StatusCode;
+                e.status().is_some_and(|s| {
+                    !matches!(
+                        s,
+                        StatusCode::REQUEST_TIMEOUT
+                            | StatusCode::TOO_MANY_REQUESTS
+                            | StatusCode::INTERNAL_SERVER_ERROR
+                            | StatusCode::BAD_GATEWAY
+                            | StatusCode::SERVICE_UNAVAILABLE
+                            | StatusCode::GATEWAY_TIMEOUT
+                    )
+                })
             }
-            _ => false,
+            RpcCallError::Deserialize(_) => true,
+            RpcCallError::Rpc(_) => {
+                unreachable!("Rpc errors are converted to ServerError in From<RpcCallError>")
+            }
         },
-        _ => false,
     }
 }

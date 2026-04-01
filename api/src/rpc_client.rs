@@ -1,0 +1,98 @@
+use near_openrpc_client::RpcError;
+use serde::{Deserialize, Serialize};
+
+pub use near_openrpc_client::errors;
+
+/// Thin JSON-RPC 2.0 client wrapping `reqwest::Client`.
+///
+/// This replaces the OpenAPI-generated client with a minimal transport
+/// that sends raw JSON-RPC requests and deserializes responses using
+/// the OpenRPC-generated types.
+#[derive(Debug, Clone)]
+pub struct RpcClient {
+    pub(crate) client: reqwest::Client,
+    pub(crate) url: String,
+    pub(crate) headers: Option<reqwest::header::HeaderMap>,
+}
+
+/// JSON-RPC request envelope.
+#[derive(Debug, Serialize)]
+struct RpcRequest<P> {
+    jsonrpc: &'static str,
+    id: &'static str,
+    method: &'static str,
+    params: P,
+}
+
+/// Raw JSON-RPC response envelope — deserialized as `Value` first to avoid
+/// issues with `serde(flatten)` + `serde(untagged)`.
+#[derive(Debug, Deserialize)]
+struct RpcResponse {
+    #[serde(default)]
+    result: Option<serde_json::Value>,
+    #[serde(default)]
+    error: Option<RpcError>,
+}
+
+/// Errors that can occur when making a JSON-RPC call.
+#[derive(Debug, thiserror::Error)]
+pub enum RpcCallError {
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("RPC error: {0}")]
+    Rpc(Box<RpcError>),
+    #[error("JSON deserialization error: {0}")]
+    Deserialize(serde_json::Error),
+}
+
+impl RpcClient {
+    pub const fn new(url: String, client: reqwest::Client) -> Self {
+        Self {
+            client,
+            url,
+            headers: None,
+        }
+    }
+
+    pub fn with_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
+        self.headers = Some(headers);
+        self
+    }
+
+    /// Make a JSON-RPC call with the given method and params.
+    pub async fn call<P: Serialize, R: for<'de> Deserialize<'de>>(
+        &self,
+        method: &'static str,
+        params: P,
+    ) -> Result<R, RpcCallError> {
+        let request = RpcRequest {
+            jsonrpc: "2.0",
+            id: "0",
+            method,
+            params,
+        };
+
+        let mut req = self.client.post(&self.url).json(&request);
+        if let Some(headers) = &self.headers {
+            req = req.headers(headers.clone());
+        }
+
+        let bytes = req.send().await?.error_for_status()?.bytes().await?;
+
+        let response: RpcResponse =
+            serde_json::from_slice(&bytes).map_err(RpcCallError::Deserialize)?;
+
+        if let Some(error) = response.error {
+            return Err(RpcCallError::Rpc(Box::new(error)));
+        }
+
+        response.result.map_or_else(
+            || {
+                Err(RpcCallError::Deserialize(serde::de::Error::custom(
+                    "response has neither result nor error",
+                )))
+            },
+            |value| serde_json::from_value(value).map_err(RpcCallError::Deserialize),
+        )
+    }
+}

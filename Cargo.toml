@@ -3,7 +3,7 @@ resolver = "3"
 members = ["api", "types"]
 
 [workspace.package]
-rust-version = "1.86"
+rust-version = "1.88"
 edition = "2024"
 version = "0.8.5"
 authors = [
@@ -55,8 +55,7 @@ near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
 near-ledger = "0.9.1"
-near-openapi-client = "0.8"
-near-openapi-types = "0.8"
+near-openrpc-client = { version = "0.1.0", default-features = false }
 
 # Dev-dependencies
 near-primitives = { version = "0.35" }

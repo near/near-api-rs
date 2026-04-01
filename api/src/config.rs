@@ -1,9 +1,21 @@
+use std::sync::LazyLock;
+
 use near_api_types::AccountId;
-use near_openapi_client::Client;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
 use url::Url;
 
 use crate::errors::RetryError;
+use crate::rpc_client::RpcClient;
+
+/// Global shared `reqwest::Client` so all RPC calls reuse TCP connections.
+static SHARED_HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    let dur = std::time::Duration::from_secs(15);
+    reqwest::ClientBuilder::new()
+        .connect_timeout(dur)
+        .timeout(dur)
+        .build()
+        .expect("failed to build HTTP client")
+});
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 /// Specifies the retry strategy for RPC endpoint requests.
@@ -101,11 +113,9 @@ impl RPCEndpoint {
         }
     }
 
-    pub(crate) fn client(&self) -> Result<Client, InvalidHeaderValue> {
-        let dur = std::time::Duration::from_secs(15);
-        let mut client = reqwest::ClientBuilder::new()
-            .connect_timeout(dur)
-            .timeout(dur);
+    pub(crate) fn client(&self) -> Result<RpcClient, InvalidHeaderValue> {
+        let url = self.url.as_ref().trim_end_matches('/').to_string();
+        let mut client = RpcClient::new(url, SHARED_HTTP_CLIENT.clone());
 
         if let Some(rpc_api_key) = &self.bearer_header {
             let mut headers = reqwest::header::HeaderMap::new();
@@ -121,12 +131,9 @@ impl RPCEndpoint {
                 reqwest::header::HeaderName::from_static("x-api-key"),
                 header,
             );
-            client = client.default_headers(headers);
+            client = client.with_headers(headers);
         };
-        Ok(near_openapi_client::Client::new_with_client(
-            self.url.as_ref().trim_end_matches('/'),
-            client.build().unwrap(),
-        ))
+        Ok(client)
     }
 }
 
@@ -270,7 +277,7 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
 /// * `task` - The task to retry.
 pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
-    F: FnMut(Client) -> T + Send,
+    F: FnMut(RpcClient) -> T + Send,
     T: core::future::Future<Output = RetryResponse<R, E>> + Send,
     T::Output: Send,
     E: Send,

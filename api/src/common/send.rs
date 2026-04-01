@@ -1,14 +1,13 @@
 use std::fmt;
 use std::sync::Arc;
 
-use near_openapi_client::types::{
-    ErrorWrapperForRpcTransactionError, FinalExecutionOutcomeView, JsonRpcRequestForSendTx,
-    JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError, RpcSendTransactionRequest,
-    RpcTransactionError, RpcTransactionResponse,
+use near_openrpc_client::{
+    FinalExecutionOutcomeView, RpcSendTransactionRequest, RpcTransactionResponse,
+    SignedTransaction as OpenRpcSignedTransaction, TxExecutionStatus,
 };
 
 use near_api_types::{
-    BlockHeight, CryptoHash, Nonce, PublicKey, TxExecutionStatus,
+    BlockHeight, CryptoHash, Nonce, PublicKey,
     transaction::{
         PrepopulateTransaction, SignedTransaction,
         delegate_action::{SignedDelegateAction, SignedDelegateActionAsBase64},
@@ -35,7 +34,7 @@ const META_EXECUTOR_TARGET: &str = "near_api::meta::executor";
 
 /// Internal enum to distinguish between a full RPC response and a minimal pending response.
 enum SendImplResponse {
-    Full(Box<RpcTransactionResponse>),
+    Full(Box<FinalExecutionOutcomeView>),
     Pending(TxExecutionStatus),
 }
 
@@ -46,20 +45,6 @@ impl fmt::Debug for SendImplResponse {
             Self::Pending(status) => write!(f, "Pending({status:?})"),
         }
     }
-}
-
-/// Minimal JSON-RPC response returned when `wait_until` is `NONE` or `INCLUDED`.
-///
-/// The RPC returns only `{"jsonrpc":"2.0","result":{"final_execution_status":"..."},"id":"0"}`
-/// which doesn't match the full `RpcTransactionResponse` schema.
-#[derive(serde::Deserialize)]
-struct MinimalTransactionResponse {
-    result: MinimalTransactionResult,
-}
-
-#[derive(serde::Deserialize)]
-struct MinimalTransactionResult {
-    final_execution_status: TxExecutionStatus,
 }
 
 #[async_trait::async_trait]
@@ -296,69 +281,49 @@ impl ExecuteSignedTransaction {
         wait_until: TxExecutionStatus,
     ) -> Result<TransactionResult, ExecuteTransactionError> {
         let hash = signed_tr.get_hash();
-        let signed_tx_base64: near_openapi_client::types::SignedTransaction = signed_tr.into();
+        let signed_tx_base64: OpenRpcSignedTransaction = signed_tr.into();
         let result = retry(network.clone(), |client| {
             let signed_tx_base64 = signed_tx_base64.clone();
             async move {
                 let result = match client
-                    .send_tx(&JsonRpcRequestForSendTx {
-                        id: "0".to_string(),
-                        jsonrpc: "2.0".to_string(),
-                        method: near_openapi_client::types::JsonRpcRequestForSendTxMethod::SendTx,
-                        params: RpcSendTransactionRequest {
+                    .call::<_, RpcTransactionResponse>(
+                        "send_tx",
+                        RpcSendTransactionRequest {
                             signed_tx_base64,
                             wait_until,
                         },
-                    })
+                    )
                     .await
-                    .map(|r| r.into_inner())
                     .map_err(SendRequestError::from)
                 {
-                    Ok(
-                        JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant0 {
-                            result,
-                            ..
-                        },
-                    ) => RetryResponse::Ok(SendImplResponse::Full(Box::new(result))),
-                    Ok(
-                        JsonRpcResponseForRpcTransactionResponseAndRpcTransactionError::Variant1 {
-                            error,
-                            ..
-                        },
-                    ) => {
-                        let error: SendRequestError<RpcTransactionError> =
-                            SendRequestError::from(error);
-                        to_retry_error(error, is_critical_transaction_error)
-                    }
-                    Err(err) => {
-                        // When wait_until is NONE or INCLUDED, the RPC returns a minimal
-                        // response with only `final_execution_status`. The openapi client
-                        // fails to deserialize this into RpcTransactionResponse (which
-                        // expects full execution data) and returns InvalidResponsePayload.
-                        // We intercept this case and parse the minimal response ourselves.
-                        //
-                        // We only attempt this fallback when we explicitly requested a
-                        // minimal response, so unexpected/buggy RPC responses for higher
-                        // finality levels don't get silently treated as Pending.
-                        if matches!(
-                            wait_until,
-                            TxExecutionStatus::None | TxExecutionStatus::Included
-                        ) {
-                            if let SendRequestError::TransportError(
-                                near_openapi_client::Error::InvalidResponsePayload(ref bytes, _),
-                            ) = err
-                            {
-                                if let Ok(minimal) =
-                                    serde_json::from_slice::<MinimalTransactionResponse>(bytes)
-                                {
-                                    return RetryResponse::Ok(SendImplResponse::Pending(
-                                        minimal.result.final_execution_status,
-                                    ));
-                                }
-                            }
+                    Ok(rpc_response) => match rpc_response {
+                        RpcTransactionResponse::Empty {
+                            final_execution_status,
+                        } => RetryResponse::Ok(SendImplResponse::Pending(final_execution_status)),
+                        RpcTransactionResponse::FinalExecutionOutcomeView {
+                            final_execution_status: _,
+                            receipts_outcome,
+                            status,
+                            transaction,
+                            transaction_outcome,
                         }
-                        to_retry_error(err, is_critical_transaction_error)
-                    }
+                        | RpcTransactionResponse::FinalExecutionOutcomeWithReceiptView {
+                            final_execution_status: _,
+                            receipts: _,
+                            receipts_outcome,
+                            status,
+                            transaction,
+                            transaction_outcome,
+                        } => RetryResponse::Ok(SendImplResponse::Full(Box::new(
+                            FinalExecutionOutcomeView {
+                                receipts_outcome,
+                                status,
+                                transaction,
+                                transaction_outcome,
+                            },
+                        ))),
+                    },
+                    Err(err) => to_retry_error(err, is_critical_transaction_error),
                 };
 
                 tracing::debug!(
@@ -376,11 +341,9 @@ impl ExecuteSignedTransaction {
 
         match result {
             SendImplResponse::Pending(status) => Ok(TransactionResult::Pending { status }),
-            SendImplResponse::Full(rpc_response) => {
-                let final_execution_outcome_view = to_final_execution_outcome(*rpc_response);
-
+            SendImplResponse::Full(final_execution_outcome_view) => {
                 Ok(TransactionResult::Full(Box::new(
-                    ExecutionFinalResult::try_from(final_execution_outcome_view)?,
+                    ExecutionFinalResult::try_from(*final_execution_outcome_view)?,
                 )))
             }
         }
@@ -613,10 +576,9 @@ impl ExecuteMetaTransaction {
 /// Both `send_tx` and `tx` (status query) responses share the same envelope type.
 /// This function strips the `final_execution_status` and optional `receipts` fields
 /// that are not part of `FinalExecutionOutcomeView`.
-// TODO: check if we need to add support for `final_execution_status`
 pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExecutionOutcomeView {
     match response {
-        RpcTransactionResponse::Variant0 {
+        RpcTransactionResponse::FinalExecutionOutcomeWithReceiptView {
             final_execution_status: _,
             receipts: _,
             receipts_outcome,
@@ -629,7 +591,7 @@ pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExec
             transaction,
             transaction_outcome,
         },
-        RpcTransactionResponse::Variant1 {
+        RpcTransactionResponse::FinalExecutionOutcomeView {
             final_execution_status: _,
             receipts_outcome,
             status,
@@ -641,21 +603,10 @@ pub fn to_final_execution_outcome(response: RpcTransactionResponse) -> FinalExec
             transaction,
             transaction_outcome,
         },
-    }
-}
-
-impl From<ErrorWrapperForRpcTransactionError> for SendRequestError<RpcTransactionError> {
-    fn from(err: ErrorWrapperForRpcTransactionError) -> Self {
-        match err {
-            ErrorWrapperForRpcTransactionError::InternalError(internal_error) => {
-                Self::InternalError(internal_error)
-            }
-            ErrorWrapperForRpcTransactionError::RequestValidationError(
-                rpc_request_validation_error_kind,
-            ) => Self::RequestValidationError(rpc_request_validation_error_kind),
-            ErrorWrapperForRpcTransactionError::HandlerError(server_error) => {
-                Self::ServerError(server_error)
-            }
+        RpcTransactionResponse::Empty { .. } => {
+            unreachable!(
+                "Empty response should be handled before calling to_final_execution_outcome"
+            )
         }
     }
 }

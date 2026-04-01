@@ -12,10 +12,10 @@ async fn regression_85() -> testresult::TestResult {
         .await
         .expect_err("Should fail as the contract is not deployed");
 
-    // Should be a WASM execution error rather than TransportError(Invalid Response Payload
+    // Should be a server error (HANDLER_ERROR) rather than TransportError(Invalid Response Payload)
     let query_error = match contract {
         near_api::errors::QueryError::QueryError(query) => query,
-        _ => panic!("Should be a QueryError"),
+        _ => panic!("Should be a QueryError, got: {contract:?}"),
     };
 
     let retry_error = match *query_error {
@@ -23,10 +23,21 @@ async fn regression_85() -> testresult::TestResult {
         _ => panic!("Should be a RetryError"),
     };
 
-    assert!(matches!(
-        retry_error,
-        near_api::errors::SendRequestError::WasmExecutionError(_)
-    ));
+    // With the openrpc client, contract execution errors from `query` are returned as
+    // ContractExecutionError (extracted from the result JSON `error` field) rather than
+    // ServerError(HANDLER_ERROR). Both represent a properly parsed error rather than a
+    // transport/deserialization failure, which is what issue #85 was about.
+    let is_expected = matches!(
+        &retry_error,
+        near_api::errors::SendRequestError::ContractExecutionError(_)
+    ) || matches!(
+        &retry_error,
+        near_api::errors::SendRequestError::ServerError(err) if err.is_handler_error()
+    );
+    assert!(
+        is_expected,
+        "Expected ContractExecutionError or ServerError with HANDLER_ERROR, got: {retry_error:?}"
+    );
 
     Ok(())
 }
