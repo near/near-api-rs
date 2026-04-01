@@ -59,8 +59,8 @@ near-openapi-client = "0.8"
 near-openapi-types = "0.8"
 
 # Dev-dependencies
-near-primitives = { version = "0.35.0-rc.5" }
-near-crypto = { version = "0.35.0-rc.5" }
+near-primitives = { version = "0.35" }
+near-crypto = { version = "0.35" }
 near-sandbox = { version = "0.3.7", features = [
     "generate",
 ], default-features = false }
