@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.6](https://github.com/near/near-api-rs/compare/near-api-v0.8.5...near-api-v0.8.6) - 2026-04-15
+
+### Other
+
+- changed `slipped10` to `near-slip10` ([#143](https://github.com/near/near-api-rs/pull/143))
+
 ## [0.8.5](https://github.com/near/near-api-rs/compare/near-api-v0.8.4...near-api-v0.8.5) - 2026-03-05
 
 ### Other
