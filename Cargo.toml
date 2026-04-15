@@ -54,7 +54,7 @@ near-account-id = { version = "2.0.0", features = ["serde", "borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
-near-ledger = "0.9.1"
+near-ledger = "0.9.3"
 near-openapi-client = "0.8"
 near-openapi-types = "0.8"
 
