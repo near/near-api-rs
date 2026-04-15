@@ -6,7 +6,7 @@ use near_api_types::{
         delegate_action::{DelegateAction, NonDelegateAction, SignedDelegateAction},
     },
 };
-use slipped10::BIP32Path;
+use near_slip10::BIP32Path;
 use tokio::sync::OnceCell;
 use tracing::{debug, info, instrument, warn};
 
