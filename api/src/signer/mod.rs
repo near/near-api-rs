@@ -124,8 +124,8 @@ use near_api_types::{
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use near_slip10::BIP32Path;
 use serde::{Deserialize, Serialize};
-use slipped10::BIP32Path;
 use tracing::{debug, instrument, warn};
 
 use crate::{
@@ -765,9 +765,9 @@ pub fn get_secret_key_from_seed(
 ) -> Result<SecretKey, SecretError> {
     let master_seed =
         bip39::Mnemonic::parse(master_seed_phrase)?.to_seed(password.unwrap_or_default());
-    let derived_private_key = slipped10::derive_key_from_path(
+    let derived_private_key = near_slip10::derive_key_from_path(
         &master_seed,
-        slipped10::Curve::Ed25519,
+        near_slip10::Curve::Ed25519,
         &seed_phrase_hd_path,
     )
     .map_err(|_| SecretError::DeriveKeyInvalidIndex)?;
