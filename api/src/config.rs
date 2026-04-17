@@ -1,11 +1,17 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock},
+};
+
 use near_api_types::AccountId;
 use near_openapi_client::Client;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
+use tokio::sync::RwLock;
 use url::Url;
 
 use crate::errors::RetryError;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Hash, Eq, PartialEq)]
 /// Specifies the retry strategy for RPC endpoint requests.
 pub enum RetryMethod {
     /// Exponential backoff strategy with configurable initial delay and multiplication factor.
@@ -23,7 +29,7 @@ pub enum RetryMethod {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Hash, Eq, PartialEq)]
 /// Configuration for a [NEAR RPC](https://docs.near.org/api/rpc/providers) endpoint with retry and backoff settings.
 pub struct RPCEndpoint {
     /// The URL of the RPC endpoint
@@ -263,14 +269,53 @@ impl<R, E> From<Result<R, E>> for RetryResponse<R, E> {
     }
 }
 
+pub static OPENAPI_CLIENT_CACHE: LazyLock<OpenapiClientCache> =
+    LazyLock::new(OpenapiClientCache::new);
+
+pub struct OpenapiClientCache {
+    inner: RwLock<HashMap<RPCEndpoint, Arc<Client>>>,
+}
+
+impl OpenapiClientCache {
+    pub fn new() -> Self {
+        Self {
+            inner: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub async fn get_or_create(
+        &self,
+        endpoint: &RPCEndpoint,
+    ) -> Result<Arc<Client>, InvalidHeaderValue> {
+        {
+            let guard = self.inner.read().await;
+
+            if let Some(client) = guard.get(endpoint) {
+                return Ok(Arc::clone(client));
+            }
+        }
+
+        let client = Arc::new(endpoint.client()?);
+
+        {
+            let mut guard = self.inner.write().await;
+            guard
+                .entry(endpoint.clone())
+                .or_insert_with(|| Arc::clone(&client));
+        }
+
+        Ok(client)
+    }
+}
+
 /// Retry a task with exponential backoff and failover.
 ///
 /// # Arguments
 /// * `network` - The network configuration to use for the retry-able operation.
 /// * `task` - The task to retry.
-pub async fn retry<R, E, T, F>(network: NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
+pub async fn retry<R, E, T, F>(network: &NetworkConfig, mut task: F) -> Result<R, RetryError<E>>
 where
-    F: FnMut(Client) -> T + Send,
+    F: FnMut(Arc<Client>) -> T + Send,
     T: core::future::Future<Output = RetryResponse<R, E>> + Send,
     T::Output: Send,
     E: Send,
@@ -281,9 +326,7 @@ where
 
     let mut last_error = None;
     for endpoint in network.rpc_endpoints.iter() {
-        let client = endpoint
-            .client()
-            .map_err(|e| RetryError::InvalidApiKey(e))?;
+        let client = OPENAPI_CLIENT_CACHE.get_or_create(endpoint).await?;
         for retry in 0..endpoint.retries {
             let result = task(client.clone()).await;
             match result {
