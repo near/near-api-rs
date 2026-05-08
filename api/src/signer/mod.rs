@@ -316,7 +316,7 @@ pub trait SignerTrait {
             public_key,
             nonce,
             receiver_id: transaction.receiver_id,
-            block_hash,
+            block_hash: Some(block_hash),
             actions: transaction.actions,
         });
 
@@ -345,7 +345,7 @@ pub trait SignerTrait {
             public_key,
             nonce,
             receiver_id: transaction.receiver_id,
-            block_hash,
+            block_hash: Some(block_hash),
             actions: transaction.actions,
         });
 
