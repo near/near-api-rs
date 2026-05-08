@@ -656,7 +656,7 @@ impl SetDeployActionWithInitCallBuilder {
 
     /// Specify the gas limit for the transaction to the maximum allowed value.
     pub const fn max_gas(mut self) -> Self {
-        self.gas = Some(NearGas::from_tgas(300));
+        self.gas = Some(NearGas::from_tgas(1000));
         self
     }
 
@@ -909,9 +909,9 @@ impl ContractTransactBuilder {
         self
     }
 
-    /// Specify the max gas for the transaction. By default it is set to 300 TGas.
+    /// Specify the max gas for the transaction. By default it is set to 1000 TGas.
     pub const fn max_gas(mut self) -> Self {
-        self.gas = Some(NearGas::from_tgas(300));
+        self.gas = Some(NearGas::from_tgas(1000));
         self
     }
 
