@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.7](https://github.com/near/near-api-rs/compare/near-api-v0.8.6...near-api-v0.8.7) - 2026-07-13
+
+### Added
+
+- update function call max_gas to 1000 TGas ([#120](https://github.com/near/near-api-rs/pull/120))
+
+### Fixed
+
+- retry on transient communication and response errors ([#145](https://github.com/near/near-api-rs/pull/145))
+
 ## [0.8.6](https://github.com/near/near-api-rs/compare/near-api-v0.8.5...near-api-v0.8.6) - 2026-04-15
 
 ### Other
