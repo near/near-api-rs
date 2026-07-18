@@ -283,4 +283,12 @@ mod tests {
 
         assert_eq!(deserialized, transaction);
     }
+
+    #[test]
+    fn transaction_rejects_invalid_version_tag() {
+        let error = Transaction::try_from_slice(&[2, 3]).unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(error.to_string(), "invalid transaction version tag: 2");
+    }
 }
