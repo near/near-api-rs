@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use std::str::FromStr;
 
 use near_api::{
@@ -12,6 +15,8 @@ use near_sandbox::config::{
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let network = near_sandbox::Sandbox::start_sandbox().await?;
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse()?);

@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{
     Contract, NetworkConfig, Signer, Tokens,
     types::{AccountId, tokens::FTBalance},
@@ -9,6 +12,8 @@ use testresult::TestResult;
 
 #[tokio::main]
 async fn main() -> TestResult {
+    common::init_tracing();
+
     let token = GenesisAccount::generate_with_name("token".parse()?);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let token_signer = Signer::from_secret_key(token.private_key.clone().parse()?)?;
