@@ -1,4 +1,8 @@
-use std::{io::Write, str::FromStr, sync::OnceLock};
+use std::{
+    io::{Read, Write},
+    str::FromStr,
+    sync::OnceLock,
+};
 
 pub mod actions;
 pub mod delegate_action;
@@ -33,7 +37,7 @@ pub struct TransactionV1 {
     pub priority_fee: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Transaction {
     V0(TransactionV0),
     V1(TransactionV1),
@@ -107,6 +111,32 @@ impl BorshSerialize for Transaction {
             }
         }
         Ok(())
+    }
+}
+
+impl BorshDeserialize for Transaction {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> std::io::Result<Self> {
+        let first = u8::deserialize_reader(reader)?;
+        let second = u8::deserialize_reader(reader)?;
+
+        // V0 starts with a little-endian AccountId length (at most 64), so its second byte is 0.
+        // V1 starts with the tag 1 followed by the nonzero first byte of its AccountId length.
+        if second == 0 {
+            let prefix = [first, second];
+            let mut reader = prefix.chain(reader);
+            return TransactionV0::deserialize_reader(&mut reader).map(Self::V0);
+        }
+
+        if first == 1 {
+            let prefix = [second];
+            let mut reader = prefix.chain(reader);
+            return TransactionV1::deserialize_reader(&mut reader).map(Self::V1);
+        }
+
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("invalid transaction version tag: {first}"),
+        ))
     }
 }
 
@@ -206,4 +236,51 @@ pub struct PrepopulateTransaction {
     pub receiver_id: near_account_id::AccountId,
     /// The actions that will be executed by the transaction.
     pub actions: Vec<Action>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::KeyType;
+
+    fn transaction_v0() -> TransactionV0 {
+        TransactionV0 {
+            signer_id: "alice.near".parse().unwrap(),
+            public_key: PublicKey::empty(KeyType::ED25519),
+            nonce: 1,
+            receiver_id: "receiver.near".parse().unwrap(),
+            block_hash: CryptoHash::default(),
+            actions: vec![],
+        }
+    }
+
+    #[test]
+    fn signed_transaction_v0_borsh_round_trips() {
+        let signature = Signature::from_parts(KeyType::ED25519, &[0; 64]).unwrap();
+        let signed = SignedTransaction::new(signature, Transaction::V0(transaction_v0()));
+
+        let bytes = borsh::to_vec(&signed).unwrap();
+        let deserialized = SignedTransaction::try_from_slice(&bytes).unwrap();
+
+        assert_eq!(deserialized, signed);
+    }
+
+    #[test]
+    fn transaction_v1_borsh_round_trips() {
+        let v0 = transaction_v0();
+        let transaction = Transaction::V1(TransactionV1 {
+            signer_id: v0.signer_id,
+            public_key: v0.public_key,
+            nonce: v0.nonce,
+            receiver_id: v0.receiver_id,
+            block_hash: v0.block_hash,
+            actions: v0.actions,
+            priority_fee: 1,
+        });
+
+        let bytes = borsh::to_vec(&transaction).unwrap();
+        let deserialized = Transaction::try_from_slice(&bytes).unwrap();
+
+        assert_eq!(deserialized, transaction);
+    }
 }
