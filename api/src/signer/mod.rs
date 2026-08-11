@@ -107,16 +107,17 @@
 //! The user can instantiate [`Signer`] with a custom signing logic by utilizing the [`SignerTrait`] trait.
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
 
+use futures::lock::Mutex;
 use near_api_types::{
-    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, Reference, SecretKey, Signature,
+    AccountId, BlockHeight, CryptoHash, Nonce, PublicKey, SecretKey, Signature,
     transaction::{
         PrepopulateTransaction, SignedTransaction, Transaction, TransactionV0,
         delegate_action::{NonDelegateAction, SignedDelegateAction},
@@ -135,6 +136,7 @@ use crate::{
 
 use secret_key::SecretKeySigner;
 
+mod broadcast;
 #[cfg(feature = "keystore")]
 pub mod keystore;
 #[cfg(feature = "ledger")]
@@ -388,14 +390,21 @@ pub trait SignerTrait {
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError>;
 }
 
+/// Each transaction group is identified by:  network name, account_id, public_key
+pub type TransactionGroupKey = (String, AccountId, PublicKey);
+
 /// A [Signer](`Signer`) is a wrapper around a single or multiple signer implementations
 /// of [SignerTrait](`SignerTrait`).
 ///
 /// It provides an access key pooling and a nonce caching mechanism to improve transaction throughput.
+/// Taking into account each transaction group: account_id + public_key + network name,
+/// to manage nonces separately for each group.
 pub struct Signer {
-    pool: tokio::sync::RwLock<HashMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
-    nonce_cache: futures::lock::Mutex<HashMap<(AccountId, PublicKey), u64>>,
+    pool: tokio::sync::RwLock<BTreeMap<PublicKey, Box<dyn SignerTrait + Send + Sync + 'static>>>,
+    nonce_cache: Mutex<HashMap<TransactionGroupKey, Nonce>>,
     current_public_key: AtomicUsize,
+    // Optional max retry limit for nonce conflicts during transaction broadcasting
+    max_nonce_retries: AtomicU32,
 }
 
 impl Signer {
@@ -404,15 +413,24 @@ impl Signer {
     pub fn new<T: SignerTrait + Send + Sync + 'static>(
         signer: T,
     ) -> Result<Arc<Self>, PublicKeyError> {
+        const DEFAULT_MAX_RETRIES: u32 = 3;
+
         let public_key = signer.get_public_key()?;
         Ok(Arc::new(Self {
-            pool: tokio::sync::RwLock::new(HashMap::from([(
+            pool: tokio::sync::RwLock::new(BTreeMap::from([(
                 public_key,
                 Box::new(signer) as Box<dyn SignerTrait + Send + Sync + 'static>,
             )])),
-            nonce_cache: futures::lock::Mutex::new(HashMap::new()),
+            nonce_cache: Mutex::new(HashMap::new()),
             current_public_key: AtomicUsize::new(0),
+            max_nonce_retries: AtomicU32::new(DEFAULT_MAX_RETRIES),
         }))
+    }
+
+    /// Sets the maximum number of retries for nonce conflicts during transaction broadcasting
+    #[instrument(skip(self, retries))]
+    pub fn set_max_nonce_retries(&self, retries: u32) {
+        self.max_nonce_retries.store(retries, Ordering::SeqCst);
     }
 
     /// Adds a signer to the pool of signers.
@@ -532,39 +550,6 @@ impl Signer {
     pub async fn add_keystore_to_pool(&self, pub_key: PublicKey) -> Result<(), PublicKeyError> {
         let signer = keystore::KeystoreSigner::new_with_pubkey(pub_key);
         self.add_signer_to_pool(signer).await
-    }
-
-    /// Fetches the transaction nonce and block hash associated to the access key. Internally
-    /// caches the nonce as to not need to query for it every time, and ending up having to run
-    /// into contention with others.
-    ///
-    /// Uses finalized block hash to avoid "Transaction Expired" errors when sending transactions
-    /// to load-balanced RPC endpoints where different nodes may be at different chain heights.
-    #[allow(clippy::significant_drop_tightening)]
-    #[instrument(skip(self, network), fields(account_id = %account_id))]
-    pub async fn fetch_tx_nonce(
-        &self,
-        account_id: AccountId,
-        public_key: PublicKey,
-        network: &NetworkConfig,
-    ) -> Result<(Nonce, CryptoHash, BlockHeight), SignerError> {
-        debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
-
-        let nonce_data = crate::account::Account(account_id.clone())
-            .access_key(public_key)
-            .at(Reference::Final)
-            .fetch_from(network)
-            .await
-            .map_err(|e| SignerError::FetchNonceError(Box::new(e)))?;
-
-        let nonce = {
-            let mut nonce_cache = self.nonce_cache.lock().await;
-            let nonce = nonce_cache.entry((account_id, public_key)).or_default();
-            *nonce = (*nonce).max(nonce_data.data.nonce.0) + 1;
-            *nonce
-        };
-
-        Ok((nonce, nonce_data.block_hash, nonce_data.block_height))
     }
 
     /// Creates a [Signer](`Signer`) using seed phrase with default HD path.
