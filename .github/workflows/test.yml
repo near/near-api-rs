@@ -18,7 +18,7 @@ jobs:
     outputs:
       version: ${{ steps.rust_msrv.outputs.version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Get MSRV
       id: rust_msrv
       run: |
@@ -29,14 +29,14 @@ jobs:
   cargo-fmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Run cargo fmt
       run: cargo fmt --check
 
   clippy:
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install libudev
       run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - uses: Swatinem/rust-cache@v2
@@ -50,7 +50,7 @@ jobs:
   cargo-doc:
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Install libudev
       run: sudo apt-get update && sudo apt-get -y install libudev-dev libsystemd-dev
     - uses: Swatinem/rust-cache@v2
@@ -65,7 +65,7 @@ jobs:
     needs: cargo-fmt
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: Swatinem/rust-cache@v2
       with:
         shared-key: "windows-stable"
@@ -77,7 +77,7 @@ jobs:
     needs: cargo-fmt
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: Swatinem/rust-cache@v2
       with:
         cache-provider: warpbuild
@@ -90,7 +90,7 @@ jobs:
     needs: cargo-fmt
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: Swatinem/rust-cache@v2
       with:
         cache-provider: warpbuild
@@ -117,7 +117,7 @@ jobs:
     env:
       NEAR_SANDBOX_RPC_TIMEOUT_SECS: 30
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Determine Rust version
       id: rust-version
@@ -159,7 +159,7 @@ jobs:
     needs: [get_msrv]
     runs-on: warp-ubuntu-latest-x64-4x
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install LLVM and system dependencies
         run: |
@@ -195,5 +195,5 @@ jobs:
   spellcheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: streetsidesoftware/cspell-action@v8
