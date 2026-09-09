@@ -58,6 +58,7 @@
         "sourcescan",
         "msrv",
         "nearcore",
+        "nearprotocol",
         "dtolnay",
         "Ieni",
         "repr",
