@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{
     Chain, Transaction,
     types::{AccountId, CryptoHash, Reference, TxExecutionStatus},
@@ -14,6 +17,8 @@ use testresult::TestResult;
 ///   TX_SENDER — the sender account ID
 #[tokio::main]
 async fn main() -> TestResult {
+    common::init_tracing();
+
     if std::env::var("CI").is_ok() {
         println!("Skipping transaction_queries in CI (requires mainnet)");
         return Ok(());

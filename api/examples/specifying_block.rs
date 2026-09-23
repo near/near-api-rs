@@ -1,7 +1,12 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{Chain, types::Reference};
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     // Fetch a optimistic block
     let _optimistic_block = Chain::block().fetch_from_mainnet().await?;
 
