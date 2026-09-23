@@ -1,11 +1,11 @@
 [workspace]
 resolver = "3"
 members = ["api", "types"]
-rust-version = "1.86"
 
 [workspace.package]
+rust-version = "1.86"
 edition = "2024"
-version = "0.8.4"
+version = "0.8.6"
 authors = [
     "akorchyn <artur.yurii.korchynskyi@gmail.com>",
     "frol <frolvlad@gmail.com>",
@@ -16,7 +16,7 @@ repository = "https://github.com/near/near-api-rs"
 
 
 [workspace.dependencies]
-near-api-types = { path = "types", version = "~0.8.4" }
+near-api-types = { path = "types", version = "~0.8.6" }
 
 borsh = "1.5"
 async-trait = "0.1"
@@ -31,7 +31,7 @@ bip39 = "2.0.0"
 serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_json = "1.0.57"
 serde_dbgfmt = "0.1.0"
-slipped10 = { version = "0.4.6" }
+near-slip10 = { version = "0.4.7" }
 url = { version = "2", features = ["serde"] }
 tokio = { version = "1.0", default-features = false }
 tracing = "0.1"
@@ -54,13 +54,13 @@ near-account-id = { version = "2.0.0", features = ["serde", "borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }
 near-token = { version = "0.3", features = ["serde", "borsh"] }
 near-abi = "0.4.2"
-near-ledger = "0.9.1"
-near-openapi-client = "0.7"
-near-openapi-types = "0.7"
+near-ledger = "0.9.3"
+near-openapi-client = "0.8"
+near-openapi-types = "0.8"
 
 # Dev-dependencies
-near-primitives = { version = "0.34" }
-near-crypto = { version = "0.34" }
+near-primitives = { version = "0.35" }
+near-crypto = { version = "0.35" }
 near-sandbox = { version = "0.3.7", features = [
     "generate",
 ], default-features = false }

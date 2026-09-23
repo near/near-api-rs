@@ -4,7 +4,8 @@
 use base64::{Engine, prelude::BASE64_STANDARD};
 use near_api_types::NearToken;
 use near_openapi_client::types::{
-    RpcBlockError, RpcQueryError, RpcTransactionError, RpcValidatorError,
+    RpcBlockError, RpcLightClientProofError, RpcQueryError, RpcReceiptError, RpcTransactionError,
+    RpcValidatorError,
 };
 use reqwest::StatusCode;
 
@@ -84,6 +85,58 @@ pub fn is_critical_transaction_error(err: &SendRequestError<RpcTransactionError>
     })
 }
 
+pub fn is_critical_transaction_status_error(err: &SendRequestError<RpcTransactionError>) -> bool {
+    is_critical_json_rpc_error(err, |err| match err {
+        RpcTransactionError::TimeoutError
+        | RpcTransactionError::RequestRouted { .. }
+        | RpcTransactionError::UnknownTransaction { .. }
+        | RpcTransactionError::DoesNotTrackShard
+        | RpcTransactionError::InternalError { .. } => false,
+
+        RpcTransactionError::InvalidTransaction { .. } => true,
+
+        _ => false,
+    })
+}
+
+pub fn is_critical_receipt_error(err: &SendRequestError<RpcReceiptError>) -> bool {
+    is_critical_json_rpc_error(err, |err| match err {
+        RpcReceiptError::InternalError { .. } => false,
+        RpcReceiptError::UnknownReceipt { .. } => true,
+        _ => false,
+    })
+}
+
+pub fn is_critical_light_client_proof_error(
+    err: &SendRequestError<RpcLightClientProofError>,
+) -> bool {
+    is_critical_json_rpc_error(err, |err| match err {
+        RpcLightClientProofError::UnknownBlock { .. }
+        | RpcLightClientProofError::InternalError { .. }
+        | RpcLightClientProofError::UnavailableShard { .. } => false,
+
+        RpcLightClientProofError::InconsistentState { .. }
+        | RpcLightClientProofError::NotConfirmed { .. }
+        | RpcLightClientProofError::UnknownTransactionOrReceipt { .. } => true,
+
+        _ => false,
+    })
+}
+
+const fn is_critical_status(status: StatusCode) -> bool {
+    // It's more readable to use a match statement than a macro
+    #[allow(clippy::match_like_matches_macro)]
+    match status {
+        StatusCode::REQUEST_TIMEOUT
+        | StatusCode::TOO_MANY_REQUESTS
+        | StatusCode::INTERNAL_SERVER_ERROR
+        | StatusCode::BAD_GATEWAY
+        | StatusCode::SERVICE_UNAVAILABLE
+        | StatusCode::GATEWAY_TIMEOUT => false,
+        _ => true,
+    }
+}
+
 fn is_critical_json_rpc_error<RpcError: std::fmt::Debug + Send + Sync>(
     err: &SendRequestError<RpcError>,
     is_critical_t: impl Fn(&RpcError) -> bool,
@@ -96,25 +149,18 @@ fn is_critical_json_rpc_error<RpcError: std::fmt::Debug + Send + Sync>(
         SendRequestError::RequestCreationError(_) => true,
         SendRequestError::TransportError(error) => match error {
             near_openapi_client::Error::InvalidRequest(_)
-            | near_openapi_client::Error::CommunicationError(_)
             | near_openapi_client::Error::InvalidUpgrade(_)
             | near_openapi_client::Error::ResponseBodyError(_)
             | near_openapi_client::Error::InvalidResponsePayload(_, _)
-            | near_openapi_client::Error::UnexpectedResponse(_)
             | near_openapi_client::Error::Custom(_) => true,
-
+            near_openapi_client::Error::CommunicationError(error) => {
+                !error.is_timeout() && !error.is_connect()
+            }
             near_openapi_client::Error::ErrorResponse(response_value) => {
-                // It's more readable to use a match statement than a macro
-                #[allow(clippy::match_like_matches_macro)]
-                match response_value.status() {
-                    StatusCode::REQUEST_TIMEOUT
-                    | StatusCode::TOO_MANY_REQUESTS
-                    | StatusCode::INTERNAL_SERVER_ERROR
-                    | StatusCode::BAD_GATEWAY
-                    | StatusCode::SERVICE_UNAVAILABLE
-                    | StatusCode::GATEWAY_TIMEOUT => false,
-                    _ => true,
-                }
+                is_critical_status(response_value.status())
+            }
+            near_openapi_client::Error::UnexpectedResponse(response) => {
+                is_critical_status(response.status())
             }
             _ => false,
         },
