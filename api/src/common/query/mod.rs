@@ -245,7 +245,7 @@ where
         let requests = requests.into_iter().map(|request| {
             let reference = &self.reference;
             async move {
-                retry(network.clone(), |client| {
+                retry(network, |client| {
                     let request = &request;
 
                     async move {
@@ -436,7 +436,7 @@ where
 
         debug!(target: QUERY_EXECUTOR_TARGET, "Preparing query");
 
-        let query_response = retry(network.clone(), |client| {
+        let query_response = retry(network, |client| {
             let request = &request;
             let reference = &self.reference;
             async move {
