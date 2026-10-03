@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use std::str::FromStr;
 
 use near_api::{Contract, types::AccountId};
@@ -5,6 +8,8 @@ use testresult::TestResult;
 
 #[tokio::main]
 async fn main() -> TestResult {
+    common::init_tracing();
+
     for (account_name, expected_json_metadata) in [
         ("desolate-toad.testnet", FIRST_METADATA),
         ("fat-fabulous-toad.testnet", SECOND_METADATA),

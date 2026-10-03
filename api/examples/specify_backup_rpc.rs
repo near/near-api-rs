@@ -1,7 +1,12 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{Chain, NetworkConfig, RPCEndpoint, types::Reference};
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let mut network = NetworkConfig::mainnet();
     network.rpc_endpoints.push(
         RPCEndpoint::new("https://near.lava.build:443".parse()?)

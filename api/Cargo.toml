@@ -57,3 +57,4 @@ keystore = ["dep:keyring"]
 tokio = { workspace = true, default-features = false, features = ["full"] }
 near-sandbox = { workspace = true, features = ["generate"] }
 testresult.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

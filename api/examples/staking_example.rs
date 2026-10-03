@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use std::sync::Arc;
 
 use near_api::{AccountId, NearToken, NetworkConfig, RPCEndpoint, Signer, Staking};
@@ -7,6 +10,8 @@ use near_sandbox::{
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let staker: AccountId = "dev.near".parse()?;
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let network = near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);

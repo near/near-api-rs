@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{
     Account, NetworkConfig, Signer, Tokens,
     signer::generate_secret_key,
@@ -8,6 +11,8 @@ use testresult::TestResult;
 
 #[tokio::main]
 async fn main() -> TestResult {
+    common::init_tracing();
+
     let network = near_sandbox::Sandbox::start_sandbox().await?;
 
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse()?);

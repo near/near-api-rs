@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{
     Contract, NetworkConfig, Signer, Tokens,
     types::{AccountId, NearToken, nft::TokenMetadata},
@@ -10,6 +13,8 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let nft = GenesisAccount::generate_with_name("nft".parse()?);
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let account2 = GenesisAccount::generate_with_name("account2".parse()?);

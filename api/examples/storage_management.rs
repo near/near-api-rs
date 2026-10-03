@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{
     AccountId, Contract, NearToken, NetworkConfig, RPCEndpoint, Signer, StorageDeposit,
 };
@@ -5,6 +8,8 @@ use near_sandbox::config::DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY;
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let account: AccountId = "dev.near".parse()?;
     let token: AccountId = "wrap.near".parse()?;
 

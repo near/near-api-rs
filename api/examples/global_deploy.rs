@@ -1,8 +1,13 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{Contract, NetworkConfig, Signer, types::CryptoHash};
 use near_sandbox::{GenesisAccount, SandboxConfig};
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let global = GenesisAccount::generate_with_name("global".parse()?);
     let instance_of_global = GenesisAccount::generate_with_name("instance_of_global".parse()?);
     let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {

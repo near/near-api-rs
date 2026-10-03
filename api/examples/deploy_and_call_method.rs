@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{
     Contract, NetworkConfig, Signer,
     types::{AccountId, Data},
@@ -7,6 +10,8 @@ use testresult::TestResult;
 
 #[tokio::main]
 async fn main() -> TestResult {
+    common::init_tracing();
+
     let network = near_sandbox::Sandbox::start_sandbox().await.unwrap();
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let network = NetworkConfig::from_rpc_url("sandbox", network.rpc_addr.parse().unwrap());
