@@ -1,3 +1,6 @@
+// Boxing `ExecuteTransactionError` would break the public API.
+#![allow(clippy::result_large_err)]
+
 use std::fmt;
 use std::sync::Arc;
 
