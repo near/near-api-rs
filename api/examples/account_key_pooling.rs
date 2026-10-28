@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 /// You can use account key pooling to use different keys for consecutive transactions
 /// to avoid nonce-related issues.
 ///
@@ -18,6 +21,8 @@ use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> TestResult {
+    common::init_tracing();
+
     let account: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
     let second_account = GenesisAccount::generate_with_name("second_account".parse()?);
 

@@ -1,3 +1,6 @@
+#[path = "../example_utils.rs"]
+mod common;
+
 use near_api::{NetworkConfig, Signer};
 
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
@@ -5,6 +8,8 @@ use openssl::rand::rand_bytes;
 
 #[tokio::main]
 async fn main() -> testresult::TestResult {
+    common::init_tracing();
+
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
