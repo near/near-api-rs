@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - retry on transient communication and response errors ([#145](https://github.com/near/near-api-rs/pull/145))
+- bump zstd to 0.14.3 to clear RustSec advisories ([#153](https://github.com/near/near-api-rs/pull/153))
 
 ### Other
 
