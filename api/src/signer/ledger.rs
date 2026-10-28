@@ -47,7 +47,7 @@ impl SignerTrait for LedgerSigner {
             public_key,
             receiver_id: transaction.receiver_id,
             nonce,
-            block_hash,
+            block_hash: Some(block_hash),
             actions: transaction.actions,
         });
         let unsigned_tx_bytes = borsh::to_vec(&unsigned_tx).map_err(LedgerError::from)?;
