@@ -22,7 +22,7 @@ async fn main() -> testresult::TestResult {
     };
 
     let signature = signer
-        .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+        .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key.clone(), &payload)
         .await?;
 
     println!("Signature: {signature}");

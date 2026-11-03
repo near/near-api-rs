@@ -49,6 +49,10 @@ secp256k1 = { version = "0.27.0", default-features = false, features = [
     "recovery",
     "alloc",
 ] }
+# Pure-Rust FIPS 204 ML-DSA. `alloc` keeps the large ML-DSA intermediate values on the heap
+# instead of the stack; the default random number generator and PKCS#8 features are not needed
+# (we only use deterministic signing and our own key encoding).
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc"] }
 
 near-account-id = { version = "2.0.0", features = ["serde", "borsh"] }
 near-gas = { version = "0.3", features = ["serde", "borsh"] }

@@ -28,7 +28,7 @@ impl SignerTrait for SecretKeySigner {
 
     #[instrument(skip(self))]
     fn get_public_key(&self) -> Result<PublicKey, PublicKeyError> {
-        Ok(self.public_key)
+        Ok(self.public_key.clone())
     }
 }
 

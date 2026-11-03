@@ -67,11 +67,17 @@
         "SECP",
         "chrono",
         "testresult",
-        "btreemap"
+        "btreemap",
+        "dsa",
+        "mldsa",
+        "fips",
+        "skencode"
     ],
     "ignoreRegExpList": [
         // Base58 encoded public key/secret key
         "\"ed25519:[-A-Za-z0-9+/]*={0,3}\"",
+        // Base58 encoded ML-DSA-65 public key/secret key/signature
+        "ml-dsa-65:[1-9A-HJ-NP-Za-km-z]+",
         "Email",
     ],
     "import": []

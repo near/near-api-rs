@@ -16,7 +16,7 @@ pub enum DecimalNumberParsingError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum KeyTypeError {
-    #[error("Invalid key format. Expected: [ed25519, secp256k1] but got: {0}")]
+    #[error("Invalid key format. Expected: [ed25519, secp256k1, ml-dsa-65] but got: {0}")]
     InvalidKeyFormat(String),
     #[error("Invalid key type byte index: {0}")]
     InvalidKeyTypeByteIndex(u8),
@@ -94,6 +94,8 @@ pub enum SecretKeyError {
     InvalidSecp256k1SecretKey(secp256k1::Error),
     #[error("Invalid ed25519 secret key: {0}")]
     InvalidEd25519SecretKey(ed25519_dalek::SignatureError),
+    #[error("Invalid ml-dsa-65 secret key: {0}")]
+    InvalidMlDsa65SecretKey(String),
     #[error("Invalid conversion: {0}")]
     InvalidConversion(#[from] DataConversionError),
 }

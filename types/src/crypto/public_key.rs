@@ -8,18 +8,25 @@ use std::{
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::{
-    crypto::{KeyType, SECP256K1_PUBLIC_KEY_LENGTH, split_key_type_data},
+    crypto::{
+        KeyType, ML_DSA_65_PUBLIC_KEY_LENGTH, SECP256K1_PUBLIC_KEY_LENGTH, split_key_type_data,
+    },
     errors::DataConversionError,
 };
 
 /// Public key container supporting different curves.
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+///
+/// Note that this type is not `Copy`: the ML-DSA-65 variant owns a heap-allocated 1952-byte key.
+/// Use `.clone()` where a copy is needed.
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
 #[cfg_attr(test, derive(bolero::TypeGenerator))]
 pub enum PublicKey {
     /// 256 bit elliptic curve based public-key.
     ED25519(ED25519PublicKey),
     /// 512 bit elliptic curve based public-key used in Bitcoin's public-key cryptography.
     SECP256K1(Secp256K1PublicKey),
+    /// FIPS 204 ML-DSA-65 post-quantum public key (1952 bytes).
+    MLDSA65(MlDsa65PublicKey),
 }
 
 impl PublicKey {
@@ -30,15 +37,20 @@ impl PublicKey {
         match self {
             Self::ED25519(_) => ED25519_LEN,
             Self::SECP256K1(_) => 65,
+            Self::MLDSA65(_) => 1 + ML_DSA_65_PUBLIC_KEY_LENGTH,
         }
     }
 
-    pub const fn empty(key_type: KeyType) -> Self {
+    // Not `const` because the ML-DSA-65 key is heap-allocated.
+    pub fn empty(key_type: KeyType) -> Self {
         match key_type {
             KeyType::ED25519 => {
                 Self::ED25519(ED25519PublicKey([0u8; ed25519_dalek::PUBLIC_KEY_LENGTH]))
             }
             KeyType::SECP256K1 => Self::SECP256K1(Secp256K1PublicKey([0u8; 64])),
+            KeyType::MLDSA65 => Self::MLDSA65(MlDsa65PublicKey(Box::new(
+                [0u8; ML_DSA_65_PUBLIC_KEY_LENGTH],
+            ))),
         }
     }
 
@@ -46,6 +58,7 @@ impl PublicKey {
         match self {
             Self::ED25519(_) => KeyType::ED25519,
             Self::SECP256K1(_) => KeyType::SECP256K1,
+            Self::MLDSA65(_) => KeyType::MLDSA65,
         }
     }
 
@@ -53,20 +66,21 @@ impl PublicKey {
         match self {
             Self::ED25519(key) => &key.0,
             Self::SECP256K1(key) => &key.0,
+            Self::MLDSA65(key) => &*key.0,
         }
     }
 
     pub const fn unwrap_as_ed25519(&self) -> &ED25519PublicKey {
         match self {
             Self::ED25519(key) => key,
-            Self::SECP256K1(_) => panic!(),
+            Self::SECP256K1(_) | Self::MLDSA65(_) => panic!(),
         }
     }
 
     pub const fn unwrap_as_secp256k1(&self) -> &Secp256K1PublicKey {
         match self {
             Self::SECP256K1(key) => key,
-            Self::ED25519(_) => panic!(),
+            Self::ED25519(_) | Self::MLDSA65(_) => panic!(),
         }
     }
 }
@@ -97,6 +111,10 @@ impl Hash for PublicKey {
                 state.write_u8(1u8);
                 state.write(&public_key.0);
             }
+            Self::MLDSA65(public_key) => {
+                state.write_u8(2u8);
+                state.write(&*public_key.0);
+            }
         }
     }
 }
@@ -106,6 +124,7 @@ impl Display for PublicKey {
         let (key_type, key_data) = match self {
             Self::ED25519(public_key) => (KeyType::ED25519, &public_key.0[..]),
             Self::SECP256K1(public_key) => (KeyType::SECP256K1, &public_key.0[..]),
+            Self::MLDSA65(public_key) => (KeyType::MLDSA65, &public_key.0[..]),
         };
         write!(fmt, "{}:{}", key_type, bs58::encode(key_data).into_string())
     }
@@ -128,6 +147,10 @@ impl BorshSerialize for PublicKey {
                 BorshSerialize::serialize(&1u8, writer)?;
                 writer.write_all(&public_key.0)?;
             }
+            Self::MLDSA65(public_key) => {
+                BorshSerialize::serialize(&2u8, writer)?;
+                writer.write_all(&*public_key.0)?;
+            }
         }
         Ok(())
     }
@@ -144,6 +167,12 @@ impl BorshDeserialize for PublicKey {
             KeyType::SECP256K1 => Ok(Self::SECP256K1(Secp256K1PublicKey(
                 BorshDeserialize::deserialize_reader(rd)?,
             ))),
+            KeyType::MLDSA65 => {
+                // Read straight into the heap allocation to avoid a large stack temporary.
+                let mut key = Box::new([0u8; ML_DSA_65_PUBLIC_KEY_LENGTH]);
+                rd.read_exact(&mut *key)?;
+                Ok(Self::MLDSA65(MlDsa65PublicKey(key)))
+            }
         }
     }
 }
@@ -183,6 +212,9 @@ impl FromStr for PublicKey {
             KeyType::SECP256K1 => Self::SECP256K1(Secp256K1PublicKey(
                 bs58::decode(key_data).into_vec()?.try_into()?,
             )),
+            KeyType::MLDSA65 => Self::MLDSA65(MlDsa65PublicKey(
+                bs58::decode(key_data).into_vec()?.try_into()?,
+            )),
         })
     }
 }
@@ -220,5 +252,40 @@ impl TryFrom<&[u8]> for ED25519PublicKey {
 impl std::fmt::Debug for ED25519PublicKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         Display::fmt(&bs58::encode(&self.0).into_string(), f)
+    }
+}
+
+/// FIPS 204 ML-DSA-65 public key.
+///
+/// The key bytes are heap-allocated so that the `PublicKey` enum stays small for the classical
+/// curves.
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MlDsa65PublicKey(pub Box<[u8; ML_DSA_65_PUBLIC_KEY_LENGTH]>);
+
+impl TryFrom<&[u8]> for MlDsa65PublicKey {
+    type Error = DataConversionError;
+
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
+        let key: [u8; ML_DSA_65_PUBLIC_KEY_LENGTH] = data
+            .try_into()
+            .map_err(|_| Self::Error::IncorrectLength(data.len()))?;
+        Ok(Self(Box::new(key)))
+    }
+}
+
+impl std::fmt::Debug for MlDsa65PublicKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        Display::fmt(&bs58::encode(&self.0[..]).into_string(), f)
+    }
+}
+
+#[cfg(test)]
+impl bolero::TypeGenerator for MlDsa65PublicKey {
+    fn generate<D: bolero::Driver>(driver: &mut D) -> Option<Self> {
+        let mut key = Box::new([0u8; ML_DSA_65_PUBLIC_KEY_LENGTH]);
+        for byte in key.iter_mut() {
+            *byte = u8::generate(driver)?;
+        }
+        Some(Self(key))
     }
 }
