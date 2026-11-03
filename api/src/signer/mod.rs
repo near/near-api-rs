@@ -208,7 +208,7 @@ impl NEP413Payload {
         use near_api_types::AccessKeyPermission;
 
         let hash = self.compute_hash()?;
-        if !signature.verify(hash, public_key) {
+        if !signature.verify(hash, public_key.clone()) {
             return Ok(false);
         }
 
@@ -309,7 +309,7 @@ pub trait SignerTrait {
         max_block_height: BlockHeight,
     ) -> Result<SignedDelegateAction, MetaSignError> {
         let signer_secret_key = self
-            .get_secret_key(&transaction.signer_id, public_key)
+            .get_secret_key(&transaction.signer_id, public_key.clone())
             .await?;
         let unsigned_transaction = Transaction::V0(TransactionV0 {
             signer_id: transaction.signer_id.clone(),
@@ -338,7 +338,7 @@ pub trait SignerTrait {
         block_hash: CryptoHash,
     ) -> Result<SignedTransaction, SignerError> {
         let signer_secret_key = self
-            .get_secret_key(&transaction.signer_id, public_key)
+            .get_secret_key(&transaction.signer_id, public_key.clone())
             .await?;
         let unsigned_transaction = Transaction::V0(TransactionV0 {
             signer_id: transaction.signer_id.clone(),
@@ -551,7 +551,7 @@ impl Signer {
         debug!(target: SIGNER_TARGET, "Fetching transaction nonce");
 
         let nonce_data = crate::account::Account(account_id.clone())
-            .access_key(public_key)
+            .access_key(public_key.clone())
             .at(Reference::Final)
             .fetch_from(network)
             .await
@@ -655,10 +655,10 @@ impl Signer {
         let index = self.current_public_key.fetch_add(1, Ordering::SeqCst);
         let public_key = {
             let pool = self.pool.read().await;
-            *pool
-                .keys()
+            pool.keys()
                 .nth(index % pool.len())
                 .ok_or(PublicKeyError::PublicKeyIsNotAvailable)?
+                .clone()
         };
         debug!(target: SIGNER_TARGET, "Public key retrieved");
         Ok(public_key)
@@ -933,6 +933,43 @@ mod nep_413_tests {
         );
     }
 
+    // ML-DSA-65 keys work through the regular signer without any special handling.
+    #[tokio::test]
+    pub async fn ml_dsa_65_signer_signs_nep413_payload() -> TestResult {
+        use near_api_types::crypto::secret_key::{MlDsa65SecretKey, SecretKey};
+
+        let secret_key: SecretKey = SecretKey::MLDSA65(MlDsa65SecretKey::from_seed(&[42; 32]))
+            .to_string()
+            .parse()?;
+        let signer = Signer::from_secret_key(secret_key.clone())?;
+        let public_key = signer.get_public_key().await?;
+        assert_eq!(public_key, secret_key.public_key());
+        assert!(matches!(public_key.key_type(), KeyType::MLDSA65));
+
+        let payload: NEP413Payload = NEP413Payload {
+            message: "Hello NEAR!".to_string(),
+            nonce: from_base64("KNV0cOpvJ50D5vfF9pqWom8wo2sliQ4W+Wa7uZ3Uk6Y=")
+                .try_into()
+                .unwrap(),
+            recipient: "example.near".to_string(),
+            callback_url: None,
+        };
+        let signature = signer
+            .sign_message_nep413("round-toad.testnet".parse()?, public_key.clone(), &payload)
+            .await?;
+
+        assert!(matches!(signature.key_type(), KeyType::MLDSA65));
+        assert!(signature.verify(payload.compute_hash()?, public_key.clone()));
+
+        // The signature is not valid for a different payload.
+        let other_payload = NEP413Payload {
+            message: "Hello NEAR?".to_string(),
+            ..payload
+        };
+        assert!(!signature.verify(other_payload.compute_hash()?, public_key));
+        Ok(())
+    }
+
     #[tokio::test]
     pub async fn test_verify_nep413_payload() -> TestResult {
         let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
@@ -951,7 +988,7 @@ mod nep_413_tests {
         };
 
         let signature = signer
-            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key.clone(), &payload)
             .await?;
 
         let result = payload
@@ -986,7 +1023,7 @@ mod nep_413_tests {
         };
 
         let signature = signer
-            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key.clone(), &payload)
             .await?;
 
         let result = payload
@@ -1019,7 +1056,7 @@ mod nep_413_tests {
                     receiver_id: "test".to_string(),
                     method_names: vec!["test".to_string()],
                 }),
-                public_key,
+                public_key.clone(),
             )
             .with_signer(tx_signer.clone())
             .send_to(&network)
@@ -1036,7 +1073,7 @@ mod nep_413_tests {
         };
 
         let signature = msg_signer
-            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key, &payload)
+            .sign_message_nep413(DEFAULT_GENESIS_ACCOUNT.into(), public_key.clone(), &payload)
             .await?;
 
         let result = payload

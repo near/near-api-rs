@@ -13,8 +13,8 @@ use secp256k1::Message;
 use crate::{
     CryptoHash, PublicKey,
     crypto::{
-        KeyType, SECP256K1_SIGNATURE_LENGTH, public_key::Secp256K1PublicKey, secret_key::SECP256K1,
-        split_key_type_data,
+        KeyType, ML_DSA_65_SIGNATURE_LENGTH, SECP256K1_SIGNATURE_LENGTH,
+        public_key::Secp256K1PublicKey, secret_key::SECP256K1, split_key_type_data,
     },
     errors::{DataConversionError, SignatureErrors},
 };
@@ -24,6 +24,7 @@ use crate::{
 pub enum Signature {
     ED25519(ed25519_dalek::Signature),
     SECP256K1(Secp256K1Signature),
+    MLDSA65(MlDsa65Signature),
 }
 
 // This `Hash` implementation is safe since it retains the property
@@ -33,6 +34,7 @@ impl Hash for Signature {
         match self {
             Self::ED25519(sig) => sig.to_bytes().hash(state),
             Self::SECP256K1(sig) => sig.hash(state),
+            Self::MLDSA65(sig) => sig.hash(state),
         };
     }
 }
@@ -50,6 +52,7 @@ impl Signature {
             KeyType::SECP256K1 => Ok(Self::SECP256K1(Secp256K1Signature::try_from(
                 signature_data,
             )?)),
+            KeyType::MLDSA65 => Ok(Self::MLDSA65(MlDsa65Signature::try_from(signature_data)?)),
         }
     }
 
@@ -89,6 +92,29 @@ impl Signature {
                 };
                 SECP256K1.verify_ecdsa(&message, &sig, &pub_key).is_ok()
             }
+            (Self::MLDSA65(signature), PublicKey::MLDSA65(public_key)) => {
+                // `EncodedVerifyingKey`/`EncodedSignature` are fixed-size, so the conversions below
+                // can only fail on a length mismatch, which the boxed arrays rule out.
+                let Ok(encoded_key) =
+                    ml_dsa::EncodedVerifyingKey::<ml_dsa::MlDsa65>::try_from(&public_key.0[..])
+                else {
+                    return false;
+                };
+                let Ok(encoded_signature) =
+                    ml_dsa::EncodedSignature::<ml_dsa::MlDsa65>::try_from(&signature.0[..])
+                else {
+                    return false;
+                };
+                // Returns `None` for malformed signatures (e.g. an out-of-range `z` or hint).
+                let Some(signature) =
+                    ml_dsa::Signature::<ml_dsa::MlDsa65>::decode(&encoded_signature)
+                else {
+                    return false;
+                };
+                let verifying_key = ml_dsa::VerifyingKey::<ml_dsa::MlDsa65>::decode(&encoded_key);
+                // Pure ML-DSA with an empty context string, which is what NEAR nodes verify.
+                verifying_key.verify_with_context(data.0.as_ref(), &[], &signature)
+            }
             _ => false,
         }
     }
@@ -97,6 +123,7 @@ impl Signature {
         match self {
             Self::ED25519(_) => KeyType::ED25519,
             Self::SECP256K1(_) => KeyType::SECP256K1,
+            Self::MLDSA65(_) => KeyType::MLDSA65,
         }
     }
 }
@@ -111,6 +138,10 @@ impl BorshSerialize for Signature {
             Self::SECP256K1(signature) => {
                 BorshSerialize::serialize(&1u8, writer)?;
                 writer.write_all(&signature.0)?;
+            }
+            Self::MLDSA65(signature) => {
+                BorshSerialize::serialize(&2u8, writer)?;
+                writer.write_all(&*signature.0)?;
             }
         }
         Ok(())
@@ -138,6 +169,12 @@ impl BorshDeserialize for Signature {
                 let array: [u8; 65] = BorshDeserialize::deserialize_reader(rd)?;
                 Ok(Self::SECP256K1(Secp256K1Signature(array)))
             }
+            KeyType::MLDSA65 => {
+                // Read straight into the heap allocation to avoid a large stack temporary.
+                let mut signature = Box::new([0u8; ML_DSA_65_SIGNATURE_LENGTH]);
+                rd.read_exact(&mut *signature)?;
+                Ok(Self::MLDSA65(MlDsa65Signature(signature)))
+            }
         }
     }
 }
@@ -151,6 +188,7 @@ impl Display for Signature {
                 (KeyType::ED25519, &buf[..])
             }
             Self::SECP256K1(signature) => (KeyType::SECP256K1, &signature.0[..]),
+            Self::MLDSA65(signature) => (KeyType::MLDSA65, &signature.0[..]),
         };
         write!(f, "{}:{}", key_type, bs58::encode(key_data).into_string())
     }
@@ -189,6 +227,12 @@ impl FromStr for Signature {
                 Self::ED25519(sig)
             }
             KeyType::SECP256K1 => Self::SECP256K1(Secp256K1Signature(
+                bs58::decode(sig_data)
+                    .into_vec()
+                    .map_err(DataConversionError::from)?
+                    .try_into()?,
+            )),
+            KeyType::MLDSA65 => Self::MLDSA65(MlDsa65Signature(
                 bs58::decode(sig_data)
                     .into_vec()
                     .map_err(DataConversionError::from)?
@@ -278,5 +322,29 @@ impl TryFrom<&[u8]> for Secp256K1Signature {
 impl Debug for Secp256K1Signature {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         Display::fmt(&bs58::encode(&self.0).into_string(), f)
+    }
+}
+
+/// FIPS 204 ML-DSA-65 signature.
+///
+/// The signature bytes are heap-allocated so that the `Signature` enum stays small for the
+/// classical curves.
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct MlDsa65Signature(pub Box<[u8; ML_DSA_65_SIGNATURE_LENGTH]>);
+
+impl TryFrom<&[u8]> for MlDsa65Signature {
+    type Error = DataConversionError;
+
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
+        let signature: [u8; ML_DSA_65_SIGNATURE_LENGTH] = data
+            .try_into()
+            .map_err(|_| Self::Error::IncorrectLength(data.len()))?;
+        Ok(Self(Box::new(signature)))
+    }
+}
+
+impl Debug for MlDsa65Signature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        Display::fmt(&bs58::encode(&self.0[..]).into_string(), f)
     }
 }

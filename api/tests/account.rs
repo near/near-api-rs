@@ -1,7 +1,10 @@
 use near_api::{
     Account, NetworkConfig, Signer, Tokens,
     signer::generate_secret_key,
-    types::{AccessKeyPermission, AccountId, NearToken, TxExecutionStatus},
+    types::{
+        AccessKeyPermission, AccountId, NearToken, TxExecutionStatus,
+        crypto::secret_key::{MlDsa65SecretKey, SecretKey},
+    },
 };
 use near_sandbox::{
     GenesisAccount, SandboxConfig,
@@ -113,7 +116,7 @@ async fn access_key_management() -> TestResult {
     let public_key = secret.public_key();
 
     alice_acc
-        .add_key(AccessKeyPermission::FullAccess, public_key)
+        .add_key(AccessKeyPermission::FullAccess, public_key.clone())
         .with_signer(signer.clone())
         .send_to(&network)
         .await?
@@ -179,6 +182,70 @@ async fn access_key_management() -> TestResult {
 
     let keys = alice_acc.list_keys().fetch_from(&network).await?;
     assert_eq!(keys.data.len(), 0);
+
+    Ok(())
+}
+
+/// ML-DSA-65 (post-quantum) keys end to end against a real node: register the key, look it up,
+/// sign and send a transaction with it, then remove it.
+#[tokio::test]
+async fn ml_dsa_65_access_key_and_transfer() -> TestResult {
+    let alice: AccountId = DEFAULT_GENESIS_ACCOUNT.into();
+    let bob = GenesisAccount::generate_with_name("bob".parse()?);
+    let sandbox = near_sandbox::Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: vec![bob.clone()],
+        ..Default::default()
+    })
+    .await?;
+    let network: NetworkConfig = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+
+    let ed25519_signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let ml_dsa_secret_key = SecretKey::MLDSA65(MlDsa65SecretKey::from_seed(&[5; 32]));
+    let ml_dsa_public_key = ml_dsa_secret_key.public_key();
+    let ml_dsa_signer = Signer::from_secret_key(ml_dsa_secret_key)?;
+
+    // The classical key registers the ML-DSA-65 key (the `AddKey` action carries the full key).
+    Account(alice.clone())
+        .add_key(AccessKeyPermission::FullAccess, ml_dsa_public_key.clone())
+        .with_signer(ed25519_signer.clone())
+        .send_to(&network)
+        .await?
+        .assert_success();
+
+    // Nodes accept the full key for a single-key lookup (they store only its hash).
+    let key_info = Account(alice.clone())
+        .access_key(ml_dsa_public_key.clone())
+        .fetch_from(&network)
+        .await?;
+    assert_eq!(key_info.data.permission, AccessKeyPermission::FullAccess);
+
+    // A transaction signed by the ML-DSA-65 key is accepted and executed by the node.
+    Tokens::account(alice.clone())
+        .send_to(bob.account_id.clone())
+        .near(NearToken::from_near(5))
+        .with_signer(ml_dsa_signer)
+        .send_to(&network)
+        .await?
+        .assert_success();
+
+    let bob_balance = Tokens::account(bob.account_id.clone())
+        .near_balance()
+        .fetch_from(&network)
+        .await?;
+    assert_eq!(bob_balance.total.as_near(), 10005);
+
+    // The key can be removed again.
+    Account(alice.clone())
+        .delete_key(ml_dsa_public_key.clone())
+        .with_signer(ed25519_signer)
+        .send_to(&network)
+        .await?
+        .assert_success();
+    Account(alice)
+        .access_key(ml_dsa_public_key)
+        .fetch_from(&network)
+        .await
+        .expect_err("Shouldn't exist");
 
     Ok(())
 }
